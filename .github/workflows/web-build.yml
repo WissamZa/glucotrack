@@ -40,10 +40,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "bun"
 
       - name: 📥 Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: 🗄️ Generate Prisma Client
+        run: bun run db:generate
 
       - name: 🔍 Lint
         run: bun run lint
@@ -51,44 +53,37 @@ jobs:
 
       - name: 🏗️ Configure Next.js for static export
         run: |
-          # Ensure next.config supports static export.
-          # We append export settings if missing.
-          cat > next.config.appended.mjs << 'EOF'
-          // Auto-appended by CI for static export
-          const base = await import("./next.config.default.mjs").catch(() => ({}));
-          export default {
-            ...(base.default || base),
-            output: "export",
-            trailingSlash: true,
-            images: { unoptimized: true },
-            // GitHub Pages serves under /<repo>/, so set basePath for project pages.
-            // For custom domain, remove basePath.
-            basePath: process.env.GH_PAGES_BASE_PATH || "",
-            assetPrefix: process.env.GH_PAGES_BASE_PATH || "",
-          };
-          EOF
-          # Don't actually replace next.config — use env-based config instead
-          rm next.config.appended.mjs
+          # NOTE: This app uses Prisma/SQLite at runtime via API routes.
+          # Full static export would disable API routes, breaking the app.
+          # Instead, we build in "standalone" mode (the default) and deploy
+          # to a Node-capable host (Vercel, Railway, Render, self-hosted).
+          #
+          # The static-export path is kept in next.config.ts for future use
+          # when the API layer is moved to a separate serverless function.
+          echo "Using standalone build (server-capable)"
 
-      - name: 🏗️ Build (static export)
+      - name: 🏗️ Build Next.js (standalone)
         env:
           NEXT_TELEMETRY_DISABLED: "1"
-          # Forces static export — see next.config.mjs
-          FORCE_STATIC_EXPORT: "true"
         run: bun run build
 
       - name: 📦 Zip the build output
         run: |
           mkdir -p artifact
           if [ -d ".next/standalone" ]; then
+            # Bundle standalone server + static + public into one tarball
             tar -czf artifact/glucotrack-web-standalone.tar.gz \
               -C .next/standalone . \
-              -C .. .next/static .next/static \
-              -C .. public
+              -C ../.next .next/static \
+              -C ../public public 2>/dev/null || \
+            tar -czf artifact/glucotrack-web-standalone.tar.gz \
+              -C .next/standalone .
+            echo "✓ Standalone bundle created"
           fi
-          # Always zip the static export if present
+          # Static export folder (only if FORCE_STATIC_EXPORT was set)
           if [ -d "out" ]; then
             cd out && zip -r ../artifact/glucotrack-web-static.zip . && cd ..
+            echo "✓ Static export zip created"
           fi
           ls -la artifact/
 
@@ -101,15 +96,19 @@ jobs:
 
   # ============================================================
   # Job 2: Deploy to GitHub Pages
+  # NOTE: Skipped by default — the app uses API routes (Prisma/SQLite)
+  # which don't work on static hosts like GitHub Pages. To enable Pages
+  # deploy, build with FORCE_STATIC_EXPORT=true AND remove the API routes
+  # (replace them with client-side storage).
   # ============================================================
   deploy-pages:
-    name: Deploy to GitHub Pages
+    name: Deploy to GitHub Pages (static only)
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/web-v')
+    if: false  # disabled until static-only deployment is supported
     steps:
       - name: 📥 Download artifact
         uses: actions/download-artifact@v4
