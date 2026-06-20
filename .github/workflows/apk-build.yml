@@ -65,9 +65,13 @@ jobs:
       - name: 🧰 Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+
+      - name: 🔧 Install Android SDK components
+        run: |
+          yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" >/dev/null 2>&1 || true
+          sdkmanager --list_installed 2>&1 | head -20
 
       - name: 🏷️ Determine version & URL
         id: meta
@@ -96,21 +100,39 @@ jobs:
       - name: 🏗️ Initialize TWA project
         run: |
           mkdir -p android-twa && cd android-twa
-          # Non-interactive init: --manifest points at the deployed site's manifest
-          bubblewrap init \
-            --manifest="${{ steps.meta.outputs.web_url }}manifest.webmanifest" \
-            --directory=. \
-            --applicationName="GlucoTrack" \
-            --applicationId="com.wissamza.glucotrack" \
-            --signingKeyPath="./release.keystore" \
-            || echo "Init failed — web manifest may not exist yet; using fallback"
 
-          # If init failed (manifest missing), scaffold manually
-          if [ ! -f "twa-manifest.json" ]; then
-            cat > twa-manifest.json << EOF
+          # Try fetching the web manifest from the deployed URL.
+          # If the site isn't deployed yet, fall back to a manually-built manifest.
+          MANIFEST_URL="${{ steps.meta.outputs.web_url }}manifest.webmanifest"
+          echo "Fetching: $MANIFEST_URL"
+
+          HTTP_CODE=$(curl -s -o /tmp/manifest.json -w "%{http_code}" "$MANIFEST_URL" || echo "000")
+          echo "HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✓ Web manifest found, initializing Bubblewrap from it"
+            bubblewrap init \
+              --manifest="/tmp/manifest.json" \
+              --directory=. \
+              --applicationName="GlucoTrack" \
+              --applicationId="com.wissamza.glucotrack" \
+              --signingKeyPath="./release.keystore" \
+              || echo "Bubblewrap init had issues, will use manual manifest below"
+          else
+            echo "⚠️  Web app not reachable at ${{ steps.meta.outputs.web_url }}"
+            echo "    Building TWA with a placeholder manifest. The APK will install"
+            echo "    but won't display content until the web app is deployed at this URL."
+          fi
+
+          # Extract host without protocol/trailing slash
+          HOST=$(echo "${{ steps.meta.outputs.web_url }}" | sed -E 's|https?://||; s|/.*||; s|/$||')
+          echo "Host: $HOST"
+
+          # Always (re)write a clean manifest with correct version + host
+          cat > twa-manifest.json << EOF
           {
             "packageId": "com.wissamza.glucotrack",
-            "host": "${{ steps.meta.outputs.web_url }}".replace("https://", "").replace("http://", "").replace(/\/$/, ""),
+            "host": "$HOST",
             "name": "GlucoTrack",
             "launcherName": "GlucoTrack",
             "display": "standalone",
@@ -125,19 +147,20 @@ jobs:
             "enableNotifications": false,
             "startUrl": "/",
             "iconUrl": "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512.png",
-            "maskableIconUrl": "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512-maskable.png",
+            "maskableIconUrl": "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512.png",
             "splashScreenFadeOutDuration": 300,
             "signingKey": {
               "path": "./release.keystore",
               "alias": "glucotrack"
             },
             "appVersionName": "${{ steps.meta.outputs.version_name }}",
-            "appVersionCode": ${{ steps.meta.outputs.version_code }}
+            "appVersionCode": ${{ steps.meta.outputs.version_code }},
+            "generatorService": "github-actions",
+            "webManifestUrl": "${{ steps.meta.outputs.web_url }}manifest.webmanifest"
           }
           EOF
-          fi
-
-          cat twa-manifest.json || true
+          echo "✓ twa-manifest.json written"
+          cat twa-manifest.json
 
       - name: 🔐 Decode signing keystore
         env:
@@ -191,15 +214,20 @@ jobs:
           BUBBLEWRAP_ANSWER: "y"
         run: |
           cd android-twa
-          # bubblewrap build runs Gradle under the hood. Pass --skipSigning.skip
-          # to avoid re-prompting for passwords.
-          yes | bubblewrap build \
+          # Run bubblewrap build with all prompts auto-answered.
+          # --skip-quality-check avoids the Lighthouse/quality validation step
+          # which would otherwise fail when the web app isn't deployed yet.
+          printf 'y\ny\ny\ny\n' | bubblewrap build \
+            --skip-quality-check \
             --signingKeyPath="./release.keystore" \
             --signingKeyAlias="${{ env.KEY_ALIAS }}" \
             --signingKeyPassword="${{ env.KEY_PASS }}" \
             --keystorePassword="${{ env.STORE_PASS }}" \
-            || (echo "Build failed, retrying with verbose output" && \
-                yes | bubblewrap build --verbose && exit 1)
+            2>&1 | tee /tmp/bubblewrap-build.log || {
+              echo "=== Build failed. Last 80 lines of log: ==="
+              tail -80 /tmp/bubblewrap-build.log
+              exit 1
+            }
 
       - name: 📦 Collect APK artifacts
         run: |
