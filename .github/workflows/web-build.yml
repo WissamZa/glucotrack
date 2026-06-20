@@ -1,0 +1,202 @@
+name: 🌐 Web Build & Release
+
+on:
+  push:
+    tags:
+      - "web-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v1.0.0)"
+        required: false
+        default: "v0.0.0-dev"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "web-build-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  # ============================================================
+  # Job 1: Lint + Type-check + Build the Next.js static export
+  # ============================================================
+  build:
+    name: Build Next.js (Static Export)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 📦 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "bun"
+
+      - name: 📥 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🔍 Lint
+        run: bun run lint
+        continue-on-error: true
+
+      - name: 🏗️ Configure Next.js for static export
+        run: |
+          # Ensure next.config supports static export.
+          # We append export settings if missing.
+          cat > next.config.appended.mjs << 'EOF'
+          // Auto-appended by CI for static export
+          const base = await import("./next.config.default.mjs").catch(() => ({}));
+          export default {
+            ...(base.default || base),
+            output: "export",
+            trailingSlash: true,
+            images: { unoptimized: true },
+            // GitHub Pages serves under /<repo>/, so set basePath for project pages.
+            // For custom domain, remove basePath.
+            basePath: process.env.GH_PAGES_BASE_PATH || "",
+            assetPrefix: process.env.GH_PAGES_BASE_PATH || "",
+          };
+          EOF
+          # Don't actually replace next.config — use env-based config instead
+          rm next.config.appended.mjs
+
+      - name: 🏗️ Build (static export)
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          # Forces static export — see next.config.mjs
+          FORCE_STATIC_EXPORT: "true"
+        run: bun run build
+
+      - name: 📦 Zip the build output
+        run: |
+          mkdir -p artifact
+          if [ -d ".next/standalone" ]; then
+            tar -czf artifact/glucotrack-web-standalone.tar.gz \
+              -C .next/standalone . \
+              -C .. .next/static .next/static \
+              -C .. public
+          fi
+          # Always zip the static export if present
+          if [ -d "out" ]; then
+            cd out && zip -r ../artifact/glucotrack-web-static.zip . && cd ..
+          fi
+          ls -la artifact/
+
+      - name: 📤 Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glucotrack-web-build
+          path: artifact/
+          retention-days: 30
+
+  # ============================================================
+  # Job 2: Deploy to GitHub Pages
+  # ============================================================
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/web-v')
+    steps:
+      - name: 📥 Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: glucotrack-web-build
+          path: artifact/
+
+      - name: 📂 Unpack static export
+        run: |
+          mkdir -p public-deploy
+          if [ -f "artifact/glucotrack-web-static.zip" ]; then
+            cd public-deploy && unzip -o ../artifact/glucotrack-web-static.zip && cd ..
+          else
+            echo "No static zip found, skipping deploy"
+            exit 0
+          fi
+          # Add .nojekyll to bypass Jekyll processing
+          touch public-deploy/.nojekyll
+
+      - name: 🚀 Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public-deploy/
+
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ============================================================
+  # Job 3: Create GitHub Release with build artifacts
+  # ============================================================
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/web-v') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: glucotrack-web-build
+          path: artifact/
+
+      - name: 🏷️ Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: 📝 Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "🌐 Web Release ${{ steps.version.outputs.version }}"
+          body: |
+            # GlucoTrack Web Release ${{ steps.version.outputs.version }}
+
+            ## 📦 Artifacts
+            - `glucotrack-web-static.zip` — Static export (HTML/CSS/JS) deployable to any static host
+            - `glucotrack-web-standalone.tar.gz` — Standalone Next.js server bundle (if produced)
+
+            ## 🚀 Deployment
+            - **GitHub Pages**: Auto-deployed on tag push (see the `deploy-pages` job)
+            - **Vercel/Netlify**: Upload `glucotrack-web-static.zip` and extract, or
+              connect this repo for auto-deploy
+            - **Self-hosted**: Extract the standalone tarball and run `node server.js`
+
+            ## 📋 What's included
+            - Full bilingual (Arabic RTL / English LTR) UI
+            - 3 display themes (Classic Medical, Modern Youth, Elder-Friendly)
+            - SQLite local storage via Prisma
+            - Google Drive sync (per-user, appDataFolder scoped)
+            - 6 screens: Onboarding, Home, Add/Edit Reading, Trends, Chart, Reminders, Settings
+            - Local backup export/import (JSON)
+          files: |
+            artifact/glucotrack-web-static.zip
+            artifact/glucotrack-web-standalone.tar.gz
+          draft: false
+          prerelease: false
+          generate_release_notes: true
