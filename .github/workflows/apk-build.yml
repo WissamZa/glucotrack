@@ -212,28 +212,33 @@ jobs:
       - name: 🏗️ Build the APK
         env:
           BUBBLEWRAP_ANSWER: "y"
+          JAVA_HOME_PATH: ${{ env.JAVA_HOME }}
         run: |
           cd android-twa
-          # Pre-answer all interactive prompts (JDK install? no, SDK install? no, etc.)
-          # We use the CI-provided JDK 17 and Android SDK, so skip Bubblewrap's own install.
-          # --skip-quality-check avoids Lighthouse validation (would fail without deployed site)
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+
+          # Pre-answer all interactive Bubblewrap prompts.
+          # Bubblewrap asks in order:
+          #   1. "Install JDK via Bubblewrap?" → No (we have JDK 17 from setup-java)
+          #   2. "Path to your existing JDK 17:" → $JAVA_HOME
+          #   3. "Install Android SDK via Bubblewrap?" → No (we have it from setup-android)
+          #   4. "Path to your existing Android SDK:" → $ANDROID_HOME
+          #   5+. any additional prompts (y for everything else)
           #
-          # Answers in order:
-          #   1. "No" to "Install JDK via Bubblewrap" (we have JDK 17 from setup-java)
-          #   2. "No" to "Install Android SDK via Bubblewrap" (we have it from setup-android)
-          #   3+. any additional prompts
-          printf 'n\nn\ny\ny\ny\n' | bubblewrap build \
-            --skip-quality-check \
-            --signingKeyPath="./release.keystore" \
-            --signingKeyAlias="${{ env.KEY_ALIAS }}" \
-            --signingKeyPassword="${{ env.KEY_PASS }}" \
-            --keystorePassword="${{ env.STORE_PASS }}" \
-            2>&1 | tee /tmp/bubblewrap-build.log || {
-              echo "=== Build failed. Last 80 lines of log: ==="
-              tail -80 /tmp/bubblewrap-build.log
-              # Don't fail the job — we still want to create a release placeholder
-              echo "⚠️  APK build failed, but continuing to create a placeholder release"
-            }
+          # We feed all answers at once; Bubblewrap consumes them in order.
+          printf 'n\n%s\nn\n%s\ny\ny\ny\ny\n' "$JAVA_HOME" "$ANDROID_HOME" | \
+            bubblewrap build \
+              --skip-quality-check \
+              --signingKeyPath="./release.keystore" \
+              --signingKeyAlias="${{ env.KEY_ALIAS }}" \
+              --signingKeyPassword="${{ env.KEY_PASS }}" \
+              --keystorePassword="${{ env.STORE_PASS }}" \
+              2>&1 | tee /tmp/bubblewrap-build.log || {
+                echo "=== Build failed. Last 80 lines of log: ==="
+                tail -80 /tmp/bubblewrap-build.log
+                echo "⚠️  APK build failed, but continuing to create a placeholder release"
+              }
 
           # Check if APK was produced
           echo "=== Searching for APK files ==="
