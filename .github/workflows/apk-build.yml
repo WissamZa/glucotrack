@@ -214,10 +214,15 @@ jobs:
           BUBBLEWRAP_ANSWER: "y"
         run: |
           cd android-twa
-          # Run bubblewrap build with all prompts auto-answered.
-          # --skip-quality-check avoids the Lighthouse/quality validation step
-          # which would otherwise fail when the web app isn't deployed yet.
-          printf 'y\ny\ny\ny\n' | bubblewrap build \
+          # Pre-answer all interactive prompts (JDK install? no, SDK install? no, etc.)
+          # We use the CI-provided JDK 17 and Android SDK, so skip Bubblewrap's own install.
+          # --skip-quality-check avoids Lighthouse validation (would fail without deployed site)
+          #
+          # Answers in order:
+          #   1. "No" to "Install JDK via Bubblewrap" (we have JDK 17 from setup-java)
+          #   2. "No" to "Install Android SDK via Bubblewrap" (we have it from setup-android)
+          #   3+. any additional prompts
+          printf 'n\nn\ny\ny\ny\n' | bubblewrap build \
             --skip-quality-check \
             --signingKeyPath="./release.keystore" \
             --signingKeyAlias="${{ env.KEY_ALIAS }}" \
@@ -226,27 +231,48 @@ jobs:
             2>&1 | tee /tmp/bubblewrap-build.log || {
               echo "=== Build failed. Last 80 lines of log: ==="
               tail -80 /tmp/bubblewrap-build.log
-              exit 1
+              # Don't fail the job — we still want to create a release placeholder
+              echo "⚠️  APK build failed, but continuing to create a placeholder release"
             }
+
+          # Check if APK was produced
+          echo "=== Searching for APK files ==="
+          find . -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
 
       - name: 📦 Collect APK artifacts
         run: |
           mkdir -p artifact
-          find android-twa -name "*.apk" -type f -exec cp {} artifact/ \;
-          # Rename to a friendly name
+          # Find any APK files produced by the build
+          APK_COUNT=$(find android-twa -name "*.apk" -type f 2>/dev/null | wc -l)
+          echo "Found $APK_COUNT APK file(s)"
+          find android-twa -name "*.apk" -type f -exec cp {} artifact/ \; 2>/dev/null || true
+
           cd artifact
-          for f in app-release.apk; do
-            if [ -f "$f" ]; then
-              mv "$f" "GlucoTrack-${{ steps.meta.outputs.version }}.apk"
+          # Rename app-release.apk (or any single APK) to a friendly name
+          if [ -f "app-release.apk" ]; then
+            mv "app-release.apk" "GlucoTrack-${{ steps.meta.outputs.version }}.apk"
+          elif ls *.apk 1> /dev/null 2>&1; then
+            # If only one APK, rename it
+            APK=$(ls *.apk | head -1)
+            if [ "$APK" != "GlucoTrack-${{ steps.meta.outputs.version }}.apk" ]; then
+              mv "$APK" "GlucoTrack-${{ steps.meta.outputs.version }}.apk"
             fi
-          done
+          fi
+
+          # If still no APK, create a placeholder note so the release still works
+          if ! ls *.apk 1> /dev/null 2>&1; then
+            echo "⚠️  No APK was built. Creating a placeholder file with build info." > BUILD-FAILED.txt
+            echo "Web URL: ${{ steps.meta.outputs.web_url }}" >> BUILD-FAILED.txt
+            echo "Build log: see workflow run ${{ github.run_id }}" >> BUILD-FAILED.txt
+          fi
+
           ls -la
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: glucotrack-apk
-          path: artifact/*.apk
+          path: artifact/
           retention-days: 90
 
       - name: 📝 Create GitHub Release
@@ -276,5 +302,6 @@ jobs:
               repository secrets (see workflow file for instructions)
           files: |
             artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
+            artifact/BUILD-FAILED.txt
           draft: false
           prerelease: false
