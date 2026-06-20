@@ -1,8 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma schema for GlucoTrack app — SQLite local storage
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +9,60 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+// ===== Readings =====
+model Reading {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
+  value     Int
+  type      String   // fasting | before_meal | after_meal | before_sleep | after_exercise | other
+  timestamp DateTime
+  notes     String?
+  carbs     Int?
+  insulin   Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([timestamp])
+  @@index([type])
+}
+
+// ===== Reminders =====
+model Reminder {
+  id        String   @id @default(cuid())
+  time      String   // "08:00"
+  label     String
+  type      String   // same enum as Reading.type
+  enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ===== Settings (singleton — id always = 1) =====
+model Settings {
+  id           Int     @id @default(1)
+  language     String  @default("ar")   // ar | en
+  theme        String  @default("classic") // classic | modern | elder
+  diabetesType String  @default("type2") // type1 | type2 | gestational
+  targetMin    Int     @default(80)
+  targetMax    Int     @default(180)
+  unit         String  @default("mg_dL") // mg_dL | mmol_L
+  userName     String  @default("")
+  onboarded    Boolean @default(false)
+}
+
+// ===== Sync State (singleton — id always = 1) =====
+// Tracks Google Drive connection + last sync info.
+// Access/refresh tokens are stored locally only (encrypted at app layer).
+model SyncState {
+  id             Int       @id @default(1)
+  provider       String    @default("")     // "" | "google_drive"
+  connected      Boolean   @default(false)
+  accountEmail   String?
+  accessToken    String?
+  refreshToken   String?
+  expiresAt      DateTime?
+  lastSyncAt     DateTime?
+  lastSyncStatus String?   // success | failed | in_progress
+  lastSyncError  String?
+  driveFileId    String?   // ID of the backup file in Drive
+  updatedAt      DateTime  @updatedAt
 }

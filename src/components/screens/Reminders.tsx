@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
+import {
+  useAddReminder,
+  useToggleReminder,
+  useDeleteReminder,
+} from "@/lib/api-hooks";
 import { themes } from "@/lib/themes";
 import { t, readingTypeLabel } from "@/lib/i18n";
 import type { ReadingType } from "@/lib/types";
@@ -27,9 +32,11 @@ const READING_TYPES: ReadingType[] = [
 ];
 
 export function Reminders() {
-  const { settings, reminders, toggleReminder, deleteReminder, addReminder } = useAppStore();
-  const theme = themes[settings.theme];
-  const lang = settings.language;
+  const settings = useAppStore((s) => s.settings);
+  const reminders = useAppStore((s) => s.reminders);
+  const addReminderMut = useAddReminder();
+  const toggleReminderMut = useToggleReminder();
+  const deleteReminderMut = useDeleteReminder();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -37,21 +44,33 @@ export function Reminders() {
   const [newType, setNewType] = useState<ReadingType>("fasting");
   const [newLabel, setNewLabel] = useState("");
 
+  if (!settings) return null;
+
+  const theme = themes[settings.theme];
+  const lang = settings.language;
+
   const handleAdd = () => {
-    addReminder({
-      time: newTime,
-      type: newType,
-      label: newLabel.trim() || readingTypeLabel(lang, newType),
-      enabled: true,
-    });
-    toast({ title: t(lang, "reminder_added") });
-    setDialogOpen(false);
-    setNewLabel("");
+    addReminderMut.mutate(
+      {
+        time: newTime,
+        type: newType,
+        label: newLabel.trim() || readingTypeLabel(lang, newType),
+        enabled: true,
+      },
+      {
+        onSuccess: () => {
+          toast({ title: t(lang, "reminder_added") });
+          setDialogOpen(false);
+          setNewLabel("");
+        },
+      },
+    );
   };
 
   const handleDelete = (id: string) => {
-    deleteReminder(id);
-    toast({ title: t(lang, "reminder_deleted") });
+    deleteReminderMut.mutate(id, {
+      onSuccess: () => toast({ title: t(lang, "reminder_deleted") }),
+    });
   };
 
   const sortedReminders = [...reminders].sort((a, b) => a.time.localeCompare(b.time));
@@ -118,7 +137,7 @@ export function Reminders() {
 
                   <Switch
                     checked={r.enabled}
-                    onCheckedChange={() => toggleReminder(r.id)}
+                    onCheckedChange={() => toggleReminderMut.mutate({ id: r.id, enabled: !r.enabled })}
                     aria-label={t(lang, "enable_reminder")}
                   />
                   <button

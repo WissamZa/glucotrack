@@ -8,7 +8,9 @@ import type { ScreenName } from "@/lib/types";
 import { motion } from "framer-motion";
 
 export function BottomNav() {
-  const { settings, activeScreen, setScreen } = useAppStore();
+  const settings = useAppStore((s) => s.settings)!;
+  const activeScreen = useAppStore((s) => s.activeScreen);
+  const setScreen = useAppStore((s) => s.setScreen);
   const theme = themes[settings.theme];
   const lang = settings.language;
 

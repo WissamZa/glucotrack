@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useAppStore } from "@/lib/store";
+import { useUpdateSettings } from "@/lib/api-hooks";
 import { t } from "@/lib/i18n";
 import { motion } from "framer-motion";
 import { Activity, Moon, Sun, HeartPulse, Check, Stethoscope } from "lucide-react";
 import type { Language, ThemeStyle, DiabetesType } from "@/lib/types";
 
 export function Onboarding() {
-  const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+  const updateSettings = useUpdateSettings();
   const [step, setStep] = useState(0);
   const [lang, setLang] = useState<Language>("ar");
   const [style, setStyle] = useState<ThemeStyle>("classic");
@@ -19,11 +19,12 @@ export function Onboarding() {
   const prev = () => setStep((s) => Math.max(0, s - 1));
 
   const finish = () => {
-    completeOnboarding({
+    updateSettings.mutate({
       language: lang,
       theme: style,
       userName: name.trim() || (lang === "ar" ? "صديقي" : "Friend"),
       diabetesType: dtype,
+      onboarded: true,
     });
   };
 

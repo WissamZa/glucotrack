@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
+import { useAddReading } from "@/lib/api-hooks";
 import { themes } from "@/lib/themes";
 import { t, readingTypeLabel } from "@/lib/i18n";
 import { getStatus } from "@/lib/types";
@@ -20,10 +21,15 @@ const READING_TYPES: ReadingType[] = [
 ];
 
 export function AddReading() {
-  const { settings, addReading, setScreen } = useAppStore();
-  const theme = themes[settings.theme];
-  const lang = settings.language;
+  const settings = useAppStore((s) => s.settings);
+  const setScreen = useAppStore((s) => s.setScreen);
+  const addReading = useAddReading();
   const { toast } = useToast();
+
+  const theme = themes[settings?.theme ?? "classic"];
+  const lang = settings?.language ?? "ar";
+  const targetMin = settings?.targetMin ?? 80;
+  const targetMax = settings?.targetMax ?? 180;
 
   const [value, setValue] = useState("");
   const [type, setType] = useState<ReadingType>(() => {
@@ -47,7 +53,7 @@ export function AddReading() {
 
   const numericValue = parseInt(value, 10);
   const isValid = !isNaN(numericValue) && numericValue >= 20 && numericValue <= 600;
-  const status = isValid ? getStatus(numericValue, settings.targetMin, settings.targetMax) : null;
+  const status = isValid ? getStatus(numericValue, targetMin, targetMax) : null;
 
   const adjust = (delta: number) => {
     const cur = parseInt(value || "0", 10);
@@ -64,20 +70,25 @@ export function AddReading() {
       return;
     }
 
-    addReading({
-      value: numericValue,
-      type,
-      timestamp: new Date(timestamp).getTime(),
-      notes: notes.trim() || undefined,
-      carbs: carbs ? parseInt(carbs, 10) : undefined,
-      insulin: insulin ? parseInt(insulin, 10) : undefined,
-    });
-
-    toast({
-      title: t(lang, "saved_success"),
-    });
-
-    setScreen("home");
+    addReading.mutate(
+      {
+        value: numericValue,
+        type,
+        timestamp: new Date(timestamp).getTime(),
+        notes: notes.trim() || undefined,
+        carbs: carbs ? parseInt(carbs, 10) : undefined,
+        insulin: insulin ? parseInt(insulin, 10) : undefined,
+      },
+      {
+        onSuccess: () => {
+          toast({ title: t(lang, "saved_success") });
+          setScreen("home");
+        },
+        onError: () => {
+          toast({ title: t(lang, "invalid_value"), variant: "destructive" });
+        },
+      },
+    );
   };
 
   return (

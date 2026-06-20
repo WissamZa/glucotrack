@@ -22,10 +22,14 @@ import { motion } from "framer-motion";
 type Period = "today" | "week" | "month";
 
 export function Trends() {
-  const { settings, readings } = useAppStore();
-  const theme = themes[settings.theme];
-  const lang = settings.language;
+  const settings = useAppStore((s) => s.settings);
+  const readings = useAppStore((s) => s.readings);
   const [period, setPeriod] = useState<Period>("week");
+
+  const theme = themes[settings?.theme ?? "classic"];
+  const lang = settings?.language ?? "ar";
+  const targetMin = settings?.targetMin ?? 80;
+  const targetMax = settings?.targetMax ?? 180;
 
   // فلترة البيانات حسب الفترة
   const filtered = useMemo(() => {
@@ -51,9 +55,9 @@ export function Trends() {
       }),
       value: r.value,
       type: r.type,
-      status: getStatus(r.value, settings.targetMin, settings.targetMax),
+      status: getStatus(r.value, targetMin, targetMax),
     }));
-  }, [filtered, lang, period, settings.targetMin, settings.targetMax]);
+  }, [filtered, lang, period, targetMin, targetMax]);
 
   // إحصائيات
   const stats = useMemo(() => {
@@ -62,7 +66,7 @@ export function Trends() {
     }
     const values = filtered.map((r) => r.value);
     const inRange = filtered.filter(
-      (r) => getStatus(r.value, settings.targetMin, settings.targetMax) === "in_range",
+      (r) => getStatus(r.value, targetMin, targetMax) === "in_range",
     ).length;
     return {
       avg: Math.round(values.reduce((s, v) => s + v, 0) / values.length),
@@ -71,7 +75,7 @@ export function Trends() {
       inRange: Math.round((inRange / filtered.length) * 100),
       count: filtered.length,
     };
-  }, [filtered, settings.targetMin, settings.targetMax]);
+  }, [filtered, targetMin, targetMax]);
 
   // توزيع حسب النوع
   const byType = useMemo(() => {
@@ -134,45 +138,45 @@ export function Trends() {
               <div className="h-56" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor(settings.theme)} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor(settings?.theme ?? "classic")} />
                     <XAxis
                       dataKey="time"
-                      tick={{ fontSize: 10, fill: chartTextColor(settings.theme) }}
+                      tick={{ fontSize: 10, fill: chartTextColor(settings?.theme ?? "classic") }}
                       tickLine={false}
                       axisLine={false}
                       interval="preserveStartEnd"
                     />
                     <YAxis
                       domain={[40, 300]}
-                      tick={{ fontSize: 10, fill: chartTextColor(settings.theme) }}
+                      tick={{ fontSize: 10, fill: chartTextColor(settings?.theme ?? "classic") }}
                       tickLine={false}
                       axisLine={false}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: settings.theme === "modern" ? "rgba(15,23,42,0.95)" : "#fff",
-                        border: `1px solid ${chartGridColor(settings.theme)}`,
+                        background: settings?.theme === "modern" ? "rgba(15,23,42,0.95)" : "#fff",
+                        border: `1px solid ${chartGridColor(settings?.theme ?? "classic")}`,
                         borderRadius: 12,
                         fontSize: 12,
-                        color: settings.theme === "modern" ? "#fff" : "#0f172a",
+                        color: settings?.theme === "modern" ? "#fff" : "#0f172a",
                       }}
-                      labelStyle={{ color: chartTextColor(settings.theme) }}
+                      labelStyle={{ color: chartTextColor(settings?.theme ?? "classic") }}
                       formatter={(value: number) => [`${value} mg/dL`, t(lang, "glucose_value")]}
                     />
                     <ReferenceArea
-                      y1={settings.targetMin}
-                      y2={settings.targetMax}
+                      y1={targetMin}
+                      y2={targetMax}
                       fill="#10b981"
                       fillOpacity={0.1}
                     />
                     <Line
                       type="monotone"
                       dataKey="value"
-                      stroke={chartLineColor(settings.theme)}
+                      stroke={chartLineColor(settings?.theme ?? "classic")}
                       strokeWidth={2.5}
-                      dot={{ r: 3, fill: chartLineColor(settings.theme) }}
+                      dot={{ r: 3, fill: chartLineColor(settings?.theme ?? "classic") }}
                       activeDot={{ r: 5 }}
-                      fill={chartFillColor(settings.theme)}
+                      fill={chartFillColor(settings?.theme ?? "classic")}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -180,7 +184,7 @@ export function Trends() {
               <div className={`flex items-center gap-2 mt-2 ${theme.fontSizeSm} ${theme.textMuted}`}>
                 <div className="h-2 w-3 bg-emerald-500/30 rounded" />
                 <span>
-                  {t(lang, "stat_in_range")}: {settings.targetMin}-{settings.targetMax} mg/dL
+                  {t(lang, "stat_in_range")}: {targetMin}-{targetMax} mg/dL
                 </span>
               </div>
             </div>
@@ -226,7 +230,7 @@ export function Trends() {
                   .slice()
                   .reverse()
                   .map((r) => {
-                    const status = getStatus(r.value, settings.targetMin, settings.targetMax);
+                    const status = getStatus(r.value, targetMin, targetMax);
                     return (
                       <div
                         key={r.id}
@@ -270,7 +274,7 @@ function StatBox({
   label: string;
   color: string;
 }) {
-  const { settings } = useAppStore();
+  const settings = useAppStore((s) => s.settings)!;
   const theme = themes[settings.theme];
   return (
     <div className={`${theme.surface} ${theme.border} border ${theme.radius} p-2.5 flex flex-col items-center text-center`}>

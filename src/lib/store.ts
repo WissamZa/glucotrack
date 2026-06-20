@@ -1,114 +1,86 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import type {
-  Reading,
-  Reminder,
-  Settings,
-  ScreenName,
-  Language,
-  ThemeStyle,
-} from "./types";
-import { defaultSettings, seedReadings, seedReminders } from "./seed";
+import type { Reading, Reminder, Settings, ScreenName } from "./types";
+
+/**
+ * App UI state store.
+ * - Holds ONLY UI/navigation state + cached data shown to the user.
+ * - All data is fetched from the SQLite-backed API via TanStack Query.
+ * - Data actions live in `useDataActions()` (below) so components can
+ *   mutate the DB and let React Query refetch.
+ */
 
 interface AppState {
-  // Onboarding
-  onboarded: boolean;
   // Navigation
   activeScreen: ScreenName;
-  // Data
+  setScreen: (s: ScreenName) => void;
+
+  // Onboarding flag (mirrors settings.onboarded but kept here for fast access)
+  onboarded: boolean;
+  setOnboarded: (v: boolean) => void;
+
+  // Cached data (hydrated by React Query on mount)
+  settings: Settings | null;
   readings: Reading[];
   reminders: Reminder[];
-  settings: Settings;
-  // Actions
-  setScreen: (s: ScreenName) => void;
-  completeOnboarding: (s: Partial<Settings>) => void;
-  addReading: (r: Omit<Reading, "id">) => void;
-  deleteReading: (id: string) => void;
-  addReminder: (r: Omit<Reminder, "id">) => void;
-  toggleReminder: (id: string) => void;
-  deleteReminder: (id: string) => void;
-  updateSettings: (s: Partial<Settings>) => void;
-  setLanguage: (l: Language) => void;
-  setTheme: (t: ThemeStyle) => void;
-  resetAll: () => void;
+
+  // Setters (called by React Query observers)
+  setSettings: (s: Settings | null) => void;
+  setReadings: (r: Reading[]) => void;
+  setReminders: (r: Reminder[]) => void;
+
+  // Convenience upsert helpers (used by mutations to update cache)
+  upsertReading: (r: Reading) => void;
+  removeReading: (id: string) => void;
+  upsertReminder: (r: Reminder) => void;
+  removeReminder: (id: string) => void;
 }
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set) => ({
-      onboarded: false,
-      activeScreen: "onboarding",
-      readings: seedReadings,
-      reminders: seedReminders,
-      settings: defaultSettings,
+export const useAppStore = create<AppState>()((set) => ({
+  activeScreen: "onboarding",
+  setScreen: (s) => set({ activeScreen: s }),
 
-      setScreen: (s) => set({ activeScreen: s }),
+  onboarded: false,
+  setOnboarded: (v) => set({ onboarded: v }),
 
-      completeOnboarding: (s) =>
-        set((state) => ({
-          onboarded: true,
-          activeScreen: "home",
-          settings: { ...state.settings, ...s },
-        })),
+  settings: null,
+  readings: [],
+  reminders: [],
 
-      addReading: (r) =>
-        set((state) => ({
-          readings: [
-            { ...r, id: `r-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` },
-            ...state.readings,
-          ].sort((a, b) => b.timestamp - a.timestamp),
-        })),
+  setSettings: (s) => set({ settings: s }),
+  setReadings: (r) => set({ readings: r }),
+  setReminders: (r) => set({ reminders: r }),
 
-      deleteReading: (id) =>
-        set((state) => ({
-          readings: state.readings.filter((r) => r.id !== id),
-        })),
-
-      addReminder: (r) =>
-        set((state) => ({
-          reminders: [
-            ...state.reminders,
-            { ...r, id: `rem-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` },
-          ],
-        })),
-
-      toggleReminder: (id) =>
-        set((state) => ({
-          reminders: state.reminders.map((r) =>
-            r.id === id ? { ...r, enabled: !r.enabled } : r,
-          ),
-        })),
-
-      deleteReminder: (id) =>
-        set((state) => ({
-          reminders: state.reminders.filter((r) => r.id !== id),
-        })),
-
-      updateSettings: (s) =>
-        set((state) => ({
-          settings: { ...state.settings, ...s },
-        })),
-
-      setLanguage: (l) =>
-        set((state) => ({ settings: { ...state.settings, language: l } })),
-
-      setTheme: (t) =>
-        set((state) => ({ settings: { ...state.settings, theme: t } })),
-
-      resetAll: () =>
-        set({
-          onboarded: false,
-          activeScreen: "onboarding",
-          readings: seedReadings,
-          reminders: seedReminders,
-          settings: defaultSettings,
-        }),
+  upsertReading: (r) =>
+    set((state) => {
+      const exists = state.readings.some((x) => x.id === r.id);
+      const next = exists
+        ? state.readings.map((x) => (x.id === r.id ? r : x))
+        : [r, ...state.readings];
+      return {
+        readings: next.sort((a, b) => b.timestamp - a.timestamp),
+      };
     }),
-    {
-      name: "glucotrack-prototype",
-      storage: createJSONStorage(() => localStorage),
-    },
-  ),
-);
+
+  removeReading: (id) =>
+    set((state) => ({
+      readings: state.readings.filter((r) => r.id !== id),
+    })),
+
+  upsertReminder: (r) =>
+    set((state) => {
+      const exists = state.reminders.some((x) => x.id === r.id);
+      const next = exists
+        ? state.reminders.map((x) => (x.id === r.id ? r : x))
+        : [...state.reminders, r];
+      return {
+        reminders: next.sort((a, b) => a.time.localeCompare(b.time)),
+      };
+    }),
+
+  removeReminder: (id) =>
+    set((state) => ({
+      reminders: state.reminders.filter((r) => r.id !== id),
+    })),
+}));

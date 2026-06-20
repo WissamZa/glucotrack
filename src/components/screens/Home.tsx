@@ -10,9 +10,15 @@ import { Droplet, TrendingUp, Target, Plus, Bell, ChevronLeft, ChevronRight } fr
 import { useMemo } from "react";
 
 export function Home() {
-  const { settings, readings, setScreen, reminders } = useAppStore();
-  const theme = themes[settings.theme];
-  const lang = settings.language;
+  const settings = useAppStore((s) => s.settings);
+  const readings = useAppStore((s) => s.readings);
+  const reminders = useAppStore((s) => s.reminders);
+  const setScreen = useAppStore((s) => s.setScreen);
+
+  const theme = themes[settings?.theme ?? "classic"];
+  const lang = settings?.language ?? "ar";
+  const targetMin = settings?.targetMin ?? 80;
+  const targetMax = settings?.targetMax ?? 180;
   const isRTL = lang === "ar";
   const ChevronNext = isRTL ? ChevronLeft : ChevronRight;
 
@@ -30,7 +36,7 @@ export function Home() {
       ? Math.round(today.reduce((s, r) => s + r.value, 0) / today.length)
       : 0;
   const inRange = today.filter(
-    (r) => getStatus(r.value, settings.targetMin, settings.targetMax) === "in_range",
+    (r) => getStatus(r.value, targetMin, targetMax) === "in_range",
   ).length;
   const inRangePct = today.length > 0 ? Math.round((inRange / today.length) * 100) : 0;
 
@@ -47,12 +53,12 @@ export function Home() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <header className={`px-5 pt-8 pb-4 ${settings.theme === "modern" ? "bg-gradient-to-b from-fuchsia-500/10 to-transparent" : ""}`}>
+      <header className={`px-5 pt-8 pb-4 ${settings?.theme === "modern" ? "bg-gradient-to-b from-fuchsia-500/10 to-transparent" : ""}`}>
         <div className="flex items-center justify-between">
           <div>
             <p className={`${theme.fontSizeSm} ${theme.textMuted}`}>{greeting}</p>
             <h1 className={`${theme.fontSize2xl} font-bold`}>
-              {settings.userName}
+              {settings?.userName || ""}
             </h1>
           </div>
           <button
@@ -138,7 +144,8 @@ export function Home() {
 }
 
 function ReadingHero({ reading }: { reading: Reading }) {
-  const { settings, setScreen } = useAppStore();
+  const settings = useAppStore((s) => s.settings)!;
+  const setScreen = useAppStore((s) => s.setScreen);
   const theme = themes[settings.theme];
   const lang = settings.language;
   const status = getStatus(reading.value, settings.targetMin, settings.targetMax);
@@ -213,7 +220,7 @@ function StatCard({
   unit: string;
   color: string;
 }) {
-  const { settings } = useAppStore();
+  const settings = useAppStore((s) => s.settings)!;
   const theme = themes[settings.theme];
   return (
     <div className={`${theme.surface} ${theme.border} border ${theme.radius} ${theme.padding} flex flex-col items-center text-center`}>
@@ -226,7 +233,7 @@ function StatCard({
 }
 
 function ReadingRow({ reading }: { reading: Reading }) {
-  const { settings } = useAppStore();
+  const settings = useAppStore((s) => s.settings)!;
   const theme = themes[settings.theme];
   const lang = settings.language;
   const status = getStatus(reading.value, settings.targetMin, settings.targetMax);

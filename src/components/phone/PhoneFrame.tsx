@@ -11,14 +11,18 @@ interface PhoneFrameProps {
 
 export function PhoneFrame({ children }: PhoneFrameProps) {
   const settings = useAppStore((s) => s.settings);
-  const theme = themes[settings.theme];
-  const isRTL = settings.language === "ar";
+  const fallbackLang = "ar";
+  const fallbackTheme = "classic";
+  const lang = settings?.language ?? fallbackLang;
+  const themeName = settings?.theme ?? fallbackTheme;
+  const theme = themes[themeName];
+  const isRTL = lang === "ar";
 
   // تحديث اتجاه الصفحة واللغة عند تغيير الإعدادات
   useEffect(() => {
-    document.documentElement.lang = settings.language;
+    document.documentElement.lang = lang;
     document.documentElement.dir = isRTL ? "rtl" : "ltr";
-  }, [settings.language, isRTL]);
+  }, [lang, isRTL]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4 sm:p-6">
@@ -26,10 +30,10 @@ export function PhoneFrame({ children }: PhoneFrameProps) {
         {/* عنوان بريدي فوق الهاتف */}
         <div className="text-center mb-4 hidden sm:block">
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-            {t(settings.language, "app_name")}
+            {t(lang, "app_name")}
           </h1>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            {t(settings.language, "app_tagline")} — Prototype
+            {t(lang, "app_tagline")} · SQLite + Google Drive Sync
           </p>
         </div>
 
