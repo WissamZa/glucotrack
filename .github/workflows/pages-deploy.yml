@@ -1,0 +1,157 @@
+name: 🌐 Deploy Static Preview to GitHub Pages
+
+# This workflow deploys a minimal static HTML page + the PWA manifest to
+# GitHub Pages. This gives the Bubblewrap TWA build a reachable URL so it
+# can download the manifest and build the APK.
+#
+# The full Next.js app (with API routes) should be deployed to a Node host
+# like Vercel or Railway for actual use. This Pages deployment is just a
+# "preview shell" so the APK has something to wrap.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "public/**"
+      - ".github/workflows/pages-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📂 Build Pages artifact
+        run: |
+          mkdir -p site
+          # Copy the manifest and icons
+          cp public/manifest.webmanifest site/
+          cp public/icon-*.png site/
+          cp public/logo.svg site/ 2>/dev/null || true
+          cp public/robots.txt site/ 2>/dev/null || true
+
+          # Create a simple landing page
+          cat > site/index.html << 'HTML_EOF'
+          <!DOCTYPE html>
+          <html lang="ar" dir="rtl">
+          <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>GlucoTrack — سُكَّري</title>
+            <link rel="manifest" href="/glucotrack/manifest.webmanifest" />
+            <link rel="icon" type="image/png" href="/glucotrack/icon-512.png" />
+            <meta name="theme-color" content="#0d9488" />
+            <meta name="description" content="GlucoTrack — Bilingual Blood Glucose Tracking App" />
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans Arabic", sans-serif;
+                background: linear-gradient(135deg, #0d9488 0%, #059669 100%);
+                color: white;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1.5rem;
+              }
+              .card {
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 1.5rem;
+                padding: 2.5rem;
+                max-width: 28rem;
+                text-align: center;
+              }
+              .icon {
+                width: 5rem;
+                height: 5rem;
+                margin: 0 auto 1.5rem;
+                background: white;
+                border-radius: 1.25rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 2.5rem;
+              }
+              h1 { font-size: 1.875rem; margin-bottom: 0.5rem; }
+              .tagline { opacity: 0.9; margin-bottom: 1.5rem; }
+              .status {
+                background: rgba(255, 255, 255, 0.15);
+                padding: 0.75rem 1rem;
+                border-radius: 0.75rem;
+                font-size: 0.875rem;
+                margin-bottom: 1.5rem;
+              }
+              a.btn {
+                display: inline-block;
+                background: white;
+                color: #0d9488;
+                padding: 0.875rem 2rem;
+                border-radius: 0.875rem;
+                text-decoration: none;
+                font-weight: 700;
+                transition: transform 0.15s;
+              }
+              a.btn:hover { transform: scale(1.05); }
+              .features {
+                text-align: start;
+                margin: 1.5rem 0;
+                font-size: 0.875rem;
+                opacity: 0.9;
+              }
+              .features li { margin: 0.25rem 0; list-style: none; padding-inline-start: 1.25rem; position: relative; }
+              .features li::before { content: "✓"; position: absolute; inset-inline-start: 0; color: #5eead4; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <div class="icon">🩸</div>
+              <h1>GlucoTrack — سُكَّري</h1>
+              <p class="tagline">تابع سكرك بصحة وثقة · Bilingual Blood Glucose Tracker</p>
+              <div class="status">
+                📱 APK available in <a href="https://github.com/WissamZa/glucotrack/releases" style="color: white;">Releases</a><br/>
+                💻 Source code on <a href="https://github.com/WissamZa/glucotrack" style="color: white;">GitHub</a>
+              </div>
+              <ul class="features">
+                <li>تسجيل قراءات السكر · Log glucose readings</li>
+                <li>رسوم بيانية تفاعلية · Interactive charts</li>
+                <li>تذكيرات القياس · Measurement reminders</li>
+                <li>ثنائي اللغة (عربي/إنجليزي) · Bilingual UI</li>
+                <li>3 أنماط عرض · 3 display themes</li>
+                <li>مزامنة Google Drive (اختيارية) · Optional Drive sync</li>
+              </ul>
+              <a href="https://github.com/WissamZa/glucotrack/releases" class="btn">Download APK ↓</a>
+            </div>
+          </body>
+          </html>
+          HTML_EOF
+
+          # .nojekyll to bypass Jekyll processing
+          touch site/.nojekyll
+          ls -la site/
+
+      - name: 🚀 Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: 🌐 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
