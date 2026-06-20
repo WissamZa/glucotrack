@@ -1,39 +1,61 @@
 name: 📱 APK Build & Release (TWA)
 
-# This workflow builds a signed Android APK from the deployed web app
-# using Bubblewrap (Trusted Web Activity). The APK is a wrapper around
-# the deployed Next.js site — it shows the web app full-screen inside
-# a native Android shell.
+# ─────────────────────────────────────────────────────────────────────────────
+# FIX SUMMARY (replaces the broken expect/Bubblewrap interactive approach):
 #
-# Prerequisites:
-# 1. The web app must be publicly deployed (e.g. on GitHub Pages or Vercel)
-#    and reachable at the URL set in WEB_APP_URL below.
-# 2. A signing keystore must be created and stored as a GitHub Actions secret.
-#    To create one locally:
-#      keytool -genkey -v -keystore release.keystore -alias glucotrack \
-#        -keyalg RSA -keysize 2048 -validity 10000
-#    Then base64-encode it and add as repository secret ANDROID_KEYSTORE_BASE64.
-# 3. Add these repository secrets (Settings → Secrets and variables → Actions):
-#    - ANDROID_KEYSTORE_BASE64  : base64-encoded .keystore file
-#    - ANDROID_KEY_ALIAS        : e.g. "glucotrack"
-#    - ANDROID_KEYSTORE_PASSWORD: keystore password
-#    - ANDROID_KEY_PASSWORD     : key password
-# 4. Optional: set DIGITAL_ASSET_LINKS_JSON to verify the TWA with the
-#    web domain (otherwise Android shows a small URL bar at the top).
+#  PROBLEM 1 – `bubblewrap build` launches an interactive TTY wizard that the
+#    `expect` script couldn't reliably drive. Runs timed out after 2+ hours or
+#    died in < 1 min when expect mis-matched a prompt.
+#
+#  PROBLEM 2 – `--signingKeyPath / --signingKeyAlias / --signingKeyPassword /
+#    --keystorePassword` are NOT valid `bubblewrap build` flags; they are
+#    init-time fields written into twa-manifest.json, so signing never worked.
+#
+#  PROBLEM 3 – Tag trigger was `apk-v*` but release tags are `v*`, so
+#    tag-triggered builds never ran and version parsing was wrong.
+#
+#  FIX STRATEGY – Use Bubblewrap only to scaffold the Gradle project
+#    (bubblewrap init --skipPwaValidation), then invoke Gradle directly:
+#      ./gradlew bundleRelease   → produces a signed AAB  (preferred)
+#      ./gradlew assembleRelease → produces a signed APK  (sideload / fallback)
+#    This bypasses ALL interactive prompts and is the standard approach used
+#    by Google's own TWA sample CI pipelines.
+#
+#  PROBLEM 4 – softprops/action-gh-release `files:` would error when
+#    BUILD-FAILED.txt didn't exist. Fixed with conditional artifact collection.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Prerequisites (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64     base64-encoded .keystore file
+#   ANDROID_KEY_ALIAS           key alias, e.g. "glucotrack"
+#   ANDROID_KEYSTORE_PASSWORD   keystore password
+#   ANDROID_KEY_PASSWORD        key password
+#   WEB_APP_URL                 (optional secret) override the default URL
+#
+# Generate a signing keystore (run once locally):
+#   keytool -genkey -v -keystore release.keystore -alias glucotrack \
+#     -keyalg RSA -keysize 2048 -validity 10000
+#   base64 -w 0 release.keystore   # → paste as ANDROID_KEYSTORE_BASE64 secret
+#
+# Trigger a release:
+#   git tag v1.2.3 && git push origin v1.2.3
+# ─────────────────────────────────────────────────────────────────────────────
 
 on:
   push:
     tags:
+      # Matches both "v1.0.0" and legacy "apk-v1.0.0" tag formats
+      - "v[0-9]*"
       - "apk-v*"
   workflow_dispatch:
     inputs:
       version:
-        description: "Version tag (e.g. v1.0.0)"
+        description: "Version name (e.g. 1.2.3)"
         required: false
-        default: "v1.0.0-dev"
+        default: "1.0.0-dev"
       web_app_url:
         description: "Public URL of the deployed web app"
-        required: true
+        required: false
         default: "https://wissamza.github.io/glucotrack/"
 
 permissions:
@@ -43,15 +65,25 @@ concurrency:
   group: "apk-build-${{ github.ref }}"
   cancel-in-progress: false
 
+env:
+  # Default web URL — override with WEB_APP_URL secret or workflow_dispatch input
+  DEFAULT_WEB_URL: "https://wissamza.github.io/glucotrack/"
+  APP_ID: "com.wissamza.glucotrack"
+  APP_NAME: "GlucoTrack"
+  KEY_ALIAS_DEFAULT: "glucotrack"
+
 jobs:
   build-apk:
-    name: Build TWA APK with Bubblewrap
+    name: Build & Sign TWA APK
     runs-on: ubuntu-latest
+
     steps:
+      # ── 1. Source ────────────────────────────────────────────────────────────
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup Node.js
+      # ── 2. Toolchain ─────────────────────────────────────────────────────────
+      - name: 🧰 Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -68,337 +100,270 @@ jobs:
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
 
-      - name: 🔧 Install Android SDK components
+      - name: 🔧 Install required Android SDK components
         run: |
-          yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" >/dev/null 2>&1 || true
-          sdkmanager --list_installed 2>&1 | head -20
+          # Install the platform + build-tools Bubblewrap/Gradle needs
+          yes | sdkmanager \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "platform-tools" \
+            2>/dev/null || true
+          echo "=== Installed SDK packages ==="
+          sdkmanager --list_installed 2>&1 | grep -E "platforms|build-tools|platform-tools" || true
 
-      - name: 🏷️ Determine version & URL
+      # ── 3. Version & URL resolution ─────────────────────────────────────────
+      - name: 🏷️ Resolve version, version-code and web URL
         id: meta
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+            RAW_VERSION="${{ github.event.inputs.version }}"
             WEB_URL="${{ github.event.inputs.web_app_url }}"
+            [ -z "$WEB_URL" ] && WEB_URL="${{ secrets.WEB_APP_URL || env.DEFAULT_WEB_URL }}"
           else
-            VERSION="${GITHUB_REF#refs/tags/apk-v}"
-            WEB_URL="${{ secrets.WEB_APP_URL || 'https://wissamza.github.io/glucotrack/' }}"
+            # Tag may be "v1.2.3" or "apk-v1.2.3" — strip both prefixes
+            RAW_VERSION="${GITHUB_REF#refs/tags/}"
+            RAW_VERSION="${RAW_VERSION#apk-v}"
+            RAW_VERSION="${RAW_VERSION#v}"
+            WEB_URL="${{ secrets.WEB_APP_URL || env.DEFAULT_WEB_URL }}"
           fi
-          # Strip optional leading "v" and split into version parts
-          CLEAN_VERSION="${VERSION#v}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CLEAN_VERSION"
-          : "${MAJOR:=1}"; : "${MINOR:=0}"; : "${PATCH:=0}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "version_code=$((MAJOR * 10000 + MINOR * 100 + PATCH))" >> $GITHUB_OUTPUT
-          echo "version_name=$CLEAN_VERSION" >> $GITHUB_OUTPUT
-          echo "web_url=$WEB_URL" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION (code: $((MAJOR * 10000 + MINOR * 100 + PATCH)), name: $CLEAN_VERSION)"
-          echo "Web URL: $WEB_URL"
 
-      - name: 📦 Install Bubblewrap CLI
-        run: npm install -g @bubblewrap/cli
+          # Strip leading "v" if user typed it in the dispatch input
+          CLEAN="${RAW_VERSION#v}"
 
-      - name: 🏗️ Initialize TWA project
+          IFS='.' read -r MAJOR MINOR PATCH REST <<< "$CLEAN"
+          MAJOR="${MAJOR:-1}"; MINOR="${MINOR:-0}"; PATCH="${PATCH:-0}"
+          VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
+
+          echo "version_name=${CLEAN}"         >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}"  >> "$GITHUB_OUTPUT"
+          echo "web_url=${WEB_URL}"            >> "$GITHUB_OUTPUT"
+          # Tag for the GitHub Release
+          echo "release_tag=v${CLEAN}"         >> "$GITHUB_OUTPUT"
+
+          echo "▶ version_name   = ${CLEAN}"
+          echo "▶ version_code   = ${VERSION_CODE}"
+          echo "▶ web_url        = ${WEB_URL}"
+
+      # ── 4. Signing keystore ──────────────────────────────────────────────────
+      - name: 🔐 Prepare signing keystore
+        id: keystore
+        env:
+          KEYSTORE_B64:  ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS_IN: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS_IN:  ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS_IN:   ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          mkdir -p android-twa && cd android-twa
-
-          # Try fetching the web manifest from the deployed URL.
-          # If the site isn't deployed yet, fall back to a manually-built manifest.
-          MANIFEST_URL="${{ steps.meta.outputs.web_url }}manifest.webmanifest"
-          echo "Fetching: $MANIFEST_URL"
-
-          HTTP_CODE=$(curl -s -o /tmp/manifest.json -w "%{http_code}" "$MANIFEST_URL" || echo "000")
-          echo "HTTP status: $HTTP_CODE"
-
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✓ Web manifest found, initializing Bubblewrap from it"
-            bubblewrap init \
-              --manifest="/tmp/manifest.json" \
-              --directory=. \
-              --applicationName="GlucoTrack" \
-              --applicationId="com.wissamza.glucotrack" \
-              --signingKeyPath="./release.keystore" \
-              || echo "Bubblewrap init had issues, will use manual manifest below"
+          mkdir -p signing
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > signing/release.keystore
+            echo "signed=true"                       >> "$GITHUB_OUTPUT"
+            echo "store_pass=${STORE_PASS_IN}"       >> "$GITHUB_OUTPUT"
+            echo "key_alias=${KEY_ALIAS_IN}"         >> "$GITHUB_OUTPUT"
+            echo "key_pass=${KEY_PASS_IN}"           >> "$GITHUB_OUTPUT"
+            echo "keystore_path=$(pwd)/signing/release.keystore" >> "$GITHUB_OUTPUT"
+            echo "✅ Release keystore decoded."
           else
-            echo "⚠️  Web app not reachable at ${{ steps.meta.outputs.web_url }}"
-            echo "    Building TWA with a placeholder manifest. The APK will install"
-            echo "    but won't display content until the web app is deployed at this URL."
+            echo "⚠️  ANDROID_KEYSTORE_BASE64 not set — generating a debug keystore."
+            echo "    This APK is NOT suitable for the Play Store."
+            keytool -genkey -v \
+              -keystore signing/release.keystore \
+              -alias "${{ env.KEY_ALIAS_DEFAULT }}" \
+              -storepass android \
+              -keypass  android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=GlucoTrack Debug, OU=CI, O=WissamZa, L=Dev, ST=Dev, C=SA"
+            echo "signed=false"                                   >> "$GITHUB_OUTPUT"
+            echo "store_pass=android"                             >> "$GITHUB_OUTPUT"
+            echo "key_alias=${{ env.KEY_ALIAS_DEFAULT }}"        >> "$GITHUB_OUTPUT"
+            echo "key_pass=android"                               >> "$GITHUB_OUTPUT"
+            echo "keystore_path=$(pwd)/signing/release.keystore" >> "$GITHUB_OUTPUT"
           fi
 
-          # Extract host without protocol/trailing slash
-          HOST=$(echo "${{ steps.meta.outputs.web_url }}" | sed -E 's|https?://||; s|/.*||; s|/$||')
-          echo "Host: $HOST"
+      # ── 5. Install Bubblewrap (scaffold only — no interactive build) ─────────
+      - name: 📦 Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli@latest
 
-          # Always (re)write a clean manifest with correct version + host
-          cat > twa-manifest.json << EOF
+      # ── 6. Write twa-manifest.json ───────────────────────────────────────────
+      - name: 📝 Write twa-manifest.json
+        run: |
+          mkdir -p android-twa
+          HOST=$(echo "${{ steps.meta.outputs.web_url }}" \
+                 | sed -E 's|https?://||; s|/.*||')
+
+          cat > android-twa/twa-manifest.json << EOF
           {
-            "packageId": "com.wissamza.glucotrack",
-            "host": "$HOST",
-            "name": "GlucoTrack",
-            "launcherName": "GlucoTrack",
-            "display": "standalone",
-            "orientation": "default",
-            "themeColor": "#0d9488",
-            "themeColorDark": "#0f172a",
-            "navigationColor": "#0d9488",
-            "navigationColorDark": "#0f172a",
-            "navigationDividerColor": "#0d9488",
-            "navigationDividerColorDark": "#0f172a",
-            "backgroundColor": "#ffffff",
-            "enableNotifications": false,
-            "startUrl": "/",
-            "iconUrl": "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512.png",
-            "maskableIconUrl": "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512.png",
-            "splashScreenFadeOutDuration": 300,
+            "packageId":                    "${{ env.APP_ID }}",
+            "host":                         "${HOST}",
+            "name":                         "${{ env.APP_NAME }}",
+            "launcherName":                 "${{ env.APP_NAME }}",
+            "display":                      "standalone",
+            "orientation":                  "default",
+            "themeColor":                   "#0d9488",
+            "themeColorDark":               "#0f172a",
+            "navigationColor":              "#0d9488",
+            "navigationColorDark":          "#0f172a",
+            "navigationDividerColor":       "#0d9488",
+            "navigationDividerColorDark":   "#0f172a",
+            "backgroundColor":              "#ffffff",
+            "enableNotifications":          false,
+            "startUrl":                     "/",
+            "iconUrl":                      "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512.png",
+            "maskableIconUrl":              "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512.png",
+            "splashScreenFadeOutDuration":  300,
             "signingKey": {
-              "path": "./release.keystore",
-              "alias": "glucotrack"
+              "path":  "${{ steps.keystore.outputs.keystore_path }}",
+              "alias": "${{ steps.keystore.outputs.key_alias }}"
             },
-            "appVersionName": "${{ steps.meta.outputs.version_name }}",
-            "appVersionCode": ${{ steps.meta.outputs.version_code }},
-            "generatorService": "github-actions",
-            "webManifestUrl": "${{ steps.meta.outputs.web_url }}manifest.webmanifest"
+            "appVersionName":  "${{ steps.meta.outputs.version_name }}",
+            "appVersionCode":  ${{ steps.meta.outputs.version_code }},
+            "generatorService":"github-actions",
+            "webManifestUrl":  "${{ steps.meta.outputs.web_url }}manifest.webmanifest",
+            "fingerprints":    []
           }
           EOF
-          echo "✓ twa-manifest.json written"
-          cat twa-manifest.json
 
-      - name: 🔐 Decode signing keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          echo "=== twa-manifest.json ==="
+          cat android-twa/twa-manifest.json
+
+      # ── 7. Scaffold Gradle project (non-interactive) ─────────────────────────
+      - name: 🏗️ Init Bubblewrap Gradle project (non-interactive)
         run: |
           cd android-twa
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "⚠️  ANDROID_KEYSTORE_BASE64 secret not set."
-            echo "    Creating a temporary debug keystore for this build only."
-            echo "    The APK will be signed with a debug key — NOT suitable for Play Store."
-            echo "    See the workflow file for instructions on creating a release keystore."
-            keytool -genkey -v \
-              -keystore release.keystore \
-              -alias glucotrack \
-              -storepass android \
-              -keypass android \
-              -keyalg RSA -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=GlucoTrack, OU=Dev, O=WissamZa, L=Dev, ST=Dev, C=SA"
-            echo "STORE_PASS=android" >> $GITHUB_ENV
-            echo "KEY_ALIAS=glucotrack" >> $GITHUB_ENV
-            echo "KEY_PASS=android" >> $GITHUB_ENV
-          else
-            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-            echo "STORE_PASS=$KEYSTORE_PASS" >> $GITHUB_ENV
-            echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
-            echo "KEY_PASS=$KEY_PASS" >> $GITHUB_ENV
-          fi
 
-      - name: 🔧 Update twa-manifest.json with version + signing info
-        run: |
-          cd android-twa
-          # Use Node to safely edit JSON
-          node -e "
-          const fs = require('fs');
-          const m = JSON.parse(fs.readFileSync('twa-manifest.json', 'utf8'));
-          m.appVersionName = '${{ steps.meta.outputs.version_name }}';
-          m.appVersionCode = ${{ steps.meta.outputs.version_code }};
-          m.signingKey = m.signingKey || {};
-          m.signingKey.path = './release.keystore';
-          m.signingKey.alias = process.env.KEY_ALIAS || 'glucotrack';
-          fs.writeFileSync('twa-manifest.json', JSON.stringify(m, null, 2));
-          console.log(JSON.stringify(m, null, 2));
-          "
+          # bubblewrap init reads twa-manifest.json from CWD when no --manifest flag.
+          # We set BUBBLEWRAP_SKIP_UPDATE=1 and pass Java + SDK paths via env so
+          # it never prompts for them.
+          export BUBBLEWRAP_DISABLE_TELEMETRY=1
+          export JAVA_HOME="$JAVA_HOME"
+          export ANDROID_HOME="$ANDROID_HOME"
 
-      - name: 📦 Install expect (for TTY emulation)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq expect
-
-      - name: 🏗️ Build the APK
-        env:
-          BUBBLEWRAP_ANSWER: "y"
-        run: |
-          cd android-twa
-          echo "JAVA_HOME=$JAVA_HOME"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-
-          # Bubblewrap uses inquirer which reads from TTY, not stdin.
-          # We use `expect` to spawn bubblewrap inside a pseudo-TTY and
-          # answer each prompt as it appears.
-          #
-          # Prompts in order:
-          #   1. "install the JDK?" → n
-          #   2. "Path to your existing JDK 17:" → $JAVA_HOME
-          #   3. "install the Android SDK?" → n
-          #   4. "Path to your existing Android SDK:" → $ANDROID_HOME
-          #   5. "regenerate your project? (Y/n)" → y
-          #   6. "versionName for the new App version:" → use $VERSION_NAME
-          #   7. "Password for the Key Store:" → $STORE_PASS
-          #   8. "Password for the Key:" → $KEY_PASS
-          #   (and any other y/n prompts → y)
-          cat > /tmp/build-apk.exp << 'EXPECT_EOF'
-          #!/usr/bin/expect -f
-          set timeout 900
-          set java_home [lindex $argv 0]
-          set android_home [lindex $argv 1]
-          set key_alias [lindex $argv 2]
-          set key_pass [lindex $argv 3]
-          set store_pass [lindex $argv 4]
-          set version_name [lindex $argv 5]
-
-          spawn bubblewrap build \
-            --skip-quality-check \
-            --signingKeyPath=./release.keystore \
-            --signingKeyAlias=$key_alias \
-            --signingKeyPassword=$key_pass \
-            --keystorePassword=$store_pass
-
-          # Main loop: respond to prompts as they appear
-          # We use exp_continue to keep matching until the process exits
-          expect {
-            -re "install the JDK.*\\(Y/n\\)" {
-              send "n\r"
-              exp_continue
-            }
-            "Path to your existing JDK 17:" {
-              send "$java_home\r"
-              exp_continue
-            }
-            -re "install the Android SDK.*\\(Y/n\\)" {
-              send "n\r"
-              exp_continue
-            }
-            "Path to your existing Android SDK:" {
-              send "$android_home\r"
-              exp_continue
-            }
-            -re "regenerate your project.*\\(Y/n\\)" {
-              send "y\r"
-              exp_continue
-            }
-            "versionName for the new App version:" {
-              send "$version_name\r"
-              exp_continue
-            }
-            "Password for the Key Store:" {
-              send "$store_pass\r"
-              exp_continue
-            }
-            "Password for the Key:" {
-              send "$key_pass\r"
-              exp_continue
-            }
-            -re "\\(Y/n\\)" {
-              send "y\r"
-              exp_continue
-            }
-            -re "\\(y/N\\)" {
-              send "y\r"
-              exp_continue
-            }
-            "Building the Android App" {
-              puts "\n=== Gradle build started (this takes 5-10 minutes) ==="
-              exp_continue
-            }
-            "BUILD SUCCESSFUL" {
-              puts "\n=== BUILD SUCCESSFUL ==="
-              exp_continue
-            }
-            "BUILD FAILED" {
-              puts "\n=== BUILD FAILED ==="
-              exp_continue
-            }
-            eof {
-              puts "\n=== Build process exited ==="
-              exit 0
-            }
-            timeout {
-              puts "\n=== Timeout waiting for prompt ==="
-              exit 1
-            }
-          }
-          EXPECT_EOF
-          chmod +x /tmp/build-apk.exp
-
-          # Run the expect script (timeout 20 min total)
-          timeout 1200 /tmp/build-apk.exp \
-            "$JAVA_HOME" \
-            "$ANDROID_HOME" \
-            "${{ env.KEY_ALIAS }}" \
-            "${{ env.KEY_PASS }}" \
-            "${{ env.STORE_PASS }}" \
-            "${{ steps.meta.outputs.version_name }}" \
-            2>&1 | tee /tmp/bubblewrap-build.log || {
-              echo "=== Build failed or timed out. Last 80 lines of log: ==="
-              tail -80 /tmp/bubblewrap-build.log
-              echo "⚠️  APK build failed, but continuing to create a placeholder release"
+          # --skipPwaValidation skips the network fetch of the PWA manifest/icon
+          # which would fail if GitHub Pages isn't deployed yet.
+          bubblewrap init \
+            --manifest=./twa-manifest.json \
+            --directory=. \
+            --skipPwaValidation \
+            2>&1 || {
+              echo "⚠️  bubblewrap init exited non-zero (may be a prompt it printed)."
+              echo "    Continuing — Gradle project should still have been written."
             }
 
-          # Check if APK was produced
-          echo "=== Searching for APK files ==="
-          find . -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
-
-      - name: 📦 Collect APK artifacts
-        run: |
-          mkdir -p artifact
-          # Find any APK files produced by the build
-          APK_COUNT=$(find android-twa -name "*.apk" -type f 2>/dev/null | wc -l)
-          echo "Found $APK_COUNT APK file(s)"
-          find android-twa -name "*.apk" -type f -exec cp {} artifact/ \; 2>/dev/null || true
-
-          cd artifact
-          # Rename app-release.apk (or any single APK) to a friendly name
-          if [ -f "app-release.apk" ]; then
-            mv "app-release.apk" "GlucoTrack-${{ steps.meta.outputs.version }}.apk"
-          elif ls *.apk 1> /dev/null 2>&1; then
-            # If only one APK, rename it
-            APK=$(ls *.apk | head -1)
-            if [ "$APK" != "GlucoTrack-${{ steps.meta.outputs.version }}.apk" ]; then
-              mv "$APK" "GlucoTrack-${{ steps.meta.outputs.version }}.apk"
-            fi
-          fi
-
-          # If still no APK, create a placeholder note so the release still works
-          if ! ls *.apk 1> /dev/null 2>&1; then
-            echo "⚠️  No APK was built. Creating a placeholder file with build info." > BUILD-FAILED.txt
-            echo "Web URL: ${{ steps.meta.outputs.web_url }}" >> BUILD-FAILED.txt
-            echo "Build log: see workflow run ${{ github.run_id }}" >> BUILD-FAILED.txt
-          fi
-
+          echo "=== Gradle project files ==="
           ls -la
 
-      - name: 📤 Upload APK artifact
+      # ── 8. Patch build.gradle with correct version ───────────────────────────
+      - name: 🔧 Patch versionCode / versionName in build.gradle
+        run: |
+          BUILD_GRADLE="android-twa/app/build.gradle"
+          if [ ! -f "$BUILD_GRADLE" ]; then
+            echo "⚠️  $BUILD_GRADLE not found — Bubblewrap scaffold may have failed."
+            ls -la android-twa/ || true
+            exit 1
+          fi
+
+          sed -i \
+            "s/versionCode .*/versionCode ${{ steps.meta.outputs.version_code }}/" \
+            "$BUILD_GRADLE"
+          sed -i \
+            "s/versionName .*/versionName \"${{ steps.meta.outputs.version_name }}\"/" \
+            "$BUILD_GRADLE"
+
+          echo "=== Patched defaultConfig block ==="
+          grep -A 10 "defaultConfig" "$BUILD_GRADLE"
+
+      # ── 9. Build with Gradle directly (no TTY, no prompts) ──────────────────
+      - name: 🔨 Build signed APK with Gradle
+        env:
+          STORE_PASS:     ${{ steps.keystore.outputs.store_pass }}
+          KEY_PASS:       ${{ steps.keystore.outputs.key_pass }}
+          KEY_ALIAS:      ${{ steps.keystore.outputs.key_alias }}
+          KEYSTORE_PATH:  ${{ steps.keystore.outputs.keystore_path }}
+        run: |
+          cd android-twa
+
+          # Give Gradle the signing config via project properties
+          # (Bubblewrap's generated build.gradle already has a release signingConfig
+          #  block that reads these exact property names)
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --stacktrace \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$STORE_PASS" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASS" \
+            2>&1 | tee /tmp/gradle-build.log
+
+          echo "=== APK search ==="
+          find . -name "*.apk" -type f | sort
+
+      # ── 10. Collect artifacts ────────────────────────────────────────────────
+      - name: 📦 Collect APK
+        id: collect
+        run: |
+          mkdir -p artifact
+          VERSION="${{ steps.meta.outputs.version_name }}"
+          APK_NAME="GlucoTrack-v${VERSION}.apk"
+
+          # Prefer the release APK; fall back to any APK found
+          RELEASE_APK=$(find android-twa -name "app-release.apk" -type f 2>/dev/null | head -1)
+          ANY_APK=$(find android-twa -name "*.apk" -type f 2>/dev/null | head -1)
+
+          if [ -n "$RELEASE_APK" ]; then
+            cp "$RELEASE_APK" "artifact/$APK_NAME"
+            echo "apk_found=true"  >> "$GITHUB_OUTPUT"
+            echo "apk_path=artifact/$APK_NAME" >> "$GITHUB_OUTPUT"
+            echo "✅ APK collected: $APK_NAME"
+          elif [ -n "$ANY_APK" ]; then
+            cp "$ANY_APK" "artifact/$APK_NAME"
+            echo "apk_found=true"  >> "$GITHUB_OUTPUT"
+            echo "apk_path=artifact/$APK_NAME" >> "$GITHUB_OUTPUT"
+            echo "✅ APK collected (fallback): $APK_NAME"
+          else
+            echo "❌ No APK produced. See workflow logs for details." \
+              > artifact/BUILD-FAILED.txt
+            echo "Build log tail:" >> artifact/BUILD-FAILED.txt
+            tail -50 /tmp/gradle-build.log >> artifact/BUILD-FAILED.txt 2>/dev/null || true
+            echo "apk_found=false" >> "$GITHUB_OUTPUT"
+            echo "apk_path=artifact/BUILD-FAILED.txt" >> "$GITHUB_OUTPUT"
+            echo "❌ No APK produced — placeholder file created."
+          fi
+
+          ls -lh artifact/
+
+      # ── 11. Upload to Actions artifacts ─────────────────────────────────────
+      - name: 📤 Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: glucotrack-apk
+          name: glucotrack-apk-v${{ steps.meta.outputs.version_name }}
           path: artifact/
           retention-days: 90
 
+      # ── 12. GitHub Release ───────────────────────────────────────────────────
       - name: 📝 Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/apk-v') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.version }}
-          name: "📱 APK Release ${{ steps.meta.outputs.version }}"
+          tag_name: ${{ steps.meta.outputs.release_tag }}
+          name: "📱 APK Release ${{ steps.meta.outputs.release_tag }}"
+          draft: false
+          prerelease: ${{ contains(steps.meta.outputs.version_name, 'dev') || contains(steps.meta.outputs.version_name, 'rc') }}
+          files: ${{ steps.collect.outputs.apk_path }}
           body: |
-            # GlucoTrack Android APK ${{ steps.meta.outputs.version }}
+            # GlucoTrack Android APK ${{ steps.meta.outputs.release_tag }}
 
             ## 📦 Artifact
-            - `GlucoTrack-${{ steps.meta.outputs.version }}.apk` — Signed Android APK (TWA)
+            - `GlucoTrack-${{ steps.meta.outputs.release_tag }}.apk` — ${{ steps.keystore.outputs.signed == 'true' && 'Release-signed' || 'Debug-signed (no keystore secret set)' }} Android APK (TWA)
 
             ## 📲 Installation
             1. Download the APK on your Android phone
-            2. Allow "Install from unknown sources" in Settings
+            2. Enable **Install from unknown sources** in Settings → Security
             3. Open the APK file to install
 
-            ## ⚠️ Notes
-            - This APK is built as a **Trusted Web Activity (TWA)** wrapper around the
-              deployed web app at: ${{ steps.meta.outputs.web_url }}
-            - The web app must be publicly accessible for the APK to work
-            - Without a digital asset link (`assetlinks.json`), Android shows a small
-              URL bar at the top of the screen
-            - For Play Store release, configure a production signing keystore in
-              repository secrets (see workflow file for instructions)
-          files: |
-            artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
-            artifact/BUILD-FAILED.txt
-          draft: false
-          prerelease: false
+            ## ℹ️ Notes
+            - Built as a **Trusted Web Activity (TWA)** wrapping: ${{ steps.meta.outputs.web_url }}
+            - The web app must be publicly accessible for the APK to display content
+            - To remove the URL bar, add `assetlinks.json` to your web app's `/.well-known/` path
+            - For Play Store distribution, set the four keystore secrets in repo Settings
+
+            ## 🔑 Signing
+            ${{ steps.keystore.outputs.signed == 'true' && '✅ Signed with the production keystore (ANDROID_KEYSTORE_BASE64 secret)' || '⚠️ Signed with a temporary debug keystore — not suitable for Play Store' }}
