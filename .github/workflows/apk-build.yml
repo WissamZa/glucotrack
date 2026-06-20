@@ -223,14 +223,26 @@ jobs:
           # Bubblewrap uses inquirer which reads from TTY, not stdin.
           # We use `expect` to spawn bubblewrap inside a pseudo-TTY and
           # answer each prompt as it appears.
+          #
+          # Prompts in order:
+          #   1. "install the JDK?" → n
+          #   2. "Path to your existing JDK 17:" → $JAVA_HOME
+          #   3. "install the Android SDK?" → n
+          #   4. "Path to your existing Android SDK:" → $ANDROID_HOME
+          #   5. "regenerate your project? (Y/n)" → y
+          #   6. "versionName for the new App version:" → use $VERSION_NAME
+          #   7. "Password for the Key Store:" → $STORE_PASS
+          #   8. "Password for the Key:" → $KEY_PASS
+          #   (and any other y/n prompts → y)
           cat > /tmp/build-apk.exp << 'EXPECT_EOF'
           #!/usr/bin/expect -f
-          set timeout 600
+          set timeout 900
           set java_home [lindex $argv 0]
           set android_home [lindex $argv 1]
           set key_alias [lindex $argv 2]
           set key_pass [lindex $argv 3]
           set store_pass [lindex $argv 4]
+          set version_name [lindex $argv 5]
 
           spawn bubblewrap build \
             --skip-quality-check \
@@ -239,54 +251,86 @@ jobs:
             --signingKeyPassword=$key_pass \
             --keystorePassword=$store_pass
 
-          # Prompt 1: "Do you want Bubblewrap to install the JDK (recommended)?"
+          # Main loop: respond to prompts as they appear
+          # We use exp_continue to keep matching until the process exits
           expect {
-            "install the JDK" {
+            -re "install the JDK.*\\(Y/n\\)" {
               send "n\r"
-              # Prompt 2: "Path to your existing JDK 17:"
-              expect "Path to your existing JDK"
+              exp_continue
+            }
+            "Path to your existing JDK 17:" {
               send "$java_home\r"
+              exp_continue
             }
-            timeout { puts "Timeout waiting for JDK prompt"; exit 2 }
-          }
-
-          # Prompt 3: "Do you want Bubblewrap to install the Android SDK (recommended)?"
-          expect {
-            "install the Android SDK" {
+            -re "install the Android SDK.*\\(Y/n\\)" {
               send "n\r"
-              # Prompt 4: "Path to your existing Android SDK:"
-              expect "Path to your existing Android SDK"
-              send "$android_home\r"
+              exp_continue
             }
-            timeout { puts "Timeout waiting for Android SDK prompt"; exit 2 }
-            eof { puts "Build ended early (no SDK prompt)"; exit 0 }
-          }
-
-          # Any remaining prompts — answer yes
-          expect {
-            "Building the Android App" { puts "Build started..."; }
-            "Installing" { send "y\r"; exp_continue }
-            "y/n" { send "y\r"; exp_continue }
-            "Y/n" { send "y\r"; exp_continue }
-            "yes/no" { send "y\r"; exp_continue }
-            eof { puts "Build finished"; exit 0 }
-            timeout { puts "Build still running..."; }
-          }
-
-          # Wait for completion
-          expect {
-            eof { puts "Build process exited"; exit 0 }
-            timeout { puts "Build timeout"; exit 1 }
+            "Path to your existing Android SDK:" {
+              send "$android_home\r"
+              exp_continue
+            }
+            -re "regenerate your project.*\\(Y/n\\)" {
+              send "y\r"
+              exp_continue
+            }
+            "versionName for the new App version:" {
+              send "$version_name\r"
+              exp_continue
+            }
+            "Password for the Key Store:" {
+              send "$store_pass\r"
+              exp_continue
+            }
+            "Password for the Key:" {
+              send "$key_pass\r"
+              exp_continue
+            }
+            -re "\\(Y/n\\)" {
+              send "y\r"
+              exp_continue
+            }
+            -re "\\(y/N\\)" {
+              send "y\r"
+              exp_continue
+            }
+            "Building the Android App" {
+              puts "\n=== Gradle build started (this takes 5-10 minutes) ==="
+              exp_continue
+            }
+            "BUILD SUCCESSFUL" {
+              puts "\n=== BUILD SUCCESSFUL ==="
+              exp_continue
+            }
+            "BUILD FAILED" {
+              puts "\n=== BUILD FAILED ==="
+              exp_continue
+            }
+            eof {
+              puts "\n=== Build process exited ==="
+              exit 0
+            }
+            timeout {
+              puts "\n=== Timeout waiting for prompt ==="
+              exit 1
+            }
           }
           EXPECT_EOF
           chmod +x /tmp/build-apk.exp
 
-          # Run the expect script
-          /tmp/build-apk.exp "$JAVA_HOME" "$ANDROID_HOME" "${{ env.KEY_ALIAS }}" "${{ env.KEY_PASS }}" "${{ env.STORE_PASS }}" 2>&1 | tee /tmp/bubblewrap-build.log || {
-            echo "=== Build failed. Last 80 lines of log: ==="
-            tail -80 /tmp/bubblewrap-build.log
-            echo "⚠️  APK build failed, but continuing to create a placeholder release"
-          }
+          # Run the expect script (timeout 20 min total)
+          timeout 1200 /tmp/build-apk.exp \
+            "$JAVA_HOME" \
+            "$ANDROID_HOME" \
+            "${{ env.KEY_ALIAS }}" \
+            "${{ env.KEY_PASS }}" \
+            "${{ env.STORE_PASS }}" \
+            "${{ steps.meta.outputs.version_name }}" \
+            2>&1 | tee /tmp/bubblewrap-build.log || {
+              echo "=== Build failed or timed out. Last 80 lines of log: ==="
+              tail -80 /tmp/bubblewrap-build.log
+              echo "⚠️  APK build failed, but continuing to create a placeholder release"
+            }
 
           # Check if APK was produced
           echo "=== Searching for APK files ==="
