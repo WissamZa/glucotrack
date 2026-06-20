@@ -28,8 +28,34 @@ const ar: Dict = {
   nav_home: "الرئيسية",
   nav_trends: "الاتجاهات",
   nav_add: "إضافة",
+  nav_chart: "الرسم",
   nav_reminders: "التذكيرات",
   nav_settings: "الإعدادات",
+
+  // Sort
+  sort_by: "ترتيب حسب",
+  sort_newest: "الأحدث",
+  sort_oldest: "الأقدم",
+  sort_highest: "الأعلى",
+  sort_lowest: "الأدنى",
+
+  // Edit reading
+  edit_reading: "تعديل القراءة",
+  edited_success: "تم تحديث القراءة بنجاح",
+  delete_reading: "حذف القراءة",
+  delete_confirm: "هل تريد حذف هذه القراءة؟",
+  deleted_success: "تم حذف القراءة",
+  edit: "تعديل",
+  delete: "حذف",
+
+  // Google Sign-In
+  google_signin: "تسجيل الدخول بحساب Google",
+  google_signin_desc: "ارفع بياناتك إلى Google Drive الخاص بحسابك",
+  google_account: "حساب Google",
+  signing_in: "جارٍ تسجيل الدخول...",
+  signout: "تسجيل الخروج",
+  drive_connected_as: "متصل باسم",
+  your_data_your_account: "كل مستخدم يرفع بياناته في حسابه الخاص",
 
   // Home
   good_morning: "صباح الخير",
@@ -164,8 +190,34 @@ const en: Dict = {
   nav_home: "Home",
   nav_trends: "Trends",
   nav_add: "Add",
+  nav_chart: "Chart",
   nav_reminders: "Reminders",
   nav_settings: "Settings",
+
+  // Sort
+  sort_by: "Sort by",
+  sort_newest: "Newest",
+  sort_oldest: "Oldest",
+  sort_highest: "Highest",
+  sort_lowest: "Lowest",
+
+  // Edit reading
+  edit_reading: "Edit Reading",
+  edited_success: "Reading updated successfully",
+  delete_reading: "Delete Reading",
+  delete_confirm: "Do you want to delete this reading?",
+  deleted_success: "Reading deleted",
+  edit: "Edit",
+  delete: "Delete",
+
+  // Google Sign-In
+  google_signin: "Sign in with Google",
+  google_signin_desc: "Back up to your own Google Drive",
+  google_account: "Google Account",
+  signing_in: "Signing in...",
+  signout: "Sign out",
+  drive_connected_as: "Connected as",
+  your_data_your_account: "Each user backs up data to their own account",
 
   good_morning: "Good morning",
   good_afternoon: "Good afternoon",

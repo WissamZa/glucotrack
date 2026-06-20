@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
-import { useAddReading } from "@/lib/api-hooks";
+import { useAddReading, useUpdateReading } from "@/lib/api-hooks";
 import { themes } from "@/lib/themes";
 import { t, readingTypeLabel } from "@/lib/i18n";
 import { getStatus } from "@/lib/types";
 import type { ReadingType } from "@/lib/types";
 import { motion } from "framer-motion";
-import { X, Check, Minus, Plus, Droplet } from "lucide-react";
+import { X, Check, Minus, Plus, Droplet, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const READING_TYPES: ReadingType[] = [
@@ -20,36 +20,69 @@ const READING_TYPES: ReadingType[] = [
   "other",
 ];
 
+function defaultTypeByHour(): ReadingType {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 9) return "fasting";
+  if (h >= 9 && h < 11) return "after_meal";
+  if (h >= 11 && h < 14) return "before_meal";
+  if (h >= 14 && h < 17) return "after_meal";
+  if (h >= 21) return "before_sleep";
+  return "other";
+}
+
+function toLocalDateTimeInput(ts: number): string {
+  const d = new Date(ts);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
 export function AddReading() {
   const settings = useAppStore((s) => s.settings);
   const setScreen = useAppStore((s) => s.setScreen);
+  const editingReadingId = useAppStore((s) => s.editingReadingId);
+  const setEditingReadingId = useAppStore((s) => s.setEditingReadingId);
+  const readings = useAppStore((s) => s.readings);
   const addReading = useAddReading();
+  const updateReading = useUpdateReading();
   const { toast } = useToast();
+
+  // ===== Edit mode: load existing reading values =====
+  const editingReading = editingReadingId
+    ? readings.find((r) => r.id === editingReadingId)
+    : null;
+  const isEditMode = !!editingReading;
 
   const theme = themes[settings?.theme ?? "classic"];
   const lang = settings?.language ?? "ar";
   const targetMin = settings?.targetMin ?? 80;
   const targetMax = settings?.targetMax ?? 180;
 
-  const [value, setValue] = useState("");
-  const [type, setType] = useState<ReadingType>(() => {
-    // تعيين النوع الافتراضي حسب وقت اليوم
-    const h = new Date().getHours();
-    if (h >= 6 && h < 9) return "fasting";
-    if (h >= 9 && h < 11) return "after_meal";
-    if (h >= 11 && h < 14) return "before_meal";
-    if (h >= 14 && h < 17) return "after_meal";
-    if (h >= 21) return "before_sleep";
-    return "other";
-  });
-  const [notes, setNotes] = useState("");
-  const [carbs, setCarbs] = useState("");
-  const [insulin, setInsulin] = useState("");
-  const [timestamp, setTimestamp] = useState(() => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  });
+  // Initialize form state — when editing, use the reading's values.
+  // We rely on a `key` prop at the parent level (page.tsx wraps AddReading with
+  // editingReadingId as key) so the component fully remounts when switching
+  // between add/edit, eliminating the need for a setState-in-effect reset.
+  const [value, setValue] = useState<string>(
+    editingReading ? String(editingReading.value) : "",
+  );
+  const [type, setType] = useState<ReadingType>(
+    editingReading ? editingReading.type : defaultTypeByHour(),
+  );
+  const [notes, setNotes] = useState<string>(editingReading?.notes ?? "");
+  const [carbs, setCarbs] = useState<string>(
+    editingReading?.carbs != null ? String(editingReading.carbs) : "",
+  );
+  const [insulin, setInsulin] = useState<string>(
+    editingReading?.insulin != null ? String(editingReading.insulin) : "",
+  );
+  const [timestamp, setTimestamp] = useState<string>(
+    editingReading
+      ? toLocalDateTimeInput(editingReading.timestamp)
+      : (() => {
+          const now = new Date();
+          now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+          return now.toISOString().slice(0, 16);
+        })(),
+  );
 
   const numericValue = parseInt(value, 10);
   const isValid = !isNaN(numericValue) && numericValue >= 20 && numericValue <= 600;
@@ -61,6 +94,11 @@ export function AddReading() {
     setValue(String(next));
   };
 
+  const handleClose = () => {
+    setEditingReadingId(null);
+    setScreen("home");
+  };
+
   const handleSave = () => {
     if (!isValid) {
       toast({
@@ -70,16 +108,33 @@ export function AddReading() {
       return;
     }
 
-    addReading.mutate(
-      {
-        value: numericValue,
-        type,
-        timestamp: new Date(timestamp).getTime(),
-        notes: notes.trim() || undefined,
-        carbs: carbs ? parseInt(carbs, 10) : undefined,
-        insulin: insulin ? parseInt(insulin, 10) : undefined,
-      },
-      {
+    const payload = {
+      value: numericValue,
+      type,
+      timestamp: new Date(timestamp).getTime(),
+      notes: notes.trim() || undefined,
+      carbs: carbs ? parseInt(carbs, 10) : undefined,
+      insulin: insulin ? parseInt(insulin, 10) : undefined,
+    };
+
+    if (isEditMode && editingReading) {
+      // ===== EDIT mode =====
+      updateReading.mutate(
+        { id: editingReading.id, ...payload },
+        {
+          onSuccess: () => {
+            toast({ title: t(lang, "edited_success") });
+            setEditingReadingId(null);
+            setScreen("home");
+          },
+          onError: () => {
+            toast({ title: t(lang, "invalid_value"), variant: "destructive" });
+          },
+        },
+      );
+    } else {
+      // ===== ADD mode =====
+      addReading.mutate(payload, {
         onSuccess: () => {
           toast({ title: t(lang, "saved_success") });
           setScreen("home");
@@ -87,17 +142,26 @@ export function AddReading() {
         onError: () => {
           toast({ title: t(lang, "invalid_value"), variant: "destructive" });
         },
-      },
-    );
+      });
+    }
   };
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
       <header className="px-5 pt-8 pb-3 flex items-center justify-between">
-        <h1 className={`${theme.fontSizeXl} font-bold`}>{t(lang, "add_reading")}</h1>
+        <h1 className={`${theme.fontSizeXl} font-bold flex items-center gap-2`}>
+          {isEditMode ? (
+            <>
+              <Pencil className="h-5 w-5" />
+              {t(lang, "edit_reading")}
+            </>
+          ) : (
+            t(lang, "add_reading")
+          )}
+        </h1>
         <button
-          onClick={() => setScreen("home")}
+          onClick={handleClose}
           className="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center"
           aria-label={t(lang, "close")}
         >
@@ -266,7 +330,7 @@ export function AddReading() {
       <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800">
         <div className="flex gap-3">
           <button
-            onClick={() => setScreen("home")}
+            onClick={handleClose}
             className={`px-5 py-3 rounded-2xl border-2 ${theme.border} font-semibold ${theme.text}`}
           >
             {t(lang, "cancel")}

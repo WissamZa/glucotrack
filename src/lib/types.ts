@@ -21,8 +21,11 @@ export type ScreenName =
   | "home"
   | "add"
   | "trends"
+  | "chart"
   | "reminders"
   | "settings";
+
+export type SortOrder = "newest" | "oldest" | "highest" | "lowest";
 
 export interface Reading {
   id: string;

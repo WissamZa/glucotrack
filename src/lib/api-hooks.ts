@@ -22,11 +22,23 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 // ===== Readings =====
+// The API returns `timestamp` as an ISO string. We normalize to a number
+// (ms since epoch) so downstream code can do numeric comparisons.
+function normalizeReading(r: any): Reading {
+  return {
+    ...r,
+    timestamp: typeof r.timestamp === "string" ? new Date(r.timestamp).getTime() : r.timestamp,
+  };
+}
+
 export function useReadings() {
   const setReadings = useAppStore((s) => s.setReadings);
   const q = useQuery({
     queryKey: KEYS.readings,
-    queryFn: () => fetchJSON<{ readings: Reading[] }>("/api/readings"),
+    queryFn: async () => {
+      const data = await fetchJSON<{ readings: any[] }>("/api/readings");
+      return { readings: data.readings.map(normalizeReading) };
+    },
     staleTime: 30_000,
   });
 
@@ -59,7 +71,7 @@ export function useAddReading() {
       });
       if (!res.ok) throw new Error("failed");
       const data = await res.json();
-      return data.reading as Reading;
+      return normalizeReading(data.reading);
     },
     onSuccess: (reading) => {
       upsert(reading);
@@ -77,6 +89,36 @@ export function useDeleteReading() {
     },
     onSuccess: (_v, id) => {
       remove(id);
+      qc.invalidateQueries({ queryKey: KEYS.readings });
+    },
+  });
+}
+
+export function useUpdateReading() {
+  const qc = useQueryClient();
+  const upsert = useAppStore((s) => s.upsertReading);
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      value?: number;
+      type?: ReadingType;
+      timestamp?: number;
+      notes?: string;
+      carbs?: number;
+      insulin?: number;
+    }) => {
+      const { id, ...payload } = input;
+      const res = await fetch(`/api/readings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      return normalizeReading(data.reading);
+    },
+    onSuccess: (reading) => {
+      upsert(reading);
       qc.invalidateQueries({ queryKey: KEYS.readings });
     },
   });

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { Reading, Reminder, Settings, ScreenName } from "./types";
+import type { Reading, Reminder, Settings, ScreenName, SortOrder } from "./types";
 
 /**
  * App UI state store.
@@ -19,6 +19,14 @@ interface AppState {
   // Onboarding flag (mirrors settings.onboarded but kept here for fast access)
   onboarded: boolean;
   setOnboarded: (v: boolean) => void;
+
+  // Editing state — when set, AddReading opens in "edit" mode
+  editingReadingId: string | null;
+  setEditingReadingId: (id: string | null) => void;
+
+  // Sort order for readings lists
+  sortOrder: SortOrder;
+  setSortOrder: (s: SortOrder) => void;
 
   // Cached data (hydrated by React Query on mount)
   settings: Settings | null;
@@ -43,6 +51,12 @@ export const useAppStore = create<AppState>()((set) => ({
 
   onboarded: false,
   setOnboarded: (v) => set({ onboarded: v }),
+
+  editingReadingId: null,
+  setEditingReadingId: (id) => set({ editingReadingId: id }),
+
+  sortOrder: "newest",
+  setSortOrder: (s) => set({ sortOrder: s }),
 
   settings: null,
   readings: [],
@@ -84,3 +98,26 @@ export const useAppStore = create<AppState>()((set) => ({
       reminders: state.reminders.filter((r) => r.id !== id),
     })),
 }));
+
+/**
+ * Apply the current sort order to a copy of the readings array.
+ * Used by Home, Trends, and Chart screens.
+ */
+export function sortReadings(
+  readings: Reading[],
+  order: SortOrder,
+): Reading[] {
+  const arr = [...readings];
+  switch (order) {
+    case "newest":
+      return arr.sort((a, b) => b.timestamp - a.timestamp);
+    case "oldest":
+      return arr.sort((a, b) => a.timestamp - b.timestamp);
+    case "highest":
+      return arr.sort((a, b) => b.value - a.value);
+    case "lowest":
+      return arr.sort((a, b) => a.value - b.value);
+    default:
+      return arr;
+  }
+}

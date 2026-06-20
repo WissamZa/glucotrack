@@ -9,6 +9,7 @@ import { Onboarding } from "@/components/screens/Onboarding";
 import { Home } from "@/components/screens/Home";
 import { AddReading } from "@/components/screens/AddReading";
 import { Trends } from "@/components/screens/Trends";
+import { Chart } from "@/components/screens/Chart";
 import { Reminders } from "@/components/screens/Reminders";
 import { Settings } from "@/components/screens/Settings";
 import { AnimatePresence, motion } from "framer-motion";
@@ -18,6 +19,7 @@ export default function Page() {
   const settings = useAppStore((s) => s.settings);
   const onboarded = useAppStore((s) => s.onboarded);
   const activeScreen = useAppStore((s) => s.activeScreen);
+  const editingReadingId = useAppStore((s) => s.editingReadingId);
 
   // ===== Bootstrap on first mount =====
   // 1) Seed the DB if empty (no-op if already populated)
@@ -69,10 +71,12 @@ export default function Page() {
   }
 
   // ===== Add reading = full-screen modal =====
+  // Key by editingReadingId so the form remounts with the right initial state
+  // when switching between "add new" and "edit existing" modes.
   if (activeScreen === "add") {
     return (
       <PhoneFrame>
-        <AddReading />
+        <AddReading key={editingReadingId ?? "new"} />
       </PhoneFrame>
     );
   }
@@ -93,6 +97,7 @@ export default function Page() {
             >
               {activeScreen === "home" && <Home />}
               {activeScreen === "trends" && <Trends />}
+              {activeScreen === "chart" && <Chart />}
               {activeScreen === "reminders" && <Reminders />}
               {activeScreen === "settings" && <Settings />}
             </motion.div>

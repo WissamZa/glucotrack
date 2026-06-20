@@ -8,12 +8,14 @@ import type { Reading } from "@/lib/types";
 import { motion } from "framer-motion";
 import { Droplet, TrendingUp, Target, Plus, Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo } from "react";
+import { ReadingActions } from "@/components/phone/ReadingActions";
 
 export function Home() {
   const settings = useAppStore((s) => s.settings);
   const readings = useAppStore((s) => s.readings);
   const reminders = useAppStore((s) => s.reminders);
   const setScreen = useAppStore((s) => s.setScreen);
+  const setEditingReadingId = useAppStore((s) => s.setEditingReadingId);
 
   const theme = themes[settings?.theme ?? "classic"];
   const lang = settings?.language ?? "ar";
@@ -129,7 +131,10 @@ export function Home() {
 
           <div className="space-y-2">
             {readings.slice(0, 5).map((r) => (
-              <ReadingRow key={r.id} reading={r} />
+              <ReadingRow key={r.id} reading={r} onEdit={() => {
+                setEditingReadingId(r.id);
+                setScreen("add");
+              }} />
             ))}
             {readings.length === 0 && (
               <div className={`${theme.surface} ${theme.border} border ${theme.radius} ${theme.padding} text-center ${theme.textMuted}`}>
@@ -232,7 +237,7 @@ function StatCard({
   );
 }
 
-function ReadingRow({ reading }: { reading: Reading }) {
+function ReadingRow({ reading, onEdit }: { reading: Reading; onEdit: () => void }) {
   const settings = useAppStore((s) => s.settings)!;
   const theme = themes[settings.theme];
   const lang = settings.language;
@@ -262,15 +267,12 @@ function ReadingRow({ reading }: { reading: Reading }) {
           <span className={`font-bold ${theme.fontSizeBase}`}>{reading.value}</span>
           <span className={`${theme.fontSizeSm} ${theme.textMuted}`}>mg/dL</span>
         </div>
-        <div className={`${theme.fontSizeSm} ${theme.textMuted}`}>
+        <div className={`${theme.fontSizeSm} ${theme.textMuted} truncate`}>
           {readingTypeLabel(lang, reading.type)} · {dayLabel} {timeStr}
+          {reading.notes ? ` · ${reading.notes}` : ""}
         </div>
       </div>
-      {reading.notes && (
-        <span className={`${theme.fontSizeSm} ${theme.textMuted} truncate max-w-20`} title={reading.notes}>
-          {reading.notes}
-        </span>
-      )}
+      <ReadingActions reading={reading} onEdit={onEdit} />
     </div>
   );
 }

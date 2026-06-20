@@ -309,14 +309,17 @@ function SyncSection() {
   const scope = syncConfigQ.data?.scope || "https://www.googleapis.com/auth/drive.appdata";
 
   // ===== Handle Google Identity Services token =====
+  // Each user signs in with THEIR OWN Google account.
+  // The GOOGLE_CLIENT_ID identifies the app to Google — not the user.
+  // The user's data goes to THEIR own Google Drive (appDataFolder).
   const handleConnectDrive = () => {
     if (!clientId) {
       toast({
         title: lang === "ar" ? "Google Client ID غير مُعد" : "Google Client ID not configured",
         description:
           lang === "ar"
-            ? "أضف GOOGLE_CLIENT_ID في ملف .env ثم أعد التشغيل"
-            : "Add GOOGLE_CLIENT_ID to .env then restart",
+            ? "المطور: أضف GOOGLE_CLIENT_ID في .env ثم أعد التشغيل. سيظل كل مستخدم يستخدم حسابه الخاص في Google Drive."
+            : "Developer: Add GOOGLE_CLIENT_ID to .env then restart. Each user still uses their own Google account.",
         variant: "destructive",
       });
       return;
@@ -464,11 +467,13 @@ function SyncSection() {
               )}
             </div>
             <div className={`${theme.fontSizeSm} ${theme.textMuted}`}>
-              {state?.connected
-                ? state.accountEmail
-                : lang === "ar"
-                  ? "ارفع بياناتك إلى Drive للنسخ الاحتياطي"
-                  : "Back up your data to Drive"}
+              {state?.connected ? (
+                <>
+                  {t(lang, "drive_connected_as")} <span className="font-semibold">{state.accountEmail}</span>
+                </>
+              ) : (
+                t(lang, "google_signin_desc")
+              )}
             </div>
           </div>
         </div>
@@ -504,7 +509,9 @@ function SyncSection() {
             ) : (
               <Cloud className="h-4 w-4" />
             )}
-            {lang === "ar" ? "ربط Google Drive" : "Connect Google Drive"}
+            {connectMut.isPending
+              ? t(lang, "signing_in")
+              : t(lang, "google_signin")}
           </button>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -538,7 +545,7 @@ function SyncSection() {
               className="col-span-2 py-2 rounded-xl border-2 border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <CloudOff className="h-4 w-4" />
-              {lang === "ar" ? "فصل الحساب" : "Disconnect"}
+              {t(lang, "signout")}
             </button>
           </div>
         )}
@@ -547,6 +554,8 @@ function SyncSection() {
         <div className={`mt-3 pt-3 border-t ${theme.border} flex items-start gap-2`}>
           <Info className="h-3.5 w-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
           <p className={`${theme.fontSizeSm} ${theme.textMuted} leading-relaxed`}>
+            {t(lang, "your_data_your_account")}
+            {" · "}
             {lang === "ar"
               ? "تُحفظ البيانات في مجلد مخفي خاص بالتطبيق (appDataFolder) ولا يمكن للتطبيق الوصول لملفاتك الأخرى في Drive."
               : "Data is stored in a hidden app-scoped folder (appDataFolder). The app cannot access your other Drive files."}

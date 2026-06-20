@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, TrendingUp, Bell, Settings as SettingsIcon, Plus } from "lucide-react";
+import { Home, TrendingUp, Bell, Settings as SettingsIcon, Plus, BarChart3 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { themes, statusClasses } from "@/lib/themes";
 import { t } from "@/lib/i18n";
@@ -16,7 +16,7 @@ export function BottomNav() {
 
   const items: Array<{ key: ScreenName; icon: React.ReactNode; label: string }> = [
     { key: "home", icon: <Home className="h-5 w-5" />, label: t(lang, "nav_home") },
-    { key: "trends", icon: <TrendingUp className="h-5 w-5" />, label: t(lang, "nav_trends") },
+    { key: "chart", icon: <BarChart3 className="h-5 w-5" />, label: t(lang, "nav_chart") },
     { key: "add", icon: <Plus className="h-6 w-6" />, label: t(lang, "nav_add") },
     { key: "reminders", icon: <Bell className="h-5 w-5" />, label: t(lang, "nav_reminders") },
     { key: "settings", icon: <SettingsIcon className="h-5 w-5" />, label: t(lang, "nav_settings") },
