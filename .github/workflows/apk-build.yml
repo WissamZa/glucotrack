@@ -1,20 +1,14 @@
 name: 📱 APK Build & Release (Flutter)
 
-# Builds a signed Android APK from the Flutter project in /flutter_app.
-#
-# This is a TRUE native Android build (not a TWA wrapper) — Flutter
-# compiles Dart to native ARM/ARM64 code, producing a real APK that
-# runs without any web URL dependency.
-#
-# Signing:
-#   - If ANDROID_KEYSTORE_BASE64 secret is set, the APK is signed with
-#     the production keystore (suitable for Play Store).
-#   - Otherwise, it's signed with a debug keystore (good for testing,
-#     not for Play Store). A fresh debug keystore is generated per build.
+# Builds a signed Android APK from the Flutter project.
 #
 # Trigger:
 #   - Push tag apk-v* → builds + creates Release
 #   - Manual dispatch (workflow_dispatch) → same
+#
+# Signing:
+#   - If ANDROID_KEYSTORE_BASE64 secret is set, signs with production keystore
+#   - Otherwise, signs with debug keystore (for testing only)
 
 on:
   push:
@@ -38,9 +32,6 @@ jobs:
   build-apk:
     name: Build Flutter APK
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: flutter_app
 
     steps:
       - name: 📥 Checkout
@@ -73,7 +64,6 @@ jobs:
             VERSION="${{ github.event.inputs.version }}"
           else
             VERSION="${GITHUB_REF#refs/tags/apk-v}"
-            # Strip optional "v" prefix
             VERSION="v${VERSION#v}"
           fi
           CLEAN="${VERSION#v}"
@@ -86,7 +76,6 @@ jobs:
           echo "Building GlucoTrack $VERSION (code: $CODE)"
 
       - name: 🔐 Setup signing keystore
-        id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -96,8 +85,7 @@ jobs:
           cd android
 
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "⚠️  ANDROID_KEYSTORE_BASE64 not set. Generating a debug keystore for this build."
-            echo "    The APK will work for testing but is NOT suitable for Play Store."
+            echo "⚠️  ANDROID_KEYSTORE_BASE64 not set. Generating debug keystore."
             keytool -genkey -v \
               -keystore release.keystore \
               -alias glucotrack \
@@ -106,53 +94,24 @@ jobs:
               -keyalg RSA -keysize 2048 \
               -validity 10000 \
               -dname "CN=GlucoTrack, OU=Dev, O=WissamZa, L=Dev, ST=Dev, C=SA"
-            echo "store_password=android" >> key.properties
+            echo "store_password=android" > key.properties
             echo "key_password=android" >> key.properties
             echo "key_alias=glucotrack" >> key.properties
             echo "store_file=release.keystore" >> key.properties
-            echo "signed=true" >> $GITHUB_OUTPUT
+            echo "signed=false" >> $GITHUB_OUTPUT
           else
             echo "🔑 Using production keystore from secrets"
             echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-            echo "store_password=$KEYSTORE_PASS" >> key.properties
+            echo "store_password=$KEYSTORE_PASS" > key.properties
             echo "key_password=$KEY_PASS" >> key.properties
             echo "key_alias=$KEY_ALIAS" >> key.properties
             echo "store_file=release.keystore" >> key.properties
             echo "signed=true" >> $GITHUB_OUTPUT
           fi
 
-          # Patch app/build.gradle to read key.properties for release builds
-          cat >> app/build.gradle << 'GRADLE_EOF'
-
-          // === CI-injected signing config (auto-appended) ===
-          def keystoreProperties = new Properties()
-          def keystorePropertiesFile = rootProject.file("key.properties")
-          if (keystorePropertiesFile.exists()) {
-              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-          }
-          android {
-              signingConfigs {
-                  release {
-                      keyAlias keystoreProperties['key_alias']
-                      keyPassword keystoreProperties['key_password']
-                      storeFile rootProject.file(keystoreProperties['store_file'])
-                      storePassword keystoreProperties['store_password']
-                  }
-              }
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.release
-                  }
-              }
-          }
-          GRADLE_EOF
-
       - name: 🏗️ Build APK
         run: |
-          # Update pubspec version
           sed -i "s/^version: .*/version: ${{ steps.meta.outputs.version_name }}+${{ steps.meta.outputs.version_code }}/" pubspec.yaml
-
-          # Build the APK (release mode, all ABIs)
           flutter build apk --release --build-name=${{ steps.meta.outputs.version_name }} --build-number=${{ steps.meta.outputs.version_code }}
 
       - name: 📦 Rename APK
@@ -166,7 +125,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: glucotrack-apk
-          path: flutter_app/artifact/*.apk
+          path: artifact/*.apk
           retention-days: 90
 
       - name: 📝 Create GitHub Release
@@ -174,11 +133,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.version }}
-          name: "📱 APK Release ${{ steps.meta.outputs.version }} (Flutter)"
+          name: "📱 APK Release ${{ steps.meta.outputs.version }}"
           body: |
             # GlucoTrack Android APK ${{ steps.meta.outputs.version }}
 
-            Built with **Flutter 3.22** — true native Android build (not a TWA wrapper).
+            Built with **Flutter 3.22** — native Android build.
 
             ## 📦 Artifact
             - `GlucoTrack-${{ steps.meta.outputs.version }}.apk` — Signed Android APK
@@ -191,7 +150,7 @@ jobs:
             ## ✨ Features
             - 📝 Log readings (value, type, time, notes, carbs, insulin)
             - ✏️ Edit & delete readings
-            - 📊 Interactive charts (area / line / bar) with 3 time periods
+            - 📊 Interactive charts (area / line / bar)
             - 🔀 Sort by newest / oldest / highest / lowest
             - 🔔 Reminders for scheduled measurements
             - 🌐 Bilingual UI (Arabic RTL / English LTR)
@@ -199,15 +158,8 @@ jobs:
             - 💾 Local SQLite storage (offline-first)
 
             ## 🔐 Signing
-            ${{ steps.signing.outputs.signed == 'true' && '✅ Signed with production keystore' || '⚠️ Signed with debug keystore (testing only)' }}
-
-            ## 🏗️ Build info
-            - Flutter: 3.22.0
-            - Dart: 3.4.0
-            - Target SDK: 34 (Android 14)
-            - Min SDK: 21 (Android 5.0)
-            - ABIs: armeabi-v7a, arm64-v8a, x86_64
+            ${{ steps.signing.outputs.signed == 'true' && '✅ Production-signed' || '⚠️ Debug-signed (testing only)' }}
           files: |
-            flutter_app/artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
+            artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
           draft: false
           prerelease: false

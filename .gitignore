@@ -1,59 +1,46 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+.fvm/
+.fvmrc
 
-# dependencies
-node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/release.keystore
+**/android/**/gradle-wrapper.jar
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
 
-# testing
-/coverage
+# iOS (not used but for completeness)
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/podhelper.rb
+**/ios/Flutter/Generated.xcconfig
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
 
-# next.js
-/.next/
-/out/
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
 
-# production
-/build
-
-# misc
+# macOS
 .DS_Store
-*.pem
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env
-.env.local
-.env.*.local
-# Keep .env.example tracked — it's a template, not real secrets
-!.env.example
-
-# vercel
-.vercel
-
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-local-*
-.claude
-.z-ai-config
-*.log
-dev.log
-dev.out.log
-test
-prompt
-
-server.log
-# Skills directory
-/skills/keystore/
+# Secrets / keystore (NEVER commit)
+*.keystore
+*.jks
+keystore/
 scripts/upload_secrets.py
