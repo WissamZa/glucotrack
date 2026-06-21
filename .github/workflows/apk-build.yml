@@ -1,62 +1,31 @@
-name: 📱 APK Build & Release (TWA)
+name: 📱 APK Build & Release (Flutter)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# FIX SUMMARY (replaces the broken expect/Bubblewrap interactive approach):
+# Builds a signed Android APK from the Flutter project in /flutter_app.
 #
-#  PROBLEM 1 – `bubblewrap build` launches an interactive TTY wizard that the
-#    `expect` script couldn't reliably drive. Runs timed out after 2+ hours or
-#    died in < 1 min when expect mis-matched a prompt.
+# This is a TRUE native Android build (not a TWA wrapper) — Flutter
+# compiles Dart to native ARM/ARM64 code, producing a real APK that
+# runs without any web URL dependency.
 #
-#  PROBLEM 2 – `--signingKeyPath / --signingKeyAlias / --signingKeyPassword /
-#    --keystorePassword` are NOT valid `bubblewrap build` flags; they are
-#    init-time fields written into twa-manifest.json, so signing never worked.
+# Signing:
+#   - If ANDROID_KEYSTORE_BASE64 secret is set, the APK is signed with
+#     the production keystore (suitable for Play Store).
+#   - Otherwise, it's signed with a debug keystore (good for testing,
+#     not for Play Store). A fresh debug keystore is generated per build.
 #
-#  PROBLEM 3 – Tag trigger was `apk-v*` but release tags are `v*`, so
-#    tag-triggered builds never ran and version parsing was wrong.
-#
-#  FIX STRATEGY – Use Bubblewrap only to scaffold the Gradle project
-#    (bubblewrap init --skipPwaValidation), then invoke Gradle directly:
-#      ./gradlew bundleRelease   → produces a signed AAB  (preferred)
-#      ./gradlew assembleRelease → produces a signed APK  (sideload / fallback)
-#    This bypasses ALL interactive prompts and is the standard approach used
-#    by Google's own TWA sample CI pipelines.
-#
-#  PROBLEM 4 – softprops/action-gh-release `files:` would error when
-#    BUILD-FAILED.txt didn't exist. Fixed with conditional artifact collection.
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# Prerequisites (Settings → Secrets and variables → Actions):
-#   ANDROID_KEYSTORE_BASE64     base64-encoded .keystore file
-#   ANDROID_KEY_ALIAS           key alias, e.g. "glucotrack"
-#   ANDROID_KEYSTORE_PASSWORD   keystore password
-#   ANDROID_KEY_PASSWORD        key password
-#   WEB_APP_URL                 (optional secret) override the default URL
-#
-# Generate a signing keystore (run once locally):
-#   keytool -genkey -v -keystore release.keystore -alias glucotrack \
-#     -keyalg RSA -keysize 2048 -validity 10000
-#   base64 -w 0 release.keystore   # → paste as ANDROID_KEYSTORE_BASE64 secret
-#
-# Trigger a release:
-#   git tag v1.2.3 && git push origin v1.2.3
-# ─────────────────────────────────────────────────────────────────────────────
+# Trigger:
+#   - Push tag apk-v* → builds + creates Release
+#   - Manual dispatch (workflow_dispatch) → same
 
 on:
   push:
     tags:
-      # Matches both "v1.0.0" and legacy "apk-v1.0.0" tag formats
-      - "v[0-9]*"
       - "apk-v*"
   workflow_dispatch:
     inputs:
       version:
-        description: "Version name (e.g. 1.2.3)"
+        description: "Version tag (e.g. v1.0.0)"
         required: false
-        default: "1.0.0-dev"
-      web_app_url:
-        description: "Public URL of the deployed web app"
-        required: false
-        default: "https://wissamza.github.io/glucotrack/"
+        default: "v1.0.0-dev"
 
 permissions:
   contents: write
@@ -65,305 +34,180 @@ concurrency:
   group: "apk-build-${{ github.ref }}"
   cancel-in-progress: false
 
-env:
-  # Default web URL — override with WEB_APP_URL secret or workflow_dispatch input
-  DEFAULT_WEB_URL: "https://wissamza.github.io/glucotrack/"
-  APP_ID: "com.wissamza.glucotrack"
-  APP_NAME: "GlucoTrack"
-  KEY_ALIAS_DEFAULT: "glucotrack"
-
 jobs:
   build-apk:
-    name: Build & Sign TWA APK
+    name: Build Flutter APK
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
 
     steps:
-      # ── 1. Source ────────────────────────────────────────────────────────────
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Toolchain ─────────────────────────────────────────────────────────
-      - name: 🧰 Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: 🧰 Setup Java 17
+      - name: ☕ Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
 
-      - name: 🧰 Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          accept-android-sdk-licenses: true
-          log-accepted-android-sdk-licenses: false
+          flutter-version: "3.22.0"
+          channel: stable
+          cache: true
 
-      - name: 🔧 Install required Android SDK components
-        run: |
-          # Install the platform + build-tools Bubblewrap/Gradle needs
-          yes | sdkmanager \
-            "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "platform-tools" \
-            2>/dev/null || true
-          echo "=== Installed SDK packages ==="
-          sdkmanager --list_installed 2>&1 | grep -E "platforms|build-tools|platform-tools" || true
+      - name: 📦 Install dependencies
+        run: flutter pub get
 
-      # ── 3. Version & URL resolution ─────────────────────────────────────────
-      - name: 🏷️ Resolve version, version-code and web URL
+      - name: 🔍 Analyze code
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        continue-on-error: true
+
+      - name: 🏷️ Determine version
         id: meta
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RAW_VERSION="${{ github.event.inputs.version }}"
-            WEB_URL="${{ github.event.inputs.web_app_url }}"
-            [ -z "$WEB_URL" ] && WEB_URL="${{ secrets.WEB_APP_URL || env.DEFAULT_WEB_URL }}"
+            VERSION="${{ github.event.inputs.version }}"
           else
-            # Tag may be "v1.2.3" or "apk-v1.2.3" — strip both prefixes
-            RAW_VERSION="${GITHUB_REF#refs/tags/}"
-            RAW_VERSION="${RAW_VERSION#apk-v}"
-            RAW_VERSION="${RAW_VERSION#v}"
-            WEB_URL="${{ secrets.WEB_APP_URL || env.DEFAULT_WEB_URL }}"
+            VERSION="${GITHUB_REF#refs/tags/apk-v}"
+            # Strip optional "v" prefix
+            VERSION="v${VERSION#v}"
           fi
+          CLEAN="${VERSION#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CLEAN"
+          : "${MAJOR:=1}"; : "${MINOR:=0}"; : "${PATCH:=0}"
+          CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_name=$CLEAN" >> $GITHUB_OUTPUT
+          echo "version_code=$CODE" >> $GITHUB_OUTPUT
+          echo "Building GlucoTrack $VERSION (code: $CODE)"
 
-          # Strip leading "v" if user typed it in the dispatch input
-          CLEAN="${RAW_VERSION#v}"
-
-          IFS='.' read -r MAJOR MINOR PATCH REST <<< "$CLEAN"
-          MAJOR="${MAJOR:-1}"; MINOR="${MINOR:-0}"; PATCH="${PATCH:-0}"
-          VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
-
-          echo "version_name=${CLEAN}"         >> "$GITHUB_OUTPUT"
-          echo "version_code=${VERSION_CODE}"  >> "$GITHUB_OUTPUT"
-          echo "web_url=${WEB_URL}"            >> "$GITHUB_OUTPUT"
-          # Tag for the GitHub Release
-          echo "release_tag=v${CLEAN}"         >> "$GITHUB_OUTPUT"
-
-          echo "▶ version_name   = ${CLEAN}"
-          echo "▶ version_code   = ${VERSION_CODE}"
-          echo "▶ web_url        = ${WEB_URL}"
-
-      # ── 4. Signing keystore ──────────────────────────────────────────────────
-      - name: 🔐 Prepare signing keystore
-        id: keystore
+      - name: 🔐 Setup signing keystore
+        id: signing
         env:
-          KEYSTORE_B64:  ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          STORE_PASS_IN: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS_IN:  ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASS_IN:   ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          mkdir -p signing
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > signing/release.keystore
-            echo "signed=true"                       >> "$GITHUB_OUTPUT"
-            echo "store_pass=${STORE_PASS_IN}"       >> "$GITHUB_OUTPUT"
-            echo "key_alias=${KEY_ALIAS_IN}"         >> "$GITHUB_OUTPUT"
-            echo "key_pass=${KEY_PASS_IN}"           >> "$GITHUB_OUTPUT"
-            echo "keystore_path=$(pwd)/signing/release.keystore" >> "$GITHUB_OUTPUT"
-            echo "✅ Release keystore decoded."
-          else
-            echo "⚠️  ANDROID_KEYSTORE_BASE64 not set — generating a debug keystore."
-            echo "    This APK is NOT suitable for the Play Store."
+          cd android
+
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "⚠️  ANDROID_KEYSTORE_BASE64 not set. Generating a debug keystore for this build."
+            echo "    The APK will work for testing but is NOT suitable for Play Store."
             keytool -genkey -v \
-              -keystore signing/release.keystore \
-              -alias "${{ env.KEY_ALIAS_DEFAULT }}" \
+              -keystore release.keystore \
+              -alias glucotrack \
               -storepass android \
-              -keypass  android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=GlucoTrack Debug, OU=CI, O=WissamZa, L=Dev, ST=Dev, C=SA"
-            echo "signed=false"                                   >> "$GITHUB_OUTPUT"
-            echo "store_pass=android"                             >> "$GITHUB_OUTPUT"
-            echo "key_alias=${{ env.KEY_ALIAS_DEFAULT }}"        >> "$GITHUB_OUTPUT"
-            echo "key_pass=android"                               >> "$GITHUB_OUTPUT"
-            echo "keystore_path=$(pwd)/signing/release.keystore" >> "$GITHUB_OUTPUT"
+              -keypass android \
+              -keyalg RSA -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=GlucoTrack, OU=Dev, O=WissamZa, L=Dev, ST=Dev, C=SA"
+            echo "store_password=android" >> key.properties
+            echo "key_password=android" >> key.properties
+            echo "key_alias=glucotrack" >> key.properties
+            echo "store_file=release.keystore" >> key.properties
+            echo "signed=true" >> $GITHUB_OUTPUT
+          else
+            echo "🔑 Using production keystore from secrets"
+            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+            echo "store_password=$KEYSTORE_PASS" >> key.properties
+            echo "key_password=$KEY_PASS" >> key.properties
+            echo "key_alias=$KEY_ALIAS" >> key.properties
+            echo "store_file=release.keystore" >> key.properties
+            echo "signed=true" >> $GITHUB_OUTPUT
           fi
 
-      # ── 5. Install Bubblewrap (scaffold only — no interactive build) ─────────
-      - name: 📦 Install Bubblewrap CLI
-        run: npm install -g @bubblewrap/cli@latest
+          # Patch app/build.gradle to read key.properties for release builds
+          cat >> app/build.gradle << 'GRADLE_EOF'
 
-      # ── 6. Write twa-manifest.json ───────────────────────────────────────────
-      - name: 📝 Write twa-manifest.json
-        run: |
-          mkdir -p android-twa
-          HOST=$(echo "${{ steps.meta.outputs.web_url }}" \
-                 | sed -E 's|https?://||; s|/.*||')
-
-          cat > android-twa/twa-manifest.json << EOF
-          {
-            "packageId":                    "${{ env.APP_ID }}",
-            "host":                         "${HOST}",
-            "name":                         "${{ env.APP_NAME }}",
-            "launcherName":                 "${{ env.APP_NAME }}",
-            "display":                      "standalone",
-            "orientation":                  "default",
-            "themeColor":                   "#0d9488",
-            "themeColorDark":               "#0f172a",
-            "navigationColor":              "#0d9488",
-            "navigationColorDark":          "#0f172a",
-            "navigationDividerColor":       "#0d9488",
-            "navigationDividerColorDark":   "#0f172a",
-            "backgroundColor":              "#ffffff",
-            "enableNotifications":          false,
-            "startUrl":                     "/",
-            "iconUrl":                      "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512.png",
-            "maskableIconUrl":              "https://raw.githubusercontent.com/WissamZa/glucotrack/main/public/icon-512.png",
-            "splashScreenFadeOutDuration":  300,
-            "signingKey": {
-              "path":  "${{ steps.keystore.outputs.keystore_path }}",
-              "alias": "${{ steps.keystore.outputs.key_alias }}"
-            },
-            "appVersionName":  "${{ steps.meta.outputs.version_name }}",
-            "appVersionCode":  ${{ steps.meta.outputs.version_code }},
-            "generatorService":"github-actions",
-            "webManifestUrl":  "${{ steps.meta.outputs.web_url }}manifest.webmanifest",
-            "fingerprints":    []
+          // === CI-injected signing config (auto-appended) ===
+          def keystoreProperties = new Properties()
+          def keystorePropertiesFile = rootProject.file("key.properties")
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
           }
-          EOF
+          android {
+              signingConfigs {
+                  release {
+                      keyAlias keystoreProperties['key_alias']
+                      keyPassword keystoreProperties['key_password']
+                      storeFile rootProject.file(keystoreProperties['store_file'])
+                      storePassword keystoreProperties['store_password']
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE_EOF
 
-          echo "=== twa-manifest.json ==="
-          cat android-twa/twa-manifest.json
-
-      # ── 7. Scaffold Gradle project (non-interactive) ─────────────────────────
-      - name: 🏗️ Init Bubblewrap Gradle project (non-interactive)
+      - name: 🏗️ Build APK
         run: |
-          cd android-twa
+          # Update pubspec version
+          sed -i "s/^version: .*/version: ${{ steps.meta.outputs.version_name }}+${{ steps.meta.outputs.version_code }}/" pubspec.yaml
 
-          # bubblewrap init reads twa-manifest.json from CWD when no --manifest flag.
-          # We set BUBBLEWRAP_SKIP_UPDATE=1 and pass Java + SDK paths via env so
-          # it never prompts for them.
-          export BUBBLEWRAP_DISABLE_TELEMETRY=1
-          export JAVA_HOME="$JAVA_HOME"
-          export ANDROID_HOME="$ANDROID_HOME"
+          # Build the APK (release mode, all ABIs)
+          flutter build apk --release --build-name=${{ steps.meta.outputs.version_name }} --build-number=${{ steps.meta.outputs.version_code }}
 
-          # --skipPwaValidation skips the network fetch of the PWA manifest/icon
-          # which would fail if GitHub Pages isn't deployed yet.
-          bubblewrap init \
-            --manifest=./twa-manifest.json \
-            --directory=. \
-            --skipPwaValidation \
-            2>&1 || {
-              echo "⚠️  bubblewrap init exited non-zero (may be a prompt it printed)."
-              echo "    Continuing — Gradle project should still have been written."
-            }
-
-          echo "=== Gradle project files ==="
-          ls -la
-
-      # ── 8. Patch build.gradle with correct version ───────────────────────────
-      - name: 🔧 Patch versionCode / versionName in build.gradle
-        run: |
-          BUILD_GRADLE="android-twa/app/build.gradle"
-          if [ ! -f "$BUILD_GRADLE" ]; then
-            echo "⚠️  $BUILD_GRADLE not found — Bubblewrap scaffold may have failed."
-            ls -la android-twa/ || true
-            exit 1
-          fi
-
-          sed -i \
-            "s/versionCode .*/versionCode ${{ steps.meta.outputs.version_code }}/" \
-            "$BUILD_GRADLE"
-          sed -i \
-            "s/versionName .*/versionName \"${{ steps.meta.outputs.version_name }}\"/" \
-            "$BUILD_GRADLE"
-
-          echo "=== Patched defaultConfig block ==="
-          grep -A 10 "defaultConfig" "$BUILD_GRADLE"
-
-      # ── 9. Build with Gradle directly (no TTY, no prompts) ──────────────────
-      - name: 🔨 Build signed APK with Gradle
-        env:
-          STORE_PASS:     ${{ steps.keystore.outputs.store_pass }}
-          KEY_PASS:       ${{ steps.keystore.outputs.key_pass }}
-          KEY_ALIAS:      ${{ steps.keystore.outputs.key_alias }}
-          KEYSTORE_PATH:  ${{ steps.keystore.outputs.keystore_path }}
-        run: |
-          cd android-twa
-
-          # Give Gradle the signing config via project properties
-          # (Bubblewrap's generated build.gradle already has a release signingConfig
-          #  block that reads these exact property names)
-          ./gradlew assembleRelease \
-            --no-daemon \
-            --stacktrace \
-            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
-            -Pandroid.injected.signing.store.password="$STORE_PASS" \
-            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KEY_PASS" \
-            2>&1 | tee /tmp/gradle-build.log
-
-          echo "=== APK search ==="
-          find . -name "*.apk" -type f | sort
-
-      # ── 10. Collect artifacts ────────────────────────────────────────────────
-      - name: 📦 Collect APK
-        id: collect
+      - name: 📦 Rename APK
         run: |
           mkdir -p artifact
-          VERSION="${{ steps.meta.outputs.version_name }}"
-          APK_NAME="GlucoTrack-v${VERSION}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
+          ls -la artifact/
 
-          # Prefer the release APK; fall back to any APK found
-          RELEASE_APK=$(find android-twa -name "app-release.apk" -type f 2>/dev/null | head -1)
-          ANY_APK=$(find android-twa -name "*.apk" -type f 2>/dev/null | head -1)
-
-          if [ -n "$RELEASE_APK" ]; then
-            cp "$RELEASE_APK" "artifact/$APK_NAME"
-            echo "apk_found=true"  >> "$GITHUB_OUTPUT"
-            echo "apk_path=artifact/$APK_NAME" >> "$GITHUB_OUTPUT"
-            echo "✅ APK collected: $APK_NAME"
-          elif [ -n "$ANY_APK" ]; then
-            cp "$ANY_APK" "artifact/$APK_NAME"
-            echo "apk_found=true"  >> "$GITHUB_OUTPUT"
-            echo "apk_path=artifact/$APK_NAME" >> "$GITHUB_OUTPUT"
-            echo "✅ APK collected (fallback): $APK_NAME"
-          else
-            echo "❌ No APK produced. See workflow logs for details." \
-              > artifact/BUILD-FAILED.txt
-            echo "Build log tail:" >> artifact/BUILD-FAILED.txt
-            tail -50 /tmp/gradle-build.log >> artifact/BUILD-FAILED.txt 2>/dev/null || true
-            echo "apk_found=false" >> "$GITHUB_OUTPUT"
-            echo "apk_path=artifact/BUILD-FAILED.txt" >> "$GITHUB_OUTPUT"
-            echo "❌ No APK produced — placeholder file created."
-          fi
-
-          ls -lh artifact/
-
-      # ── 11. Upload to Actions artifacts ─────────────────────────────────────
-      - name: 📤 Upload artifact
+      - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: glucotrack-apk-v${{ steps.meta.outputs.version_name }}
-          path: artifact/
+          name: glucotrack-apk
+          path: flutter_app/artifact/*.apk
           retention-days: 90
 
-      # ── 12. GitHub Release ───────────────────────────────────────────────────
       - name: 📝 Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/apk-v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.release_tag }}
-          name: "📱 APK Release ${{ steps.meta.outputs.release_tag }}"
-          draft: false
-          prerelease: ${{ contains(steps.meta.outputs.version_name, 'dev') || contains(steps.meta.outputs.version_name, 'rc') }}
-          files: ${{ steps.collect.outputs.apk_path }}
+          tag_name: ${{ steps.meta.outputs.version }}
+          name: "📱 APK Release ${{ steps.meta.outputs.version }} (Flutter)"
           body: |
-            # GlucoTrack Android APK ${{ steps.meta.outputs.release_tag }}
+            # GlucoTrack Android APK ${{ steps.meta.outputs.version }}
+
+            Built with **Flutter 3.22** — true native Android build (not a TWA wrapper).
 
             ## 📦 Artifact
-            - `GlucoTrack-${{ steps.meta.outputs.release_tag }}.apk` — ${{ steps.keystore.outputs.signed == 'true' && 'Release-signed' || 'Debug-signed (no keystore secret set)' }} Android APK (TWA)
+            - `GlucoTrack-${{ steps.meta.outputs.version }}.apk` — Signed Android APK
 
             ## 📲 Installation
             1. Download the APK on your Android phone
-            2. Enable **Install from unknown sources** in Settings → Security
+            2. Allow "Install from unknown sources" in Settings
             3. Open the APK file to install
 
-            ## ℹ️ Notes
-            - Built as a **Trusted Web Activity (TWA)** wrapping: ${{ steps.meta.outputs.web_url }}
-            - The web app must be publicly accessible for the APK to display content
-            - To remove the URL bar, add `assetlinks.json` to your web app's `/.well-known/` path
-            - For Play Store distribution, set the four keystore secrets in repo Settings
+            ## ✨ Features
+            - 📝 Log readings (value, type, time, notes, carbs, insulin)
+            - ✏️ Edit & delete readings
+            - 📊 Interactive charts (area / line / bar) with 3 time periods
+            - 🔀 Sort by newest / oldest / highest / lowest
+            - 🔔 Reminders for scheduled measurements
+            - 🌐 Bilingual UI (Arabic RTL / English LTR)
+            - 🎨 3 themes (Classic / Modern / Elder)
+            - 💾 Local SQLite storage (offline-first)
 
-            ## 🔑 Signing
-            ${{ steps.keystore.outputs.signed == 'true' && '✅ Signed with the production keystore (ANDROID_KEYSTORE_BASE64 secret)' || '⚠️ Signed with a temporary debug keystore — not suitable for Play Store' }}
+            ## 🔐 Signing
+            ${{ steps.signing.outputs.signed == 'true' && '✅ Signed with production keystore' || '⚠️ Signed with debug keystore (testing only)' }}
+
+            ## 🏗️ Build info
+            - Flutter: 3.22.0
+            - Dart: 3.4.0
+            - Target SDK: 34 (Android 14)
+            - Min SDK: 21 (Android 5.0)
+            - ABIs: armeabi-v7a, arm64-v8a, x86_64
+          files: |
+            flutter_app/artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
+          draft: false
+          prerelease: false

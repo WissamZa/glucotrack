@@ -1,0 +1,471 @@
+// Settings screen — language, theme, diabetes type, targets, units,
+// profile name, integrations (Coming Soon), reset.
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../i18n/strings.dart';
+import '../models/settings.dart';
+import '../providers/providers.dart';
+import '../database/database_helper.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late TextEditingController _nameCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(
+        text: context.read<SettingsProviderState>().settings.userName);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prov = context.watch<SettingsProviderState>();
+    final s = prov.settings;
+    final strings = AppStrings.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(strings.settings)),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _SectionTitle(strings.appearance),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.language, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(strings.language, style: const TextStyle(fontWeight: FontWeight.w600)),
+                ]),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _choiceBtn(s.language == Language.ar, '🇸🇦 العربية', () => _update(prov, language: Language.ar))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _choiceBtn(s.language == Language.en, '🇬🇧 English', () => _update(prov, language: Language.en))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.palette, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(strings.displayStyle, style: const TextStyle(fontWeight: FontWeight.w600)),
+                ]),
+                const SizedBox(height: 12),
+                _styleRow(prov, s, ThemeStyle.classic, strings.styleClassic, Icons.medical_services),
+                _styleRow(prov, s, ThemeStyle.modern, strings.styleModern, Icons.nightlight),
+                _styleRow(prov, s, ThemeStyle.elder, strings.styleElder, Icons.wb_sunny),
+              ],
+            ),
+          ),
+
+          _SectionTitle(strings.health),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.monitor_heart, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(strings.diabetesType, style: const TextStyle(fontWeight: FontWeight.w600)),
+                ]),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _choiceBtn(s.diabetesType == DiabetesType.type1, strings.get('diabetes_type1'), () => _update(prov, diabetesType: DiabetesType.type1))),
+                    const SizedBox(width: 6),
+                    Expanded(child: _choiceBtn(s.diabetesType == DiabetesType.type2, strings.get('diabetes_type2'), () => _update(prov, diabetesType: DiabetesType.type2))),
+                    const SizedBox(width: 6),
+                    Expanded(child: _choiceBtn(s.diabetesType == DiabetesType.gestational, strings.get('diabetes_gestational'), () => _update(prov, diabetesType: DiabetesType.gestational))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.target, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text('${strings.glucoseTargets} (mg/dL)', style: const TextStyle(fontWeight: FontWeight.w600)),
+                ]),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(strings.targetMin, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          const SizedBox(height: 4),
+                          TextFormField(
+                            initialValue: '${s.targetMin}',
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(border: OutlineInputBorder()),
+                            onChanged: (v) {
+                              final n = int.tryParse(v);
+                              if (n != null) _update(prov, targetMin: n.clamp(40, 150));
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(strings.targetMax, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          const SizedBox(height: 4),
+                          TextFormField(
+                            initialValue: '${s.targetMax}',
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(border: OutlineInputBorder()),
+                            onChanged: (v) {
+                              final n = int.tryParse(v);
+                              if (n != null) _update(prov, targetMax: n.clamp(120, 300));
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          _SectionTitle(strings.profile),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(strings.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                ]),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _nameCtrl,
+                        decoration: const InputDecoration(border: OutlineInputBorder()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        _update(prov, userName: _nameCtrl.text.trim());
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(strings.saveSettings)),
+                        );
+                      },
+                      child: Text(strings.save),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          _SectionTitle(strings.integrations),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF22C55E)]),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.cloud, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Google Drive', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(strings.comingSoon, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(strings.comingSoon,
+                        style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 11)),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    strings.comingSoonDesc,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.bluetooth, color: Colors.grey.shade500),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(strings.deviceIntegration, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(strings.comingSoon, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(strings.comingSoon,
+                        style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 11)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          _SectionTitle(strings.about),
+          _Card(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(strings.version),
+                Text('1.0.0 (Flutter + SQLite)',
+                    style: TextStyle(color: Colors.grey.shade600)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text(strings.resetData),
+                  content: Text(strings.resetConfirm),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: Text(strings.cancel),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: Text(strings.ok),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed != true) return;
+              final db = DatabaseHelper();
+              await db.deleteReminder('rem-1'); // dummy to ensure db is open
+              // Clear all tables
+              final database = await db.db;
+              await database.delete('readings');
+              await database.delete('reminders');
+              await prov.reset();
+              await context.read<ReadingsProvider>().load();
+              await context.read<RemindersProvider>().load();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(strings.resetDone)),
+                );
+              }
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            icon: const Icon(Icons.restart_alt),
+            label: Text(strings.resetData),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _update(SettingsProviderState prov, {
+    Language? language,
+    ThemeStyle? theme,
+    DiabetesType? diabetesType,
+    int? targetMin,
+    int? targetMax,
+    GlucoseUnit? unit,
+    String? userName,
+    bool? onboarded,
+  }) async {
+    await prov.persist(prov.settings.copyWith(
+      language: language,
+      theme: theme,
+      diabetesType: diabetesType,
+      targetMin: targetMin,
+      targetMax: targetMax,
+      unit: unit,
+      userName: userName,
+      onboarded: onboarded,
+    ));
+  }
+
+  Widget _choiceBtn(bool selected, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: selected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05) : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: selected ? Theme.of(context).colorScheme.primary : null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _styleRow(SettingsProviderState prov, Settings s, ThemeStyle style, String label, IconData icon) {
+    final selected = s.theme == style;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => _update(prov, theme: style),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            color: selected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05) : null,
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade500),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
+              ),
+              if (selected)
+                Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _Card extends StatelessWidget {
+  final Widget child;
+  const _Card({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+extension on AppStrings {
+  String get appearance => get('appearance');
+  String get health => get('health');
+  String get profile => get('profile');
+  String get integrations => get('integrations');
+  String get deviceIntegration => get('device_integration');
+  String get comingSoon => get('coming_soon');
+  String get comingSoonDesc => get('coming_soon_desc');
+  String get about => get('about');
+  String get version => get('version');
+  String get resetData => get('reset_data');
+  String get resetConfirm => get('reset_confirm');
+  String get resetDone => get('reset_done');
+  String get saveSettings => get('save_settings');
+  String get glucoseTargets => get('glucose_targets');
+}

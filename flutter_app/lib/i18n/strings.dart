@@ -1,0 +1,356 @@
+// App translations — AR/EN.
+// Kept as a simple Map for fast lookups without code generation.
+import 'package:flutter/material.dart';
+import '../models/settings.dart';
+
+class AppStrings {
+  final Language lang;
+  AppStrings(this.lang);
+
+  static AppStrings of(BuildContext context) {
+    final lang = SettingsProvider.of(context).settings.language;
+    return AppStrings(lang);
+  }
+
+  String get(String key) {
+    final dict = lang == Language.ar ? _ar : _en;
+    return dict[key] ?? key;
+  }
+
+  // Shorthand getters for common strings
+  String get appName => get('app_name');
+  String get appTagline => get('app_tagline');
+  String get navHome => get('nav_home');
+  String get navChart => get('nav_chart');
+  String get navAdd => get('nav_add');
+  String get navReminders => get('nav_reminders');
+  String get navSettings => get('nav_settings');
+  String get save => get('save');
+  String get cancel => get('cancel');
+  String get delete => get('delete');
+  String get edit => get('edit');
+  String get ok => get('ok');
+  String get close => get('close');
+  String get back => get('back');
+
+  String readingType(ReadingType t) {
+    switch (t) {
+      case ReadingType.fasting:
+        return get('type_fasting');
+      case ReadingType.beforeMeal:
+        return get('type_before_meal');
+      case ReadingType.afterMeal:
+        return get('type_after_meal');
+      case ReadingType.beforeSleep:
+        return get('type_before_sleep');
+      case ReadingType.afterExercise:
+        return get('type_after_exercise');
+      case ReadingType.other:
+        return get('type_other');
+    }
+  }
+
+  String statusLabel(ReadingStatus s) {
+    switch (s) {
+      case ReadingStatus.low:
+        return get('status_low');
+      case ReadingStatus.inRange:
+        return get('status_in_range');
+      case ReadingStatus.high:
+        return get('status_high');
+      case ReadingStatus.criticalLow:
+        return get('status_critical_low');
+      case ReadingStatus.criticalHigh:
+        return get('status_critical_high');
+    }
+  }
+}
+
+// ReadingType needs to be imported from reading.dart
+import '../models/reading.dart';
+
+// Re-export for convenience
+export '../models/reading.dart' show ReadingType, ReadingStatus;
+export '../models/settings.dart' show Language;
+
+// === SettingsProvider forward declaration (resolved at runtime) ===
+// We avoid a hard import cycle by looking up via context.findAncestorStateOfType.
+class SettingsProvider {
+  static SettingsProviderState of(BuildContext context) {
+    final inh = context.dependOnInheritedWidgetOfExactType<_SettingsInherited>();
+    if (inh == null) {
+      throw FlutterError('SettingsProvider not found in widget tree');
+    }
+    return inh.data;
+  }
+}
+
+class SettingsProviderState extends ChangeNotifier {
+  Settings _settings = const Settings();
+  Settings get settings => _settings;
+
+  void update(Settings s) {
+    _settings = s;
+    notifyListeners();
+  }
+}
+
+class _SettingsInherited extends InheritedWidget {
+  final SettingsProviderState data;
+  const _SettingsInherited({required this.data, required super.child});
+
+  @override
+  bool updateShouldNotify(_SettingsInherited old) => data != old.data;
+}
+
+const Map<String, String> _ar = {
+  'app_name': 'سُكَّري',
+  'app_tagline': 'تابع سكرك بصحة وثقة',
+  'nav_home': 'الرئيسية',
+  'nav_chart': 'الرسم',
+  'nav_add': 'إضافة',
+  'nav_reminders': 'التذكيرات',
+  'nav_settings': 'الإعدادات',
+  'save': 'حفظ',
+  'cancel': 'إلغاء',
+  'delete': 'حذف',
+  'edit': 'تعديل',
+  'ok': 'حسناً',
+  'close': 'إغلاق',
+  'back': 'رجوع',
+  'welcome': 'مرحباً بك',
+  'choose_language': 'اختر اللغة',
+  'choose_style': 'اختر نمط العرض',
+  'style_classic': 'الطبي الكلاسيكي',
+  'style_classic_desc': 'أنيق ومهني بألوان هادئة',
+  'style_modern': 'حديث شبابي',
+  'style_modern_desc': 'تصميم عصري بألوان نابضة',
+  'style_elder': 'ودود لكبار السن',
+  'style_elder_desc': 'خطوط كبيرة وتباين عالٍ',
+  'get_started': 'ابدأ الآن',
+  'your_name': 'اسمك',
+  'your_diabetes_type': 'نوع السكري لديك',
+  'diabetes_type1': 'النوع الأول',
+  'diabetes_type2': 'النوع الثاني',
+  'diabetes_gestational': 'سكر الحمل',
+  'good_morning': 'صباح الخير',
+  'good_afternoon': 'مساء الخير',
+  'good_evening': 'مساء الخير',
+  'good_night': 'طاب ليلك',
+  'today_summary': 'ملخص اليوم',
+  'latest_reading': 'آخر قراءة',
+  'avg_today': 'المتوسط اليومي',
+  'readings_count': 'عدد القراءات',
+  'in_range_pct': 'نسبة الوقت في النطاق',
+  'no_readings_yet': 'لا توجد قراءات بعد',
+  'add_first_reading': 'أضف قراءتك الأولى الآن',
+  'recent_readings': 'أحدث القراءات',
+  'view_all': 'عرض الكل',
+  'today': 'اليوم',
+  'yesterday': 'أمس',
+  'type_fasting': 'صائم',
+  'type_before_meal': 'قبل الأكل',
+  'type_after_meal': 'بعد الأكل',
+  'type_before_sleep': 'قبل النوم',
+  'type_after_exercise': 'بعد الرياضة',
+  'type_other': 'أخرى',
+  'status_low': 'منخفض',
+  'status_in_range': 'ضمن النطاق',
+  'status_high': 'مرتفع',
+  'status_critical_low': 'حرج منخفض',
+  'status_critical_high': 'حرج مرتفع',
+  'add_reading': 'إضافة قراءة جديدة',
+  'edit_reading': 'تعديل القراءة',
+  'glucose_value': 'قيمة السكر',
+  'measurement_type': 'نوع القياس',
+  'time': 'الوقت',
+  'notes': 'ملاحظات',
+  'notes_placeholder': 'أضف ملاحظة (اختياري)',
+  'carbs_grams': 'الكربوهيدرات (غرام)',
+  'insulin_units': 'الأنسولين (وحدة)',
+  'saved_success': 'تم حفظ القراءة بنجاح',
+  'edited_success': 'تم تحديث القراءة بنجاح',
+  'deleted_success': 'تم حذف القراءة',
+  'invalid_value': 'أدخل قيمة صحيحة (20-600)',
+  'delete_confirm': 'هل تريد حذف هذه القراءة؟',
+  'delete_reading': 'حذف القراءة',
+  'trends': 'الاتجاهات',
+  'chart': 'الرسم البياني',
+  'period_today': 'اليوم',
+  'period_week': 'الأسبوع',
+  'period_month': 'الشهر',
+  'glucose_chart': 'منحنى السكر',
+  'by_type': 'حسب نوع القياس',
+  'statistics': 'الإحصائيات',
+  'stat_avg': 'المتوسط',
+  'stat_max': 'الأعلى',
+  'stat_min': 'الأدنى',
+  'stat_readings': 'القراءات',
+  'stat_in_range': 'في النطاق',
+  'no_data_period': 'لا توجد بيانات في هذه الفترة',
+  'sort_by': 'ترتيب حسب',
+  'sort_newest': 'الأحدث',
+  'sort_oldest': 'الأقدم',
+  'sort_highest': 'الأعلى',
+  'sort_lowest': 'الأدنى',
+  'reminders': 'التذكيرات',
+  'add_reminder': 'إضافة تذكير',
+  'reminder_time': 'الوقت',
+  'reminder_label': 'الوصف',
+  'no_reminders': 'لا توجد تذكيرات بعد',
+  'enable_reminder': 'تفعيل',
+  'delete_reminder': 'حذف',
+  'reminder_added': 'تم إضافة التذكير',
+  'reminder_deleted': 'تم حذف التذكير',
+  'settings': 'الإعدادات',
+  'appearance': 'المظهر',
+  'language': 'اللغة',
+  'display_style': 'نمط العرض',
+  'health': 'الصحة',
+  'diabetes_type': 'نوع السكري',
+  'glucose_targets': 'النطاق المستهدف',
+  'target_min': 'الحد الأدنى',
+  'target_max': 'الحد الأعلى',
+  'glucose_unit': 'وحدة القياس',
+  'unit_mg': 'ملغ/ديسيلتر',
+  'unit_mmol': 'مليمول/لتر',
+  'profile': 'الملف الشخصي',
+  'name': 'الاسم',
+  'integrations': 'التكاملات',
+  'device_integration': 'ربط الأجهزة',
+  'coming_soon': 'قيد التطوير',
+  'coming_soon_desc': 'سنضيف دعم أجهزة Accu-Chek و FreeStyle Libre قريباً',
+  'about': 'حول التطبيق',
+  'version': 'الإصدار',
+  'reset_data': 'إعادة تعيين البيانات',
+  'reset_confirm': 'هل أنت متأكد من حذف جميع البيانات؟',
+  'reset_done': 'تمت إعادة التعيين',
+  'save_settings': 'تم حفظ الإعدادات',
+  'loading': 'جارٍ التحميل...',
+};
+
+const Map<String, String> _en = {
+  'app_name': 'GlucoTrack',
+  'app_tagline': 'Track your glucose with confidence',
+  'nav_home': 'Home',
+  'nav_chart': 'Chart',
+  'nav_add': 'Add',
+  'nav_reminders': 'Reminders',
+  'nav_settings': 'Settings',
+  'save': 'Save',
+  'cancel': 'Cancel',
+  'delete': 'Delete',
+  'edit': 'Edit',
+  'ok': 'OK',
+  'close': 'Close',
+  'back': 'Back',
+  'welcome': 'Welcome',
+  'choose_language': 'Choose Language',
+  'choose_style': 'Choose Display Style',
+  'style_classic': 'Classic Medical',
+  'style_classic_desc': 'Elegant & professional, soft colors',
+  'style_modern': 'Modern Youth',
+  'style_modern_desc': 'Contemporary design, vibrant colors',
+  'style_elder': 'Elder Friendly',
+  'style_elder_desc': 'Large fonts, high contrast',
+  'get_started': 'Get Started',
+  'your_name': 'Your Name',
+  'your_diabetes_type': 'Your Diabetes Type',
+  'diabetes_type1': 'Type 1',
+  'diabetes_type2': 'Type 2',
+  'diabetes_gestational': 'Gestational',
+  'good_morning': 'Good morning',
+  'good_afternoon': 'Good afternoon',
+  'good_evening': 'Good evening',
+  'good_night': 'Good night',
+  'today_summary': "Today's Summary",
+  'latest_reading': 'Latest Reading',
+  'avg_today': 'Daily Average',
+  'readings_count': 'Readings',
+  'in_range_pct': 'Time in Range',
+  'no_readings_yet': 'No readings yet',
+  'add_first_reading': 'Add your first reading now',
+  'recent_readings': 'Recent Readings',
+  'view_all': 'View All',
+  'today': 'Today',
+  'yesterday': 'Yesterday',
+  'type_fasting': 'Fasting',
+  'type_before_meal': 'Before Meal',
+  'type_after_meal': 'After Meal',
+  'type_before_sleep': 'Before Sleep',
+  'type_after_exercise': 'After Exercise',
+  'type_other': 'Other',
+  'status_low': 'Low',
+  'status_in_range': 'In Range',
+  'status_high': 'High',
+  'status_critical_low': 'Critical Low',
+  'status_critical_high': 'Critical High',
+  'add_reading': 'Add New Reading',
+  'edit_reading': 'Edit Reading',
+  'glucose_value': 'Glucose Value',
+  'measurement_type': 'Measurement Type',
+  'time': 'Time',
+  'notes': 'Notes',
+  'notes_placeholder': 'Add a note (optional)',
+  'carbs_grams': 'Carbs (g)',
+  'insulin_units': 'Insulin (units)',
+  'saved_success': 'Reading saved successfully',
+  'edited_success': 'Reading updated successfully',
+  'deleted_success': 'Reading deleted',
+  'invalid_value': 'Enter a valid value (20-600)',
+  'delete_confirm': 'Do you want to delete this reading?',
+  'delete_reading': 'Delete Reading',
+  'trends': 'Trends',
+  'chart': 'Chart',
+  'period_today': 'Today',
+  'period_week': 'Week',
+  'period_month': 'Month',
+  'glucose_chart': 'Glucose Curve',
+  'by_type': 'By Measurement Type',
+  'statistics': 'Statistics',
+  'stat_avg': 'Average',
+  'stat_max': 'Max',
+  'stat_min': 'Min',
+  'stat_readings': 'Readings',
+  'stat_in_range': 'In Range',
+  'no_data_period': 'No data in this period',
+  'sort_by': 'Sort by',
+  'sort_newest': 'Newest',
+  'sort_oldest': 'Oldest',
+  'sort_highest': 'Highest',
+  'sort_lowest': 'Lowest',
+  'reminders': 'Reminders',
+  'add_reminder': 'Add Reminder',
+  'reminder_time': 'Time',
+  'reminder_label': 'Label',
+  'no_reminders': 'No reminders yet',
+  'enable_reminder': 'Enable',
+  'delete_reminder': 'Delete',
+  'reminder_added': 'Reminder added',
+  'reminder_deleted': 'Reminder deleted',
+  'settings': 'Settings',
+  'appearance': 'Appearance',
+  'language': 'Language',
+  'display_style': 'Display Style',
+  'health': 'Health',
+  'diabetes_type': 'Diabetes Type',
+  'glucose_targets': 'Target Range',
+  'target_min': 'Minimum',
+  'target_max': 'Maximum',
+  'glucose_unit': 'Measurement Unit',
+  'unit_mg': 'mg/dL',
+  'unit_mmol': 'mmol/L',
+  'profile': 'Profile',
+  'name': 'Name',
+  'integrations': 'Integrations',
+  'device_integration': 'Device Integration',
+  'coming_soon': 'Coming Soon',
+  'coming_soon_desc': 'Accu-Chek & FreeStyle Libre support coming soon',
+  'about': 'About',
+  'version': 'Version',
+  'reset_data': 'Reset Data',
+  'reset_confirm': 'Are you sure you want to delete all data?',
+  'reset_done': 'Reset complete',
+  'save_settings': 'Settings saved',
+  'loading': 'Loading...',
+};
