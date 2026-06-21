@@ -166,7 +166,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           borderRadius: BorderRadius.circular(16),
           color: selected
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
               : null,
         ),
         child: Column(
@@ -248,7 +248,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             borderRadius: BorderRadius.circular(16),
             color: selected
-                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
                 : null,
           ),
           child: Row(
@@ -298,7 +298,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             height: 64,
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(Icons.monitor_heart,
@@ -348,7 +348,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           borderRadius: BorderRadius.circular(12),
           color: selected
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
               : null,
         ),
         child: Text(

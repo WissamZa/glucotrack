@@ -220,7 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      color: const Color(0xFFF59E0B).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(strings.comingSoon,
@@ -261,7 +261,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      color: const Color(0xFFF59E0B).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(strings.comingSoon,
@@ -366,7 +366,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: 2,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: selected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05) : null,
+          color: selected ? Theme.of(context).colorScheme.primary.withOpacity(0.05) : null,
         ),
         child: Text(
           label,
@@ -395,7 +395,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 2,
             ),
             borderRadius: BorderRadius.circular(12),
-            color: selected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05) : null,
+            color: selected ? Theme.of(context).colorScheme.primary.withOpacity(0.05) : null,
           ),
           child: Row(
             children: [
@@ -451,21 +451,4 @@ class _Card extends StatelessWidget {
       ),
     );
   }
-}
-
-extension on AppStrings {
-  String get appearance => get('appearance');
-  String get health => get('health');
-  String get profile => get('profile');
-  String get integrations => get('integrations');
-  String get deviceIntegration => get('device_integration');
-  String get comingSoon => get('coming_soon');
-  String get comingSoonDesc => get('coming_soon_desc');
-  String get about => get('about');
-  String get version => get('version');
-  String get resetData => get('reset_data');
-  String get resetConfirm => get('reset_confirm');
-  String get resetDone => get('reset_done');
-  String get saveSettings => get('save_settings');
-  String get glucoseTargets => get('glucose_targets');
 }

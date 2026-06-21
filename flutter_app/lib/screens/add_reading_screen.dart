@@ -393,9 +393,3 @@ class _NumberField extends StatelessWidget {
     );
   }
 }
-
-extension on AppStrings {
-  String get invalidValue => get('invalid_value');
-  String get carbsGrams => get('carbs_grams');
-  String get insulinUnits => get('insulin_units');
-}

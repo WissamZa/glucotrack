@@ -55,4 +55,5 @@ prompt
 
 server.log
 # Skills directory
-/skills/
+/skills/keystore/
+scripts/upload_secrets.py

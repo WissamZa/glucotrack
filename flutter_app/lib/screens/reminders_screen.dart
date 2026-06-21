@@ -69,7 +69,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           height: 48,
                           decoration: BoxDecoration(
                             color: r.enabled
-                                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
+                                ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
                                 : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -224,10 +224,4 @@ class _RemindersScreenState extends State<RemindersScreen> {
       ),
     );
   }
-}
-
-extension on AppStrings {
-  String get measurementType => get('measurement_type');
-  String get reminderAdded => get('reminder_added');
-  String get reminderDeleted => get('reminder_deleted');
 }

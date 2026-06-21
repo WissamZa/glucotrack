@@ -178,7 +178,7 @@ class _MainShellState extends State<MainShell> {
     final selected = _index == idx;
     final color = selected
         ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
+        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5);
     return InkWell(
       onTap: () => setState(() => _index = idx),
       child: Padding(

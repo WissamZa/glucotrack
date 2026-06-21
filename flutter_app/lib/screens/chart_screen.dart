@@ -87,9 +87,9 @@ class _ChartViewState extends State<_ChartView> {
                 _segmented<_ChartKind>(
                   value: _chartKind,
                   values: [
-                    (_ChartKind.area, strings.get('style_classic') == 'Classic Medical' ? 'Area' : 'منحنى'),
-                    (_ChartKind.line, strings.get('style_classic') == 'Classic Medical' ? 'Line' : 'خطي'),
-                    (_ChartKind.bar, strings.get('style_classic') == 'Classic Medical' ? 'Bar' : 'أعمدة'),
+                    (_ChartKind.area, s.language == Language.ar ? 'منحنى' : 'Area'),
+                    (_ChartKind.line, s.language == Language.ar ? 'خطي' : 'Line'),
+                    (_ChartKind.bar, s.language == Language.ar ? 'أعمدة' : 'Bar'),
                   ],
                   onChanged: (v) => setState(() => _chartKind = v),
                 ),
@@ -281,7 +281,7 @@ class _ChartViewState extends State<_ChartView> {
       BetweenBarData(
         fromY: s.targetMin.toDouble(),
         toY: s.targetMax.toDouble(),
-        color: const Color(0xFF10B981).withValues(alpha: 0.1),
+        color: const Color(0xFF10B981).withOpacity(0.1),
       ),
     ];
 
@@ -372,7 +372,7 @@ class _ChartViewState extends State<_ChartView> {
             belowBarData: _chartKind == _ChartKind.area
                 ? BarAreaData(
                     show: true,
-                    color: lineColor.withValues(alpha: 0.15),
+                    color: lineColor.withOpacity(0.15),
                   )
                 : BarAreaData(show: false),
           ),
@@ -539,7 +539,7 @@ class _ReadingListTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: statusColor(status).withValues(alpha: 0.15),
+              color: statusColor(status).withOpacity(0.15),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(strings.statusLabel(status),
@@ -562,8 +562,4 @@ class _ReadingListTile extends StatelessWidget {
       ),
     );
   }
-}
-
-extension on AppStrings {
-  String get noDataPeriod => get('no_data_period');
 }
