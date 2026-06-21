@@ -1,6 +1,7 @@
 // GlucoTrack — Flutter entry point.
 //
-// Wires up providers, theme, locale, and routes between the 7 screens.
+// Wires up providers, theme, locale, and routes between the screens.
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -18,8 +19,18 @@ import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
 
 void main() {
+  // Ensure Flutter binding is initialized before any async work
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const GlucoTrackApp());
+
+  // Wrap the entire app in a zone that catches errors to prevent white screen
+  runZonedGuarded(() {
+    runApp(const GlucoTrackApp());
+  }, (error, stack) {
+    // Log errors — in production these would go to Crashlytics/Sentry
+    debugPrint('=== UNCAUGHT ERROR ===');
+    debugPrint('$error');
+    debugPrint('$stack');
+  });
 }
 
 class GlucoTrackApp extends StatelessWidget {
@@ -48,7 +59,6 @@ class GlucoTrackApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             builder: (context, child) {
-              // Apply RTL/LTR direction explicitly
               return Directionality(
                 textDirection: s.isRtl ? TextDirection.rtl : TextDirection.ltr,
                 child: child!,
@@ -70,6 +80,8 @@ class GlucoTrackApp extends StatelessWidget {
 }
 
 // Bootstrap: load settings + seed DB + decide onboarding vs main shell.
+// Shows a loading indicator while initializing, and an error screen if
+// anything goes wrong (prevents white screen of death).
 class AppBootstrap extends StatefulWidget {
   const AppBootstrap({super.key});
 
@@ -79,6 +91,7 @@ class AppBootstrap extends StatefulWidget {
 
 class _AppBootstrapState extends State<AppBootstrap> {
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -87,30 +100,107 @@ class _AppBootstrapState extends State<AppBootstrap> {
   }
 
   Future<void> _init() async {
-    final db = DatabaseHelper();
-    await db.seedIfEmpty();
+    try {
+      final db = DatabaseHelper();
 
-    if (!mounted) return;
-    final sProv = context.read<SettingsProviderState>();
-    await sProv.loadFromDb();
+      // Seed demo data on first launch (idempotent)
+      await db.seedIfEmpty();
 
-    if (!mounted) return;
-    await context.read<ReadingsProvider>().load();
-    await context.read<RemindersProvider>().load();
+      // Load settings from DB
+      if (!mounted) return;
+      await context.read<SettingsProviderState>().loadFromDb();
 
-    if (mounted) setState(() => _loading = false);
+      // Load readings and reminders
+      if (!mounted) return;
+      await context.read<ReadingsProvider>().load();
+      if (!mounted) return;
+      await context.read<RemindersProvider>().load();
+
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = null;
+        });
+      }
+    } catch (e, stack) {
+      debugPrint('=== INIT ERROR ===');
+      debugPrint('$e');
+      debugPrint('$stack');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF0D9488)),
+    // Show error screen if initialization failed
+    if (_error != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                const Text(
+                  'Initialization Error',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _loading = true;
+                      _error = null;
+                    });
+                    _init();
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
 
+    // Show loading spinner while initializing
+    if (_loading) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Color(0xFF0D9488)),
+              SizedBox(height: 16),
+              Text(
+                'GlucoTrack',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Loading...',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show onboarding or main shell
     final s = context.watch<SettingsProviderState>().settings;
     if (!s.onboarded) {
       return const OnboardingScreen();
@@ -119,7 +209,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
   }
 }
 
-// Main shell — bottom navigation with 5 tabs + floating Add button.
+// Main shell — bottom navigation with 4 tabs + floating Add button.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -130,11 +220,11 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
-  static const _screens = <Widget>[
-    HomeScreen(),
-    ChartScreen(),
-    RemindersScreen(),
-    SettingsScreen(),
+  static final _screens = <Widget>[
+    const HomeScreen(),
+    const ChartScreen(),
+    const RemindersScreen(),
+    const SettingsScreen(),
   ];
 
   void _openAdd() async {
