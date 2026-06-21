@@ -148,7 +148,12 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
     final s = context.watch<SettingsProviderState>().settings;
     final strings = AppStrings.of(context);
     final status = _isValid
-        ? _numericValue!.status(s.targetMin, s.targetMax)
+        ? Reading(
+            id: 'temp',
+            value: _numericValue!,
+            type: _type,
+            timestamp: _timestamp,
+          ).status(s.targetMin, s.targetMax)
         : null;
 
     return Scaffold(

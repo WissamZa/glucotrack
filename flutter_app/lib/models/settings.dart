@@ -1,5 +1,12 @@
 // App settings model — stored as a singleton row in DB.
 enum Language { ar, en }
+
+extension LanguageX on Language {
+  /// ISO 639-1 code for use with intl's Locale
+  String get code => this == Language.ar ? 'ar' : 'en';
+  bool get isRtl => this == Language.ar;
+}
+
 enum ThemeStyle { classic, modern, elder }
 enum DiabetesType { type1, type2, gestational }
 enum GlucoseUnit { mgDl, mmolL }

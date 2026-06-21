@@ -276,15 +276,6 @@ class _ChartViewState extends State<_ChartView> {
     final textColor = Colors.grey.shade600;
     final lineColor = Theme.of(context).colorScheme.primary;
 
-    final common = <Widget>[
-      // Target range shading
-      BetweenBarData(
-        fromY: s.targetMin.toDouble(),
-        toY: s.targetMax.toDouble(),
-        color: const Color(0xFF10B981).withOpacity(0.1),
-      ),
-    ];
-
     if (_chartKind == _ChartKind.bar) {
       return BarChart(
         BarChartData(

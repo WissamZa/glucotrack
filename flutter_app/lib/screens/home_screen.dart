@@ -96,7 +96,7 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _StatCard(
-                icon: Icons.target,
+                icon: Icons.gps_fixed,
                 value: today.isNotEmpty ? '$inRangePct%' : '—',
                 unit: '',
                 label: strings.inRangePct,
@@ -365,8 +365,4 @@ class _ReadingRow extends StatelessWidget {
 
   bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
-}
-
-extension on Language {
-  String get code => this == Language.ar ? 'ar' : 'en';
 }

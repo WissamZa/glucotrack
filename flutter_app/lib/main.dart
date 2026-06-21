@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'database/database_helper.dart';
 import 'i18n/strings.dart';
+import 'models/settings.dart';
 import 'providers/providers.dart';
 import 'themes/app_theme.dart';
 import 'screens/onboarding_screen.dart';

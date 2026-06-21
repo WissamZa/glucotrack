@@ -1,14 +1,47 @@
-// App translations — AR/EN.
-// Kept as a simple Map for fast lookups without code generation.
+// App strings + SettingsProvider state.
+//
+// This file combines translations (AR/EN) with the SettingsProvider
+// state management class to avoid circular imports.
 import 'package:flutter/material.dart';
+import '../models/reading.dart';
 import '../models/settings.dart';
 
+// ===== Settings Provider =====
+class SettingsProviderState extends ChangeNotifier {
+  Settings _settings = const Settings();
+  Settings get settings => _settings;
+
+  void update(Settings s) {
+    _settings = s;
+    notifyListeners();
+  }
+}
+
+class _SettingsInherited extends InheritedWidget {
+  final SettingsProviderState data;
+  const _SettingsInherited({required this.data, required super.child});
+
+  @override
+  bool updateShouldNotify(_SettingsInherited old) =>
+      old.data.settings != data.settings;
+}
+
+// Static accessor (used in AppStrings.of)
+SettingsProviderState _lookupSettingsProvider(BuildContext context) {
+  final inh = context.dependOnInheritedWidgetOfExactType<_SettingsInherited>();
+  if (inh == null) {
+    throw FlutterError('SettingsProvider not found in widget tree');
+  }
+  return inh.data;
+}
+
+// ===== Strings =====
 class AppStrings {
   final Language lang;
   AppStrings(this.lang);
 
   static AppStrings of(BuildContext context) {
-    final lang = SettingsProvider.of(context).settings.language;
+    final lang = _lookupSettingsProvider(context).settings.language;
     return AppStrings(lang);
   }
 
@@ -36,14 +69,20 @@ class AppStrings {
   String get chooseLanguage => get('choose_language');
   String get chooseStyle => get('choose_style');
   String get styleClassic => get('style_classic');
+  String get styleClassicDesc => get('style_classic_desc');
   String get styleModern => get('style_modern');
+  String get styleModernDesc => get('style_modern_desc');
   String get styleElder => get('style_elder');
+  String get styleElderDesc => get('style_elder_desc');
   String get getStarted => get('get_started');
   String get yourName => get('your_name');
   String get yourDiabetesType => get('your_diabetes_type');
   String get language => get('language');
   String get displayStyle => get('display_style');
   String get diabetesType => get('diabetes_type');
+  String get diabetesType1 => get('diabetes_type1');
+  String get diabetesType2 => get('diabetes_type2');
+  String get diabetesGestational => get('diabetes_gestational');
   String get targetMin => get('target_min');
   String get targetMax => get('target_max');
   String get name => get('name');
@@ -54,9 +93,14 @@ class AppStrings {
   String get time => get('time');
   String get notes => get('notes');
   String get notesPlaceholder => get('notes_placeholder');
+  String get carbsGrams => get('carbs_grams');
+  String get insulinUnits => get('insulin_units');
   String get savedSuccess => get('saved_success');
   String get editedSuccess => get('edited_success');
+  String get deletedSuccess => get('deleted_success');
   String get invalidValue => get('invalid_value');
+  String get deleteReading => get('delete_reading');
+  String get deleteConfirm => get('delete_confirm');
   String get chart => get('chart');
   String get glucoseChart => get('glucose_chart');
   String get statReadings => get('stat_readings');
@@ -66,6 +110,10 @@ class AppStrings {
   String get statMax => get('stat_max');
   String get noDataPeriod => get('no_data_period');
   String get sortBy => get('sort_by');
+  String get sortNewest => get('sort_newest');
+  String get sortOldest => get('sort_oldest');
+  String get sortHighest => get('sort_highest');
+  String get sortLowest => get('sort_lowest');
   String get recentReadings => get('recent_readings');
   String get viewAll => get('view_all');
   String get today => get('today');
@@ -76,6 +124,11 @@ class AppStrings {
   String get inRangePct => get('in_range_pct');
   String get noReadingsYet => get('no_readings_yet');
   String get addFirstReading => get('add_first_reading');
+  String get statusLow => get('status_low');
+  String get statusInRange => get('status_in_range');
+  String get statusHigh => get('status_high');
+  String get statusCriticalLow => get('status_critical_low');
+  String get statusCriticalHigh => get('status_critical_high');
   String get reminders => get('reminders');
   String get addReminder => get('add_reminder');
   String get reminderTime => get('reminder_time');
@@ -87,6 +140,9 @@ class AppStrings {
   String get appearance => get('appearance');
   String get health => get('health');
   String get glucoseTargets => get('glucose_targets');
+  String get glucoseUnit => get('glucose_unit');
+  String get unitMg => get('unit_mg');
+  String get unitMmol => get('unit_mmol');
   String get profile => get('profile');
   String get integrations => get('integrations');
   String get deviceIntegration => get('device_integration');
@@ -99,21 +155,13 @@ class AppStrings {
   String get resetDone => get('reset_done');
   String get saveSettings => get('save_settings');
   String get loading => get('loading');
-  String get carbsGrams => get('carbs_grams');
-  String get insulinUnits => get('insulin_units');
-  String get deletedSuccess => get('deleted_success');
-  String get deleteReading => get('delete_reading');
-  String get deleteConfirm => get('delete_confirm');
-  String get diabetesType1 => get('diabetes_type1');
-  String get diabetesType2 => get('diabetes_type2');
-  String get diabetesGestational => get('diabetes_gestational');
   String get periodToday => get('period_today');
   String get periodWeek => get('period_week');
   String get periodMonth => get('period_month');
-  String get sortNewest => get('sort_newest');
-  String get sortOldest => get('sort_oldest');
-  String get sortHighest => get('sort_highest');
-  String get sortLowest => get('sort_lowest');
+  String get goodMorning => get('good_morning');
+  String get goodAfternoon => get('good_afternoon');
+  String get goodEvening => get('good_evening');
+  String get goodNight => get('good_night');
 
   String readingType(ReadingType t) {
     switch (t) {
@@ -148,43 +196,7 @@ class AppStrings {
   }
 }
 
-// ReadingType needs to be imported from reading.dart
-import '../models/reading.dart';
-
-// Re-export for convenience
-export '../models/reading.dart' show ReadingType, ReadingStatus;
-export '../models/settings.dart' show Language;
-
-// === SettingsProvider forward declaration (resolved at runtime) ===
-// We avoid a hard import cycle by looking up via context.findAncestorStateOfType.
-class SettingsProvider {
-  static SettingsProviderState of(BuildContext context) {
-    final inh = context.dependOnInheritedWidgetOfExactType<_SettingsInherited>();
-    if (inh == null) {
-      throw FlutterError('SettingsProvider not found in widget tree');
-    }
-    return inh.data;
-  }
-}
-
-class SettingsProviderState extends ChangeNotifier {
-  Settings _settings = const Settings();
-  Settings get settings => _settings;
-
-  void update(Settings s) {
-    _settings = s;
-    notifyListeners();
-  }
-}
-
-class _SettingsInherited extends InheritedWidget {
-  final SettingsProviderState data;
-  const _SettingsInherited({required this.data, required super.child});
-
-  @override
-  bool updateShouldNotify(_SettingsInherited old) => data != old.data;
-}
-
+// ===== Translation dictionaries =====
 const Map<String, String> _ar = {
   'app_name': 'سُكَّري',
   'app_tagline': 'تابع سكرك بصحة وثقة',
@@ -219,7 +231,6 @@ const Map<String, String> _ar = {
   'good_afternoon': 'مساء الخير',
   'good_evening': 'مساء الخير',
   'good_night': 'طاب ليلك',
-  'today_summary': 'ملخص اليوم',
   'latest_reading': 'آخر قراءة',
   'avg_today': 'المتوسط اليومي',
   'readings_count': 'عدد القراءات',
@@ -256,14 +267,11 @@ const Map<String, String> _ar = {
   'invalid_value': 'أدخل قيمة صحيحة (20-600)',
   'delete_confirm': 'هل تريد حذف هذه القراءة؟',
   'delete_reading': 'حذف القراءة',
-  'trends': 'الاتجاهات',
   'chart': 'الرسم البياني',
   'period_today': 'اليوم',
   'period_week': 'الأسبوع',
   'period_month': 'الشهر',
   'glucose_chart': 'منحنى السكر',
-  'by_type': 'حسب نوع القياس',
-  'statistics': 'الإحصائيات',
   'stat_avg': 'المتوسط',
   'stat_max': 'الأعلى',
   'stat_min': 'الأدنى',
@@ -280,8 +288,6 @@ const Map<String, String> _ar = {
   'reminder_time': 'الوقت',
   'reminder_label': 'الوصف',
   'no_reminders': 'لا توجد تذكيرات بعد',
-  'enable_reminder': 'تفعيل',
-  'delete_reminder': 'حذف',
   'reminder_added': 'تم إضافة التذكير',
   'reminder_deleted': 'تم حذف التذكير',
   'settings': 'الإعدادات',
@@ -345,7 +351,6 @@ const Map<String, String> _en = {
   'good_afternoon': 'Good afternoon',
   'good_evening': 'Good evening',
   'good_night': 'Good night',
-  'today_summary': "Today's Summary",
   'latest_reading': 'Latest Reading',
   'avg_today': 'Daily Average',
   'readings_count': 'Readings',
@@ -382,14 +387,11 @@ const Map<String, String> _en = {
   'invalid_value': 'Enter a valid value (20-600)',
   'delete_confirm': 'Do you want to delete this reading?',
   'delete_reading': 'Delete Reading',
-  'trends': 'Trends',
   'chart': 'Chart',
   'period_today': 'Today',
   'period_week': 'Week',
   'period_month': 'Month',
   'glucose_chart': 'Glucose Curve',
-  'by_type': 'By Measurement Type',
-  'statistics': 'Statistics',
   'stat_avg': 'Average',
   'stat_max': 'Max',
   'stat_min': 'Min',
@@ -406,8 +408,6 @@ const Map<String, String> _en = {
   'reminder_time': 'Time',
   'reminder_label': 'Label',
   'no_reminders': 'No reminders yet',
-  'enable_reminder': 'Enable',
-  'delete_reminder': 'Delete',
   'reminder_added': 'Reminder added',
   'reminder_deleted': 'Reminder deleted',
   'settings': 'Settings',

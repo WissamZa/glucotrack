@@ -24,7 +24,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         title: Text(strings.reminders),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(end: 16),
+            padding: const EdgeInsetsDirectional.only(end: 16),
             child: Center(
               child: Text(
                 '${prov.activeCount} / ${prov.reminders.length}',

@@ -107,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Icon(Icons.target, color: Theme.of(context).colorScheme.primary),
+                  Icon(Icons.gps_fixed, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
                   Text('${strings.glucoseTargets} (mg/dL)', style: const TextStyle(fontWeight: FontWeight.w600)),
                 ]),
@@ -226,7 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Text(strings.comingSoon,
                         style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 11)),
                   ),
-                ],
+                ]),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -267,7 +267,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Text(strings.comingSoon,
                         style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 11)),
                   ),
-                ],
+                ]),
               ],
             ),
           ),

@@ -1,13 +1,7 @@
 // Theme system — three full styles: classic, modern, elder.
-//
-// Each style defines:
-//   - ColorScheme (light + dark variants)
-//   - Typography scale (especially larger for elder)
-//   - Card radius, padding, border thickness
-//
-// All values are tuned for the GlucoTrack UI.
 import 'package:flutter/material.dart';
 import '../models/settings.dart';
+import '../models/reading.dart';
 
 class AppTheme {
   static ThemeData forStyle(ThemeStyle style, {bool isDark = false}) {
@@ -24,21 +18,19 @@ class AppTheme {
   // ===== Classic Medical =====
   static ThemeData _classic(bool isDark) {
     final base = isDark ? ThemeData.dark() : ThemeData.light();
-    final teal = const Color(0xFF0D9488);
-    final emerald = const Color(0xFF059669);
+    const teal = Color(0xFF0D9488);
+    const emerald = Color(0xFF059669);
     return base.copyWith(
       colorScheme: isDark
           ? const ColorScheme.dark(
               primary: Color(0xFF14B8A6),
               secondary: Color(0xFF34D399),
               surface: Color(0xFF1E293B),
-              background: Color(0xFF0F172A),
             )
           : const ColorScheme.light(
               primary: teal,
               secondary: emerald,
               surface: Colors.white,
-              background: Color(0xFFF8FAFC),
             ),
       scaffoldBackgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       cardColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -47,7 +39,7 @@ class AppTheme {
         foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
         elevation: 0,
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -97,7 +89,6 @@ class AppTheme {
         primary: cyan,
         secondary: fuchsia,
         surface: Color(0xFF1A1F2E),
-        background: Color(0xFF0B0F1A),
       ),
       scaffoldBackgroundColor: const Color(0xFF0B0F1A),
       cardColor: const Color(0xFF1A1F2E),
@@ -106,7 +97,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: const Color(0xFF1A1F2E),
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -152,13 +143,11 @@ class AppTheme {
               primary: Colors.white,
               secondary: slate,
               surface: slate,
-              background: Colors.black,
             )
           : const ColorScheme.light(
               primary: slate,
               secondary: slate,
               surface: Color(0xFFF8FAFC),
-              background: Colors.white,
             ),
       scaffoldBackgroundColor: isDark ? Colors.black : Colors.white,
       cardColor: isDark ? slate : const Color(0xFFF8FAFC),
@@ -167,12 +156,12 @@ class AppTheme {
         foregroundColor: isDark ? Colors.white : slate,
         elevation: 0,
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: isDark ? slate : const Color(0xFFF8FAFC),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: slate, width: 2),
+          side: const BorderSide(color: slate, width: 2),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -205,7 +194,7 @@ class AppTheme {
   }
 }
 
-// Status color helpers (shared across all themes)
+// Status color helper (shared across all themes)
 Color statusColor(ReadingStatus s) {
   switch (s) {
     case ReadingStatus.low:
@@ -218,6 +207,3 @@ Color statusColor(ReadingStatus s) {
       return const Color(0xFFEF4444);
   }
 }
-
-// Re-export for convenience
-export '../models/reading.dart' show ReadingStatus;

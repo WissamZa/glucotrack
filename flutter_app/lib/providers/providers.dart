@@ -1,4 +1,4 @@
-// App-wide providers: Settings, Readings, Reminders, plus sort order.
+// App-wide providers: Readings, Reminders, plus sort order.
 //
 // Uses Provider for state management. All DB mutations go through these
 // providers and notify listeners automatically.
@@ -7,9 +7,7 @@ import '../database/database_helper.dart';
 import '../models/reading.dart';
 import '../models/reminder.dart';
 import '../models/settings.dart';
-
-// Re-export SettingsProvider from i18n/strings.dart for convenience
-export '../i18n/strings.dart' show SettingsProvider, SettingsProviderState;
+import '../i18n/strings.dart';
 
 // ===== Readings Provider =====
 class ReadingsProvider extends ChangeNotifier {
@@ -18,7 +16,7 @@ class ReadingsProvider extends ChangeNotifier {
   SortOrder _sort = SortOrder.newest;
 
   List<Reading> get readings => _sorted(_readings);
-  List<Reading> get rawReadings => _readings;
+  List<Reading> get rawReadings => List.unmodifiable(_readings);
   SortOrder get sortOrder => _sort;
 
   void setSort(SortOrder s) {
@@ -120,7 +118,8 @@ class RemindersProvider extends ChangeNotifier {
   }
 }
 
-// ===== Settings Provider (extends the one in i18n/strings.dart) =====
+// ===== Settings Provider persistence extension =====
+// Extends SettingsProviderState (defined in i18n/strings.dart) with DB I/O.
 extension SettingsProviderPersistence on SettingsProviderState {
   Future<void> loadFromDb() async {
     final row = await DatabaseHelper().getSettingsRow();
