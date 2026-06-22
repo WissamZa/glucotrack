@@ -12,8 +12,8 @@ name: 📱 APK Build & Release (Flutter)
 
 on:
   push:
-    tags:
-      - "apk-v*"
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:
