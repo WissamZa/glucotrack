@@ -22,6 +22,8 @@ import 'screens/add_reading_screen.dart';
 import 'screens/chart_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/insights_screen.dart';
+import 'screens/export_screen.dart';
 
 void main() {
   // Ensure Flutter binding is initialized before any async work
@@ -91,6 +93,8 @@ class GlucoTrackApp extends StatelessWidget {
               '/chart': (_) => const ChartScreen(),
               '/reminders': (_) => const RemindersScreen(),
               '/settings': (_) => const SettingsScreen(),
+              '/insights': (_) => const InsightsScreen(),
+              '/export': (_) => const ExportScreen(),
             },
           );
         },
@@ -122,9 +126,6 @@ class _AppBootstrapState extends State<AppBootstrap> {
   Future<void> _init() async {
     try {
       final db = DatabaseHelper();
-
-      // Seed demo data on first launch (idempotent)
-      await db.seedIfEmpty();
 
       // Load settings from DB
       if (!mounted) return;

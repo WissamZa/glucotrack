@@ -97,7 +97,7 @@ class AppStrings {
   String get insulinUnits => get('insulin_units');
   String get savedSuccess => get('saved_success');
   String get editedSuccess => get('edited_success');
-  String get deletedSuccess => get('deleted_success');
+  bool get isRtl => lang.isRtl;
   String get invalidValue => get('invalid_value');
   String get deleteReading => get('delete_reading');
   String get deleteConfirm => get('delete_confirm');
@@ -162,6 +162,58 @@ class AppStrings {
   String get goodAfternoon => get('good_afternoon');
   String get goodEvening => get('good_evening');
   String get goodNight => get('good_night');
+  // New feature strings
+  String get searchHint => get('search_hint');
+  String get searchByValue => get('search_by_value');
+  String get searchByType => get('search_by_type');
+  String get searchByNotes => get('search_by_notes');
+  String get filterAllTypes => get('filter_all_types');
+  String get noSearchResults => get('no_search_results');
+  String get trendLabel => get('trend_label');
+  String get trendRisingFast => get('trend_rising_fast');
+  String get trendRising => get('trend_rising');
+  String get trendStable => get('trend_stable');
+  String get trendFalling => get('trend_falling');
+  String get trendFallingFast => get('trend_falling_fast');
+  String get hba1cTitle => get('hba1c_title');
+  String get hba1cEstimate => get('hba1c_estimate');
+  String get hba1cAverage => get('hba1c_average');
+  String get hba1cNormal => get('hba1c_normal');
+  String get hba1cPrediabetes => get('hba1c_prediabetes');
+  String get hba1cDiabetes => get('hba1c_diabetes');
+  String get hba1cNoData => get('hba1c_no_data');
+  String get weeklySummary => get('weekly_summary');
+  String get thisWeek => get('this_week');
+  String get lastWeek => get('last_week');
+  String get readingsThisWeek => get('readings_this_week');
+  String get avgThisWeek => get('avg_this_week');
+  String get timeInRangeWeek => get('time_in_range_week');
+  String get highReadings => get('high_readings');
+  String get lowReadings => get('low_readings');
+  String get noReadingsThisWeek => get('no_readings_this_week');
+  String get exportData => get('export_data');
+  String get importData => get('import_data');
+  String get exportJson => get('export_json');
+  String get exportCsv => get('export_csv');
+  String get shareBackup => get('share_backup');
+  String importSuccess(int count) => get('import_success').replaceAll('{count}', '$count');
+  String get importError => get('import_error');
+  String get exportSuccess => get('export_success');
+  String get medicationLog => get('medication_log');
+  String get addMedication => get('add_medication');
+  String get medicationName => get('medication_name');
+  String get medicationDose => get('medication_dose');
+  String get medicationTime => get('medication_time');
+  String get insulinLog => get('insulin_log');
+  String get totalInsulinToday => get('total_insulin_today');
+  String get insulinUnitsShort => get('insulin_units_short');
+  String get notificationSettings => get('notification_settings');
+  String get enableNotifications => get('enable_notifications');
+  String get reminderNotification => get('reminder_notification');
+  String get unitMmolLFull => get('unit_mmol_l_full');
+  String get insights => get('insights');
+  String get glucoseInsights => get('glucose_insights');
+  String get noTrendData => get('no_trend_data');
 
   String readingType(ReadingType t) {
     switch (t) {
@@ -315,6 +367,58 @@ const Map<String, String> _ar = {
   'reset_done': 'تمت إعادة التعيين',
   'save_settings': 'تم حفظ الإعدادات',
   'loading': 'جارٍ التحميل...',
+  // New feature translations - Arabic
+  'search_hint': 'ابحث في القراءات...',
+  'search_by_value': 'القيمة',
+  'search_by_type': 'النوع',
+  'search_by_notes': 'الملاحظات',
+  'filter_all_types': 'جميع الأنواع',
+  'no_search_results': 'لا توجد نتائج مطابقة',
+  'trend_label': 'الاتجاه',
+  'trend_rising_fast': 'ارتفاع سريع',
+  'trend_rising': 'في ارتفاع',
+  'trend_stable': 'مستقر',
+  'trend_falling': 'في انخفاض',
+  'trend_falling_fast': 'انخفاض سريع',
+  'hba1c_title': 'تقدير HbA1c',
+  'hba1c_estimate': 'نسبة HbA1c المقدرة',
+  'hba1c_average': 'متوسط السكر التقديري',
+  'hba1c_normal': 'طبيعي',
+  'hba1c_prediabetes': 'ما قبل السكري',
+  'hba1c_diabetes': 'نطاق السكري',
+  'hba1c_no_data': 'لا توجد بيانات كافية لتقدير HbA1c',
+  'weekly_summary': 'الملخص الأسبوعي',
+  'this_week': 'هذا الأسبوع',
+  'last_week': 'الأسبوع الماضي',
+  'readings_this_week': 'القراءات هذا الأسبوع',
+  'avg_this_week': 'المتوسط الأسبوعي',
+  'time_in_range_week': 'الوقت في النطاق',
+  'high_readings': 'القراءات المرتفعة',
+  'low_readings': 'القراءات المنخفضة',
+  'no_readings_this_week': 'لا توجد قراءات هذا الأسبوع',
+  'export_data': 'تصدير البيانات',
+  'import_data': 'استيراد البيانات',
+  'export_json': 'تصدير JSON',
+  'export_csv': 'تصدير CSV',
+  'share_backup': 'مشاركة النسخة الاحتياطية',
+  'import_success': 'تم استيراد {count} قراءة بنجاح',
+  'import_error': 'فشل استيراد الملف. تنسيق غير صالح.',
+  'export_success': 'تم تصدير البيانات بنجاح',
+  'medication_log': 'سجل الأدوية',
+  'add_medication': 'إضافة دواء',
+  'medication_name': 'اسم الدواء',
+  'medication_dose': 'الجرعة',
+  'medication_time': 'وقت الدواء',
+  'insulin_log': 'سجل الأنسولين',
+  'total_insulin_today': 'إجمالي الأنسولين اليوم',
+  'insulin_units_short': 'وحدة',
+  'notification_settings': 'إعدادات الإشعارات',
+  'enable_notifications': 'تفعيل الإشعارات',
+  'reminder_notification': 'تذكير بقياس السكر',
+  'unit_mmol_l_full': 'mmol/L',
+  'insights': 'تحليلات',
+  'glucose_insights': 'تحليلات السكر',
+  'no_trend_data': 'لا توجد بيانات كافية لتحليل الاتجاه',
 };
 
 const Map<String, String> _en = {
@@ -435,4 +539,56 @@ const Map<String, String> _en = {
   'reset_done': 'Reset complete',
   'save_settings': 'Settings saved',
   'loading': 'Loading...',
+  // New feature translations - English
+  'search_hint': 'Search readings...',
+  'search_by_value': 'Value',
+  'search_by_type': 'Type',
+  'search_by_notes': 'Notes',
+  'filter_all_types': 'All Types',
+  'no_search_results': 'No matching results',
+  'trend_label': 'Trend',
+  'trend_rising_fast': 'Rising Fast',
+  'trend_rising': 'Rising',
+  'trend_stable': 'Stable',
+  'trend_falling': 'Falling',
+  'trend_falling_fast': 'Falling Fast',
+  'hba1c_title': 'HbA1c Estimate',
+  'hba1c_estimate': 'Estimated HbA1c',
+  'hba1c_average': 'Estimated Average Glucose',
+  'hba1c_normal': 'Normal',
+  'hba1c_prediabetes': 'Prediabetes',
+  'hba1c_diabetes': 'Diabetes Range',
+  'hba1c_no_data': 'Not enough data to estimate HbA1c',
+  'weekly_summary': 'Weekly Summary',
+  'this_week': 'This Week',
+  'last_week': 'Last Week',
+  'readings_this_week': 'Readings This Week',
+  'avg_this_week': 'Weekly Average',
+  'time_in_range_week': 'Time in Range',
+  'high_readings': 'High Readings',
+  'low_readings': 'Low Readings',
+  'no_readings_this_week': 'No readings this week',
+  'export_data': 'Export Data',
+  'import_data': 'Import Data',
+  'export_json': 'Export JSON',
+  'export_csv': 'Export CSV',
+  'share_backup': 'Share Backup',
+  'import_success': 'Successfully imported {count} readings',
+  'import_error': 'Failed to import file. Invalid format.',
+  'export_success': 'Data exported successfully',
+  'medication_log': 'Medication Log',
+  'add_medication': 'Add Medication',
+  'medication_name': 'Medication Name',
+  'medication_dose': 'Dose',
+  'medication_time': 'Time',
+  'insulin_log': 'Insulin Log',
+  'total_insulin_today': 'Total Insulin Today',
+  'insulin_units_short': 'units',
+  'notification_settings': 'Notification Settings',
+  'enable_notifications': 'Enable Notifications',
+  'reminder_notification': 'Glucose measurement reminder',
+  'unit_mmol_l_full': 'mmol/L',
+  'insights': 'Insights',
+  'glucose_insights': 'Glucose Insights',
+  'no_trend_data': 'Not enough data for trend analysis',
 };

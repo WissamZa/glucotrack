@@ -10,8 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../i18n/strings.dart';
 import '../models/reading.dart';
+import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../themes/app_theme.dart';
+import '../utils/unit_converter.dart';
 
 class AddReadingScreen extends StatefulWidget {
   const AddReadingScreen({super.key});
@@ -182,7 +184,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  Text('${strings.glucoseValue} (mg/dL)',
+                  Text('${strings.glucoseValue} (${UnitConverter.unitLabel(s.unit)})',
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                   const SizedBox(height: 16),
                   Row(

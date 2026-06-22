@@ -100,7 +100,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: ElevatedButton(
                       onPressed: _step == 2 ? _finish : _next,
                       child: Text(
-                        _step == 2 ? strings.getStarted : strings.getStarted,
+                        _step == 2
+                            ? strings.getStarted
+                            : (_step == 0
+                                ? (_lang == Language.ar ? 'التالي' : 'Next')
+                                : (_lang == Language.ar ? 'التالي' : 'Next')),
                       ),
                     ),
                   ),

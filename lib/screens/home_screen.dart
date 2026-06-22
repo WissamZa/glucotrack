@@ -7,6 +7,9 @@ import '../models/reading.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../themes/app_theme.dart';
+import '../utils/unit_converter.dart';
+import '../utils/trend_analysis.dart';
+import '../utils/hba1c_calculator.dart';
 import '../widgets/reading_actions.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -32,6 +35,15 @@ class HomeScreen extends StatelessWidget {
         .length;
     final inRangePct = today.isEmpty ? 0 : ((inRange / today.length) * 100).round();
 
+    // Calculate trend
+    final trend = TrendAnalyzer.fromReadings(rProv.rawReadings);
+
+    // Calculate HbA1c
+    final hba1c = HbA1cCalculator.calculate(rProv.rawReadings);
+
+    // Total insulin today
+    final totalInsulin = today.fold<int>(0, (sum, r) => sum + (r.insulin ?? 0));
+
     final greeting = _greeting(now.hour, strings);
 
     return Scaffold(
@@ -44,6 +56,11 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         actions: [
+          // Insights shortcut button
+          IconButton(
+            icon: const Icon(Icons.insights_outlined),
+            onPressed: () => Navigator.pushNamed(context, '/insights'),
+          ),
           Stack(
             children: [
               IconButton(
@@ -75,14 +92,14 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (latest != null) _ReadingHero(latest: latest),
+          if (latest != null) _ReadingHero(latest: latest, trend: trend, unit: s.unit),
           const SizedBox(height: 16),
           Row(
             children: [
               _StatCard(
                 icon: Icons.trending_up,
-                value: avg > 0 ? '$avg' : '—',
-                unit: 'mg/dL',
+                value: avg > 0 ? UnitConverter.format(avg, s.unit) : '—',
+                unit: UnitConverter.unitLabel(s.unit),
                 label: strings.avgToday,
                 color: const Color(0xFF0D9488),
               ),
@@ -104,6 +121,19 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
+          // HbA1c quick indicator
+          if (hba1c != null) ...[
+            const SizedBox(height: 12),
+            _HbA1cQuickChip(hba1c: hba1c, strings: strings),
+          ],
+          // Trend indicator
+          if (trend != null) ...[
+            const SizedBox(height: 12),
+            _TrendChip(trend: trend, strings: strings, isArabic: s.language == Language.ar),
+          ],
+          // Quick actions row
+          const SizedBox(height: 16),
+          _QuickActionsRow(strings: strings),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -158,7 +188,9 @@ class HomeScreen extends StatelessWidget {
 
 class _ReadingHero extends StatelessWidget {
   final Reading latest;
-  const _ReadingHero({required this.latest});
+  final TrendResult? trend;
+  final GlucoseUnit unit;
+  const _ReadingHero({required this.latest, this.trend, required this.unit});
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +198,8 @@ class _ReadingHero extends StatelessWidget {
     final strings = AppStrings.of(context);
     final status = latest.status(s.targetMin, s.targetMax);
     final timeStr = DateFormat('HH:mm', s.language.code).format(latest.timestamp);
+    final valueDisplay = UnitConverter.format(latest.value, unit);
+    final unitLabel = UnitConverter.unitLabel(unit);
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -180,17 +214,37 @@ class _ReadingHero extends StatelessWidget {
               children: [
                 Text(strings.latestReading,
                     style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    strings.statusLabel(status),
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
+                Row(
+                  children: [
+                    // Trend badge on hero
+                    if (trend != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        margin: const EdgeInsetsDirectional.only(end: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          trend!.direction.arrow,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        strings.statusLabel(status),
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -198,17 +252,17 @@ class _ReadingHero extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('${latest.value}',
+                Text(valueDisplay,
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 48,
                         fontWeight: FontWeight.bold,
                         height: 1)),
                 const SizedBox(width: 4),
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 6),
-                  child: Text('mg/dL',
-                      style: TextStyle(color: Colors.white70, fontSize: 16)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(unitLabel,
+                      style: const TextStyle(color: Colors.white70, fontSize: 16)),
                 ),
               ],
             ),
@@ -243,6 +297,184 @@ class _ReadingHero extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HbA1cQuickChip extends StatelessWidget {
+  final HbA1cResult hba1c;
+  final AppStrings strings;
+  const _HbA1cQuickChip({required this.hba1c, required this.strings});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.pushNamed(context, '/insights'),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Color(hba1c.category.colorHex).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Color(hba1c.category.colorHex).withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.science,
+              size: 18,
+              color: Color(hba1c.category.colorHex),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${strings.hba1cEstimate}: ${hba1c.percentageFormatted}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Color(hba1c.category.colorHex),
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: Color(hba1c.category.colorHex),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendChip extends StatelessWidget {
+  final TrendResult trend;
+  final AppStrings strings;
+  final bool isArabic;
+  const _TrendChip({required this.trend, required this.strings, required this.isArabic});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Color(trend.direction.colorHex).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Color(trend.direction.colorHex).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(
+            trend.direction.arrow,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(trend.direction.colorHex),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${strings.trendLabel}: ${TrendAnalyzer.getLocalizedLabel(trend.direction, isArabic)}',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Color(trend.direction.colorHex),
+              ),
+            ),
+          ),
+          Text(
+            '${trend.ratePerHour >= 0 ? "+" : ""}${trend.ratePerHour.toStringAsFixed(1)} mg/dL/h',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(trend.direction.colorHex),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickActionsRow extends StatelessWidget {
+  final AppStrings strings;
+  const _QuickActionsRow({required this.strings});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _QuickActionBtn(
+          icon: Icons.insights,
+          label: strings.insights,
+          color: const Color(0xFF3B82F6),
+          onTap: () => Navigator.pushNamed(context, '/insights'),
+        ),
+        const SizedBox(width: 8),
+        _QuickActionBtn(
+          icon: Icons.upload_file,
+          label: strings.exportData,
+          color: const Color(0xFF10B981),
+          onTap: () => Navigator.pushNamed(context, '/export'),
+        ),
+        const SizedBox(width: 8),
+        _QuickActionBtn(
+          icon: Icons.alarm,
+          label: strings.navReminders,
+          color: const Color(0xFFF59E0B),
+          onTap: () => Navigator.pushNamed(context, '/reminders'),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _QuickActionBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -336,11 +568,11 @@ class _ReadingRow extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text('${reading.value}',
+                        Text(UnitConverter.format(reading.value, s.unit),
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 16)),
                         const SizedBox(width: 4),
-                        Text('mg/dL',
+                        Text(UnitConverter.unitLabel(s.unit),
                             style: TextStyle(
                                 fontSize: 12, color: Colors.grey.shade600)),
                       ],

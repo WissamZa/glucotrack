@@ -8,6 +8,7 @@ import '../models/reading.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../themes/app_theme.dart';
+import '../utils/unit_converter.dart';
 import '../widgets/reading_actions.dart';
 
 enum _Period { today, week, month }
@@ -121,7 +122,7 @@ class _ChartViewState extends State<_ChartView> {
                         Wrap(
                           spacing: 12,
                           children: [
-                            _legendItem(const Color(0xFF10B981), '${s.targetMin}-${s.targetMax} mg/dL'),
+                            _legendItem(const Color(0xFF10B981), '${UnitConverter.format(s.targetMin, s.unit)}-${UnitConverter.format(s.targetMax, s.unit)} ${UnitConverter.unitLabel(s.unit)}'),
                             _legendItem(const Color(0xFF10B981), strings.statInRange),
                             _legendItem(const Color(0xFFF59E0B), strings.get('status_low')),
                             _legendItem(const Color(0xFFEF4444), strings.get('status_high')),
@@ -145,11 +146,11 @@ class _ChartViewState extends State<_ChartView> {
                       crossAxisSpacing: 12,
                       childAspectRatio: 1.2,
                       children: [
-                        _StatBox(value: '${stats.avg}', unit: 'mg/dL', label: strings.statAvg, color: const Color(0xFF0D9488)),
-                        _StatBox(value: '${stats.min}', unit: 'mg/dL', label: strings.statMin, color: const Color(0xFF10B981)),
-                        _StatBox(value: '${stats.max}', unit: 'mg/dL', label: strings.statMax, color: const Color(0xFFEF4444)),
+                        _StatBox(value: UnitConverter.format(stats.avg, s.unit), unit: UnitConverter.unitLabel(s.unit), label: strings.statAvg, color: const Color(0xFF0D9488)),
+                        _StatBox(value: UnitConverter.format(stats.min, s.unit), unit: UnitConverter.unitLabel(s.unit), label: strings.statMin, color: const Color(0xFF10B981)),
+                        _StatBox(value: UnitConverter.format(stats.max, s.unit), unit: UnitConverter.unitLabel(s.unit), label: strings.statMax, color: const Color(0xFFEF4444)),
                         _StatBox(value: '${stats.inRangePct}%', unit: '', label: strings.statInRange, color: const Color(0xFF10B981)),
-                        _StatBox(value: '${stats.range}', unit: 'mg/dL', label: s.language == Language.ar ? 'المدى' : 'Range', color: Colors.grey),
+                        _StatBox(value: UnitConverter.format(stats.range, s.unit), unit: UnitConverter.unitLabel(s.unit), label: s.language == Language.ar ? 'المدى' : 'Range', color: Colors.grey),
                         _StatBox(value: '${stats.count}', unit: '', label: strings.statReadings, color: Colors.grey),
                       ],
                     ),
@@ -286,7 +287,7 @@ class _ChartViewState extends State<_ChartView> {
             touchTooltipData: BarTouchTooltipData(
               getTooltipColor: (_) => Colors.black87,
               getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-                '${rod.toY.round()} mg/dL',
+                '${UnitConverter.format(rod.toY.round(), s.unit)} ${UnitConverter.unitLabel(s.unit)}',
                 const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
@@ -329,9 +330,9 @@ class _ChartViewState extends State<_ChartView> {
         maxY: maxY,
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: (spots) => spots.map((s) {
+            getTooltipItems: (spots) => spots.map((spot) {
               return LineTooltipItem(
-                '${s.y.round()} mg/dL',
+                '${UnitConverter.format(spot.y.round(), s.unit)} ${UnitConverter.unitLabel(s.unit)}',
                 const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               );
             }).toList(),
@@ -523,10 +524,10 @@ class _ReadingListTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text('${reading.value}',
+          Text(UnitConverter.format(reading.value, s.unit),
               style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(width: 4),
-          Text('mg/dL', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          Text(UnitConverter.unitLabel(s.unit), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
