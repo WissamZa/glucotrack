@@ -61,14 +61,25 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
-          else
+          elif [[ "${GITHUB_REF}" == refs/tags/apk-v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/apk-v}"
             VERSION="v${VERSION#v}"
+          else
+            VERSION="v1.1.0-dev"
           fi
           CLEAN="${VERSION#v}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CLEAN"
-          : "${MAJOR:=1}"; : "${MINOR:=0}"; : "${PATCH:=0}"
-          CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+
+          if [[ "$CLEAN" == *"dev"* ]] || [[ "$CLEAN" == refs/heads/* ]]; then
+            CODE="${{ github.run_number }}"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CLEAN"
+            : "${MAJOR:=1}"; : "${MINOR:=0}"; : "${PATCH:=0}"
+            # Remove non-numeric characters from PATCH for the calculation
+            PATCH_CLEAN=$(echo "$PATCH" | tr -dc '0-9')
+            : "${PATCH_CLEAN:=0}"
+            CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH_CLEAN))
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_name=$CLEAN" >> $GITHUB_OUTPUT
           echo "version_code=$CODE" >> $GITHUB_OUTPUT
@@ -110,7 +121,7 @@ jobs:
 
       - name: 🏗️ Build APK
         run: |
-          sed -i "s/^version: .*/version: ${{ steps.meta.outputs.version_name }}+${{ steps.meta.outputs.version_code }}/" pubspec.yaml
+          sed -i "s|^version: .*|version: ${{ steps.meta.outputs.version_name }}+${{ steps.meta.outputs.version_code }}|" pubspec.yaml
           flutter build apk --release --build-name=${{ steps.meta.outputs.version_name }} --build-number=${{ steps.meta.outputs.version_code }}
 
       - name: 📦 Rename APK
