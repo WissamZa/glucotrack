@@ -39,7 +39,7 @@ class AppTheme {
         foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -70,11 +70,29 @@ class AppTheme {
         ),
       ),
       textTheme: base.textTheme.copyWith(
-        headlineLarge: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-        headlineMedium: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        titleLarge: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        bodyLarge: const TextStyle(fontSize: 16),
-        bodyMedium: const TextStyle(fontSize: 14),
+        headlineLarge: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : const Color(0xFF1E293B),
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          color: isDark ? Colors.white : const Color(0xFF334155),
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          color: isDark ? Colors.white70 : const Color(0xFF475569),
+        ),
       ),
     );
   }
@@ -97,18 +115,18 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: const Color(0xFF1A1F2E),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: Colors.white.withOpacity(0.1)),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -156,7 +174,7 @@ class AppTheme {
         foregroundColor: isDark ? Colors.white : slate,
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: isDark ? slate : const Color(0xFFF8FAFC),
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -184,11 +202,29 @@ class AppTheme {
         ),
       ),
       textTheme: base.textTheme.copyWith(
-        headlineLarge: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
-        headlineMedium: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-        titleLarge: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-        bodyLarge: const TextStyle(fontSize: 20),
-        bodyMedium: const TextStyle(fontSize: 18),
+        headlineLarge: TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+        ),
+        titleLarge: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : const Color(0xFF1E293B),
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 20,
+          color: isDark ? Colors.white : const Color(0xFF334155),
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 18,
+          color: isDark ? Colors.white70 : const Color(0xFF475569),
+        ),
       ),
     );
   }

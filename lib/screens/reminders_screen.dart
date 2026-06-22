@@ -48,8 +48,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   Icon(Icons.notifications_off_outlined,
                       size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 12),
-                  Text(strings.noReminders,
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+                  Text(
+                    strings.noReminders,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                  ),
                 ],
               ),
             )
@@ -69,7 +71,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           height: 48,
                           decoration: BoxDecoration(
                             color: r.enabled
-                                ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
                                 : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -85,12 +87,20 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(r.time,
-                                  style: const TextStyle(
-                                      fontSize: 18, fontWeight: FontWeight.bold)),
-                              Text(r.label,
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600, fontSize: 13)),
+                              Text(
+                                r.time,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                r.label,
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -101,14 +111,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         IconButton(
                           icon: const Icon(Icons.delete_outline,
                               color: Colors.red, size: 20),
-                          onPressed: () async {
-                            await prov.remove(r.id);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(strings.reminderDeleted)),
-                              );
-                            }
-                          },
+                          onPressed: () => _deleteReminder(context, prov, r.id, strings),
                         ),
                       ],
                     ),
@@ -119,12 +122,25 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
+  Future<void> _deleteReminder(
+    BuildContext context,
+    RemindersProvider prov,
+    String id,
+    AppStrings strings,
+  ) async {
+    await prov.remove(id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(strings.reminderDeleted)),
+    );
+  }
+
   void _showAddDialog(BuildContext context, AppStrings strings) {
     String time = '08:00';
     ReadingType type = ReadingType.fasting;
     final labelCtrl = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stx, setStx) => AlertDialog(
@@ -134,8 +150,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(strings.reminderTime,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(
+                  strings.reminderTime,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: () async {
@@ -164,8 +182,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(strings.measurementType,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(
+                  strings.measurementType,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
@@ -173,15 +193,20 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   children: ReadingType.values.map((t) {
                     final selected = type == t;
                     return ChoiceChip(
-                      label: Text(strings.readingType(t), style: const TextStyle(fontSize: 12)),
+                      label: Text(
+                        strings.readingType(t),
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       selected: selected,
                       onSelected: (_) => setStx(() => type = t),
                     );
                   }).toList(),
                 ),
                 const SizedBox(height: 16),
-                Text(strings.reminderLabel,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(
+                  strings.reminderLabel,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: labelCtrl,
@@ -199,29 +224,41 @@ class _RemindersScreenState extends State<RemindersScreen> {
               child: Text(strings.cancel),
             ),
             ElevatedButton(
-              onPressed: () async {
-                final prov = context.read<RemindersProvider>();
-                await prov.add(Reminder(
-                  id: 'rem-${DateTime.now().millisecondsSinceEpoch}',
-                  time: time,
-                  label: labelCtrl.text.trim().isEmpty
-                      ? strings.readingType(type)
-                      : labelCtrl.text.trim(),
-                  type: type,
-                  enabled: true,
-                ));
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(strings.reminderAdded)),
-                  );
-                }
-                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-              },
+              onPressed: () => _saveReminder(
+                dialogCtx,
+                time,
+                type,
+                labelCtrl.text,
+                strings,
+              ),
               child: Text(strings.save),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _saveReminder(
+    BuildContext dialogCtx,
+    String time,
+    ReadingType type,
+    String labelText,
+    AppStrings strings,
+  ) async {
+    final prov = context.read<RemindersProvider>();
+    await prov.add(Reminder(
+      id: 'rem-${DateTime.now().millisecondsSinceEpoch}',
+      time: time,
+      label: labelText.trim().isEmpty ? strings.readingType(type) : labelText.trim(),
+      type: type,
+      enabled: true,
+    ));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.reminderAdded)),
+      );
+    }
+    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
   }
 }

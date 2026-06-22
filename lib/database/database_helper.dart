@@ -196,7 +196,7 @@ class DatabaseHelper {
           batch.insert(
             'readings',
             Reading(
-              id: 'seed-${d}-${type.name}-${pat.hour}',
+              id: 'seed-$d-${type.name}-$pat.hour',
               value: value,
               type: type,
               timestamp: ts,

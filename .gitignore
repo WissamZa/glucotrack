@@ -44,3 +44,4 @@ android/release.keystore
 *.jks
 keystore/
 scripts/upload_secrets.py
+*.log

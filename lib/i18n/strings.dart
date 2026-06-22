@@ -17,18 +17,18 @@ class SettingsProviderState extends ChangeNotifier {
   }
 }
 
-class _SettingsInherited extends InheritedWidget {
+class SettingsInherited extends InheritedWidget {
   final SettingsProviderState data;
-  const _SettingsInherited({required this.data, required super.child});
+  const SettingsInherited({super.key, required this.data, required super.child});
 
   @override
-  bool updateShouldNotify(_SettingsInherited old) =>
+  bool updateShouldNotify(SettingsInherited old) =>
       old.data.settings != data.settings;
 }
 
 // Static accessor (used in AppStrings.of)
 SettingsProviderState _lookupSettingsProvider(BuildContext context) {
-  final inh = context.dependOnInheritedWidgetOfExactType<_SettingsInherited>();
+  final inh = context.dependOnInheritedWidgetOfExactType<SettingsInherited>();
   if (inh == null) {
     throw FlutterError('SettingsProvider not found in widget tree');
   }

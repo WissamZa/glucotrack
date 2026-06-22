@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../i18n/strings.dart';
 import '../models/reading.dart';
-import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../themes/app_theme.dart';
 
@@ -285,11 +284,12 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
                 lastDate: DateTime.now().add(const Duration(days: 1)),
               );
               if (d == null) return;
+              if (!context.mounted) return;
               final t = await showTimePicker(
                 context: context,
                 initialTime: TimeOfDay.fromDateTime(_timestamp),
               );
-              if (t == null) return;
+              if (t == null || !context.mounted) return;
               setState(() {
                 _timestamp = DateTime(d.year, d.month, d.day, t.hour, t.minute);
               });

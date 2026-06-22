@@ -166,7 +166,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           borderRadius: BorderRadius.circular(16),
           color: selected
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
               : null,
         ),
         child: Column(
@@ -174,7 +174,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Text(flag, style: const TextStyle(fontSize: 32)),
             const SizedBox(height: 4),
             Text(label,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
       ),
@@ -248,7 +248,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             borderRadius: BorderRadius.circular(16),
             color: selected
-                ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
                 : null,
           ),
           child: Row(
@@ -298,7 +298,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             height: 64,
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(Icons.monitor_heart,
@@ -309,7 +309,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 24),
           Text(strings.yourName,
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
           const SizedBox(height: 8),
           TextField(
             controller: _nameCtrl,
@@ -319,7 +319,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 24),
           Text(strings.yourDiabetesType,
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -348,7 +348,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           borderRadius: BorderRadius.circular(12),
           color: selected
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
               : null,
         ),
         child: Text(

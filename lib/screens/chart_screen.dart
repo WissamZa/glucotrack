@@ -284,6 +284,7 @@ class _ChartViewState extends State<_ChartView> {
           alignment: BarChartAlignment.spaceAround,
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => Colors.black87,
               getTooltipItem: (group, _, rod, __) => BarTooltipItem(
                 '${rod.toY.round()} mg/dL',
                 const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -363,7 +364,7 @@ class _ChartViewState extends State<_ChartView> {
             belowBarData: _chartKind == _ChartKind.area
                 ? BarAreaData(
                     show: true,
-                    color: lineColor.withOpacity(0.15),
+                    color: lineColor.withValues(alpha: 0.15),
                   )
                 : BarAreaData(show: false),
           ),
@@ -530,7 +531,7 @@ class _ReadingListTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: statusColor(status).withOpacity(0.15),
+              color: statusColor(status).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(strings.statusLabel(status),

@@ -6,6 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'package:flutter/foundation.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+import 'package:sqflite/sqflite.dart' as sqflite_native;
+
 import 'database/database_helper.dart';
 import 'i18n/strings.dart';
 import 'models/settings.dart';
@@ -21,6 +26,18 @@ import 'screens/settings_screen.dart';
 void main() {
   // Ensure Flutter binding is initialized before any async work
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  } else if (defaultTargetPlatform == TargetPlatform.android ||
+             defaultTargetPlatform == TargetPlatform.iOS) {
+    // Mobile: use the native sqflite factory (no FFI needed)
+    databaseFactory = sqflite_native.databaseFactory;
+  } else {
+    // Desktop (Linux, Windows, macOS): use FFI
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
 
   // Wrap the entire app in a zone that catches errors to prevent white screen
   runZonedGuarded(() {
@@ -59,9 +76,12 @@ class GlucoTrackApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             builder: (context, child) {
-              return Directionality(
-                textDirection: s.isRtl ? TextDirection.rtl : TextDirection.ltr,
-                child: child!,
+              return SettingsInherited(
+                data: settingsProv,
+                child: Directionality(
+                  textDirection: s.isRtl ? TextDirection.rtl : TextDirection.ltr,
+                  child: child!,
+                ),
               );
             },
             home: const AppBootstrap(),
@@ -269,7 +289,7 @@ class _MainShellState extends State<MainShell> {
     final selected = _index == idx;
     final color = selected
         ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5);
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
     return InkWell(
       onTap: () => setState(() => _index = idx),
       child: Padding(

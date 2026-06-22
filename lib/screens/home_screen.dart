@@ -183,7 +183,7 @@ class _ReadingHero extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -221,7 +221,7 @@ class _ReadingHero extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -236,7 +236,7 @@ class _ReadingHero extends StatelessWidget {
                 ),
                 FloatingActionButton.small(
                   onPressed: () => Navigator.pushNamed(context, '/add'),
-                  backgroundColor: Colors.white.withOpacity(0.2),
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
                   foregroundColor: Colors.white,
                   child: const Icon(Icons.add),
                 ),
