@@ -1,7 +1,7 @@
 name: glucotrack
 description: Bilingual Blood Glucose Tracking App — Arabic/English with three display themes and SQLite local storage.
 publish_to: "none"
-version: 1.2.0+3
+version: 1.2.2+4
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
