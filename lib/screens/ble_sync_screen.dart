@@ -55,6 +55,9 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   bool _syncing = false;
   bool _saved = false;
 
+  final _selectedSeqs = <int>{};
+  bool _selectionInitialized = false;
+
   SyncState _state = const SyncState();
   StreamSubscription<SyncState>? _stateSub;
   StreamSubscription<String>? _logSub;
@@ -156,6 +159,8 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       _saved = false;
       _logs.clear();
       _lastMeterRemoteId = meter.remoteId;
+      _selectedSeqs.clear();
+      _selectionInitialized = false;
     });
 
     try {
@@ -179,6 +184,9 @@ class _BleSyncScreenState extends State<BleSyncScreen>
     var skipped = 0;
 
     for (final rec in records) {
+      if (!_selectedSeqs.contains(rec.sequenceNumber)) {
+        continue;
+      }
       final id =
           'onetouch_${_sanitize(_lastMeterRemoteId)}_${rec.sequenceNumber}';
       if (rProv.findById(id) != null) {
@@ -190,6 +198,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
         value: rec.glucoseMgDl,
         type: _mealFlagToReadingType(rec.mealFlag),
         timestamp: rec.timestamp,
+        notes: 'Synced from meter',
       );
       await db.insertReading(reading);
       await rProv.add(reading);
@@ -197,7 +206,10 @@ class _BleSyncScreenState extends State<BleSyncScreen>
     }
 
     if (!mounted) return;
-    setState(() => _saved = true);
+    setState(() {
+      _saved = true;
+      _selectedSeqs.clear();
+    });
     _showSnack(
       'Saved $inserted new reading(s)'
       '${skipped > 0 ? ', skipped $skipped duplicate(s)' : ''}.',
@@ -213,6 +225,8 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       _saved = false;
       _scannedMeters.clear();
       _syncing = false;
+      _selectedSeqs.clear();
+      _selectionInitialized = false;
     });
   }
 
@@ -242,6 +256,22 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final rProv = context.watch<ReadingsProvider>();
+
+    final records = _state.records;
+    final isDone = _state.phase == SyncPhase.done;
+
+    if (isDone && !_selectionInitialized && records.isNotEmpty) {
+      _selectionInitialized = true;
+      _selectedSeqs.clear();
+      for (final rec in records) {
+        final id = 'onetouch_${_sanitize(_lastMeterRemoteId)}_${rec.sequenceNumber}';
+        final alreadySaved = rProv.findById(id) != null;
+        if (!alreadySaved) {
+          _selectedSeqs.add(rec.sequenceNumber);
+        }
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -348,10 +378,20 @@ class _BleSyncScreenState extends State<BleSyncScreen>
 
   Widget _buildSyncView() {
     final s = context.watch<SettingsProviderState>().settings;
+    final rProv = context.watch<ReadingsProvider>();
     final fmt = DateFormat('yyyy-MM-dd HH:mm');
     final records = _state.records;
     final isDone = _state.phase == SyncPhase.done;
     final isError = _state.phase == SyncPhase.error;
+
+    // Count how many are unsaved
+    final unsavedRecords = records.where((rec) {
+      final id = 'onetouch_${_sanitize(_lastMeterRemoteId)}_${rec.sequenceNumber}';
+      return rProv.findById(id) == null;
+    }).toList();
+
+    final allSelected = unsavedRecords.isNotEmpty && unsavedRecords.every((rec) => _selectedSeqs.contains(rec.sequenceNumber));
+    final someSelected = unsavedRecords.isNotEmpty && unsavedRecords.any((rec) => _selectedSeqs.contains(rec.sequenceNumber)) && !allSelected;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -366,21 +406,81 @@ class _BleSyncScreenState extends State<BleSyncScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Synced records (${records.length})',
+                s.language == Language.ar 
+                    ? 'السجلات المتزامنة (${records.length})' 
+                    : 'Synced records (${records.length})',
                 style: const TextStyle(
                     fontWeight: FontWeight.w700, fontSize: 15),
               ),
               if (!_saved && isDone)
                 FilledButton.icon(
                   icon: const Icon(Icons.save_alt, size: 18),
-                  label: const Text('Save all'),
-                  onPressed: _saveToGlucoTrack,
+                  label: Text(s.language == Language.ar
+                      ? 'حفظ المحدد (${_selectedSeqs.length})'
+                      : 'Save selected (${_selectedSeqs.length})'),
+                  onPressed: _selectedSeqs.isEmpty ? null : _saveToGlucoTrack,
                 ),
             ],
           ),
           const SizedBox(height: 8),
-          for (final r in records)
-            _RecordTile(record: r, settings: s, fmt: fmt),
+
+          if (isDone && unsavedRecords.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: allSelected ? true : (someSelected ? null : false),
+                    tristate: true,
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          for (final rec in unsavedRecords) {
+                            _selectedSeqs.add(rec.sequenceNumber);
+                          }
+                        } else {
+                          for (final rec in unsavedRecords) {
+                            _selectedSeqs.remove(rec.sequenceNumber);
+                          }
+                        }
+                      });
+                    },
+                  ),
+                  Text(
+                    allSelected 
+                        ? (s.language == Language.ar ? 'إلغاء تحديد الكل' : 'Deselect all new')
+                        : (s.language == Language.ar ? 'تحديد الكل الجديد' : 'Select all new'),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+
+          for (final r in records) ...[
+            (() {
+              final id = 'onetouch_${_sanitize(_lastMeterRemoteId)}_${r.sequenceNumber}';
+              final alreadySaved = rProv.findById(id) != null;
+              final isSelected = _selectedSeqs.contains(r.sequenceNumber);
+              return _RecordTile(
+                record: r,
+                settings: s,
+                fmt: fmt,
+                selected: isSelected,
+                alreadySaved: alreadySaved,
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      _selectedSeqs.add(r.sequenceNumber);
+                    } else {
+                      _selectedSeqs.remove(r.sequenceNumber);
+                    }
+                  });
+                },
+              );
+            })(),
+          ],
           const SizedBox(height: 16),
         ],
 
@@ -759,8 +859,18 @@ class _RecordTile extends StatelessWidget {
   final OneTouchRecord record;
   final Settings settings;
   final DateFormat fmt;
-  const _RecordTile(
-      {required this.record, required this.settings, required this.fmt});
+  final bool selected;
+  final bool alreadySaved;
+  final ValueChanged<bool?>? onChanged;
+
+  const _RecordTile({
+    required this.record,
+    required this.settings,
+    required this.fmt,
+    required this.selected,
+    required this.alreadySaved,
+    required this.onChanged,
+  });
 
   Color _glucoseColor(int mgDl, Settings s) {
     if (mgDl < s.targetMin) return Colors.orange;
@@ -798,6 +908,26 @@ class _RecordTile extends StatelessWidget {
           '${record.mealFlag != 0 ? ' · ${_mealLabel(record.mealFlag)}' : ''}',
           style: const TextStyle(fontSize: 12),
         ),
+        trailing: alreadySaved
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  settings.language == Language.ar ? 'تم الحفظ' : 'Saved',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            : Checkbox(
+                value: selected,
+                onChanged: onChanged,
+              ),
       ),
     );
   }

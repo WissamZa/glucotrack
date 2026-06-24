@@ -11,7 +11,7 @@ import '../themes/app_theme.dart';
 import '../utils/unit_converter.dart';
 import '../widgets/reading_actions.dart';
 
-enum _Period { today, week, month }
+enum _Period { today, week, month, all }
 enum _ChartKind { area, line, bar }
 
 class ChartScreen extends StatelessWidget {
@@ -45,12 +45,14 @@ class _ChartViewState extends State<_ChartView> {
         ? DateTime(now.year, now.month, now.day)
         : _period == _Period.week
             ? now.subtract(const Duration(days: 7))
-            : now.subtract(const Duration(days: 30));
+            : _period == _Period.month
+                ? now.subtract(const Duration(days: 30))
+                : null;
 
-    final filtered = rProv.rawReadings
-        .where((r) => r.timestamp.isAfter(cutoff))
-        .toList()
-      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final filtered = cutoff == null
+        ? rProv.rawReadings.toList()
+        : rProv.rawReadings.where((r) => r.timestamp.isAfter(cutoff)).toList();
+    filtered.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     final stats = _computeStats(filtered, s);
     final sortedList = _applySort(filtered, rProv.sortOrder);
@@ -79,6 +81,7 @@ class _ChartViewState extends State<_ChartView> {
                     (_Period.today, strings.get('period_today')),
                     (_Period.week, strings.get('period_week')),
                     (_Period.month, strings.get('period_month')),
+                    (_Period.all, s.language == Language.ar ? 'الكل' : 'All'),
                   ],
                   onChanged: (v) => setState(() => _period = v),
                 ),
