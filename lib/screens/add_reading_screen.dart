@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../i18n/strings.dart';
 import '../models/reading.dart';
-import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../themes/app_theme.dart';
 import '../utils/unit_converter.dart';

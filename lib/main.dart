@@ -11,7 +11,6 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:sqflite/sqflite.dart' as sqflite_native;
 
-import 'database/database_helper.dart';
 import 'i18n/strings.dart';
 import 'models/settings.dart';
 import 'providers/providers.dart';
@@ -24,6 +23,7 @@ import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/export_screen.dart';
+import 'screens/ble_sync_screen.dart';
 
 void main() {
   // Ensure Flutter binding is initialized before any async work
@@ -95,6 +95,7 @@ class GlucoTrackApp extends StatelessWidget {
               '/settings': (_) => const SettingsScreen(),
               '/insights': (_) => const InsightsScreen(),
               '/export': (_) => const ExportScreen(),
+              '/sync': (_) => const BleSyncScreen(),
             },
           );
         },
@@ -125,8 +126,6 @@ class _AppBootstrapState extends State<AppBootstrap> {
 
   Future<void> _init() async {
     try {
-      final db = DatabaseHelper();
-
       // Load settings from DB
       if (!mounted) return;
       await context.read<SettingsProviderState>().loadFromDb();

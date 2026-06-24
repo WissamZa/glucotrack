@@ -1,11 +1,10 @@
-// Settings screen — language, theme, diabetes type, targets, units,
-// profile name, integrations (Coming Soon), reset.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../i18n/strings.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../database/database_helper.dart';
+import '../ble/ble_platform.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -339,45 +338,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          // ── BLE Meter Sync — LIVE ─────────────────────────────────────
           _Card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Icon(Icons.bluetooth, color: Colors.grey.shade500),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.deviceIntegration,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          strings.comingSoon,
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                        ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => Navigator.of(context).pushNamed('/sync'),
+              child: Row(children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
                       ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      strings.comingSoon,
-                      style: const TextStyle(
-                        color: Color(0xFFF59E0B),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                  child: const Icon(Icons.bluetooth_connected,
+                      color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        strings.deviceIntegration,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'OneTouch Select Plus Flex',
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                // Platform badge
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isBleSupported
+                        ? Colors.green.withValues(alpha: 0.12)
+                        : Colors.grey.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isBleSupported ? 'Available' : 'Android only',
+                    style: TextStyle(
+                      color: isBleSupported
+                          ? Colors.green.shade700
+                          : Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
                     ),
                   ),
-                ]),
-              ],
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, color: Colors.grey),
+              ]),
             ),
           ),
 

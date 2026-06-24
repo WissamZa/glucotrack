@@ -1,7 +1,7 @@
 name: glucotrack
 description: Bilingual Blood Glucose Tracking App — Arabic/English with three display themes and SQLite local storage.
 publish_to: "none"
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -39,6 +39,12 @@ dependencies:
   sqflite_common_ffi_web: ^1.1.2
   pdf: ^3.11.0
   printing: ^5.13.0
+
+  # Bluetooth Low Energy — OneTouch meter sync (Android, iOS, macOS, Windows)
+  flutter_blue_plus: ^1.35.3
+
+  # AES-128-ECB for OneTouch application-layer auth challenge-response
+  pointycastle: ^3.9.1
 
   # Local notifications for reminders
   flutter_local_notifications: ^19.4.0

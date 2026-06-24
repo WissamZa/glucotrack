@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -20,7 +19,6 @@ class PdfReportService {
     final font = pw.Font.helvetica();
 
     final userName = settings.userName.isEmpty ? 'Patient' : settings.userName;
-    final unitLabel = UnitConverter.unitLabel(settings.unit);
 
     pdf.addPage(
       pw.Page(

@@ -45,3 +45,6 @@ android/release.keystore
 keystore/
 scripts/upload_secrets.py
 *.log
+
+# Nested/untracked build projects
+apk/

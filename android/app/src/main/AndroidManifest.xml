@@ -1,4 +1,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ── Bluetooth LE permissions ──────────────────────────────────────── -->
+    <!-- Android ≤ 11 (API ≤ 30): legacy BT permissions -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <!-- Fine location required to scan for BLE devices on Android ≤ 12 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="32" />
+
+    <!-- Android 12+ (API 31+): granular BT permissions -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <!-- BLE hardware feature — required=false so the app works on non-BLE devices -->
+    <uses-feature android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
     <application
         android:label="GlucoTrack"
         android:icon="@mipmap/ic_launcher">
@@ -22,3 +43,4 @@
             android:value="2" />
     </application>
 </manifest>
+

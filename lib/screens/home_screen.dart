@@ -11,6 +11,7 @@ import '../utils/unit_converter.dart';
 import '../utils/trend_analysis.dart';
 import '../utils/hba1c_calculator.dart';
 import '../widgets/reading_actions.dart';
+import '../ble/ble_platform.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -40,9 +41,6 @@ class HomeScreen extends StatelessWidget {
 
     // Calculate HbA1c
     final hba1c = HbA1cCalculator.calculate(rProv.rawReadings);
-
-    // Total insulin today
-    final totalInsulin = today.fold<int>(0, (sum, r) => sum + (r.insulin ?? 0));
 
     final greeting = _greeting(now.hour, strings);
 
@@ -134,6 +132,9 @@ class HomeScreen extends StatelessWidget {
           // Quick actions row
           const SizedBox(height: 16),
           _QuickActionsRow(strings: strings),
+          // ── Sync from meter banner ───────────────────────────────────
+          const SizedBox(height: 12),
+          const _SyncMeterBanner(),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -597,4 +598,78 @@ class _ReadingRow extends StatelessWidget {
 
   bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+// ─── Sync from meter banner ───────────────────────────────────────────────────
+
+class _SyncMeterBanner extends StatelessWidget {
+  const _SyncMeterBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pushNamed('/sync'),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              primary,
+              primary.withValues(alpha: 0.72),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: primary.withValues(alpha: 0.25),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.bluetooth_connected,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Sync from meter',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14),
+                  ),
+                  Text(
+                    isBleSupported
+                        ? 'OneTouch Select Plus Flex • Tap to sync'
+                        : 'Available on Android — not on this platform',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.82),
+                        fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -1,7 +1,6 @@
 // Insights screen — HbA1c estimation, glucose trends, and weekly summary
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../i18n/strings.dart';
 import '../models/reading.dart';
 import '../models/settings.dart';
