@@ -2,8 +2,10 @@
 //
 // Schema mirrors the Next.js Prisma schema so data can be exchanged
 // between the web and Flutter apps via the JSON backup format.
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart' as sqlcipher;
 import '../models/reading.dart';
 import '../models/reminder.dart';
 import '../services/keystore_service.dart';
@@ -21,71 +23,90 @@ class DatabaseHelper {
   }
 
   Future<Database> _open() async {
-    final dbPath = await getDatabasesPath();
+    final bool isMobile = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+         defaultTargetPlatform == TargetPlatform.iOS);
+
+    final String dbPath;
+    if (isMobile) {
+      dbPath = await sqlcipher.getDatabasesPath();
+    } else {
+      dbPath = await databaseFactory.getDatabasesPath();
+    }
     final path = p.join(dbPath, 'glucotrack.db');
     final key = await KeystoreService().getDbKey();
 
-    return openDatabase(
-      path,
-      password: key,
-      version: 2,
-      onConfigure: (db) async {
-        await db.execute('PRAGMA journal_mode=WAL');
-        await db.execute('PRAGMA foreign_keys=ON');
-      },
-      onCreate: (db, _) async {
-        await db.execute('''
-          CREATE TABLE readings (
-            id TEXT PRIMARY KEY,
-            value INTEGER NOT NULL,
-            type TEXT NOT NULL,
-            timestamp INTEGER NOT NULL,
-            notes TEXT,
-            carbs INTEGER,
-            insulin INTEGER
-          )
-        ''');
-        await db.execute('CREATE INDEX idx_readings_timestamp ON readings(timestamp)');
-        await db.execute('CREATE INDEX idx_readings_type ON readings(type)');
+    Future<void> onConfigure(Database db) async {
+      await db.execute('PRAGMA journal_mode=WAL');
+      await db.execute('PRAGMA foreign_keys=ON');
+    }
 
-        await db.execute('''
-          CREATE TABLE reminders (
-            id TEXT PRIMARY KEY,
-            time TEXT NOT NULL,
-            label TEXT NOT NULL,
-            type TEXT NOT NULL,
-            enabled INTEGER NOT NULL DEFAULT 1
-          )
-        ''');
+    Future<void> onCreate(Database db, int version) async {
+      await db.execute('''
+        CREATE TABLE readings (
+          id TEXT PRIMARY KEY,
+          value INTEGER NOT NULL,
+          type TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          notes TEXT,
+          carbs INTEGER,
+          insulin INTEGER
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_readings_timestamp ON readings(timestamp)');
+      await db.execute('CREATE INDEX idx_readings_type ON readings(type)');
 
-        await db.execute('''
-          CREATE TABLE settings (
-            id INTEGER PRIMARY KEY DEFAULT 1,
-            language TEXT NOT NULL DEFAULT 'ar',
-            theme TEXT NOT NULL DEFAULT 'classic',
-            diabetes_type TEXT NOT NULL DEFAULT 'type2',
-            target_min INTEGER NOT NULL DEFAULT 80,
-            target_max INTEGER NOT NULL DEFAULT 180,
-            unit TEXT NOT NULL DEFAULT 'mg_dL',
-            user_name TEXT NOT NULL DEFAULT '',
-            onboarded INTEGER NOT NULL DEFAULT 0
-          )
-        ''');
-        // NOTE: sync_state table removed (SEC-015) — was dead schema that would
-        // have stored plaintext tokens. Re-add with encryption when cloud sync
-        // is actually implemented.
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        // v1 -> v2: encrypted DB migration
-        // For new installs, onCreate already ran at v2.
-        // For upgrades from v1 (plaintext DB), the user must export their data,
-        // uninstall, reinstall, and re-import. Document this in release notes.
-        // No schema changes between v1 and v2 — only the storage format changed.
-        if (oldVersion < 2) {
-          // No-op: schema is identical; the password parameter handles encryption
-        }
-      },
-    );
+      await db.execute('''
+        CREATE TABLE reminders (
+          id TEXT PRIMARY KEY,
+          time TEXT NOT NULL,
+          label TEXT NOT NULL,
+          type TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE settings (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          language TEXT NOT NULL DEFAULT 'ar',
+          theme TEXT NOT NULL DEFAULT 'classic',
+          diabetes_type TEXT NOT NULL DEFAULT 'type2',
+          target_min INTEGER NOT NULL DEFAULT 80,
+          target_max INTEGER NOT NULL DEFAULT 180,
+          unit TEXT NOT NULL DEFAULT 'mg_dL',
+          user_name TEXT NOT NULL DEFAULT '',
+          onboarded INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+    }
+
+    Future<void> onUpgrade(Database db, int oldVersion, int newVersion) async {
+      if (oldVersion < 2) {
+        // No-op: schema is identical; the password parameter handles encryption
+      }
+    }
+
+    if (isMobile) {
+      return sqlcipher.openDatabase(
+        path,
+        password: key,
+        version: 2,
+        onConfigure: onConfigure,
+        onCreate: onCreate,
+        onUpgrade: onUpgrade,
+      );
+    } else {
+      return databaseFactory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 2,
+          onConfigure: onConfigure,
+          onCreate: onCreate,
+          onUpgrade: onUpgrade,
+        ),
+      );
+    }
   }
 
   Future<void> close() async {

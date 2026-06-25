@@ -36,7 +36,14 @@ class NotificationService {
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-    const settings = InitializationSettings(android: androidInit, iOS: iosInit);
+    const linuxInit = LinuxInitializationSettings(
+      defaultActionName: 'Open notification',
+    );
+    const settings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+      linux: linuxInit,
+    );
     await _plugin.initialize(
       settings: settings,
       onDidReceiveNotificationResponse: _onNotificationTap,

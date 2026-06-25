@@ -332,6 +332,7 @@ class _ReadingHero extends StatelessWidget {
                   ],
                 ),
                 FloatingActionButton.small(
+                  heroTag: 'home_screen_add_reading_fab',
                   onPressed: () => Navigator.pushNamed(context, '/add'),
                   backgroundColor: Colors.white.withValues(alpha: 0.2),
                   foregroundColor: Colors.white,

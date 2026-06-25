@@ -27,27 +27,27 @@ import 'services/notification_service.dart';
 import 'themes/app_theme.dart';
 
 void main() {
-  // Ensure Flutter binding is initialized before any async work
-  WidgetsFlutterBinding.ensureInitialized();
-
-  if (kIsWeb) {
-    databaseFactory = databaseFactoryFfiWeb;
-  } else if (defaultTargetPlatform != TargetPlatform.android &&
-             defaultTargetPlatform != TargetPlatform.iOS) {
-    // Desktop (Linux, Windows, macOS): use FFI.
-    // NOTE: desktop SQLCipher requires sqlcipher_flutter_libs; without it the
-    // `password` parameter is silently ignored and the DB is unencrypted on
-    // desktop. Tracked as a SEC-006 follow-up. Mobile (Android/iOS) uses the
-    // sqflite_sqlcipher native factory by default — no override needed.
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
-  // Mobile (Android/iOS): no override — sqflite_sqlcipher's default native
-  // factory (registered on import of package:sqflite_sqlcipher/sqflite.dart in
-  // database_helper.dart) provides transparent SQLCipher encryption.
-
   // Wrap the entire app in a zone that catches errors to prevent white screen
   runZonedGuarded(() {
+    // Ensure Flutter binding is initialized before any async work
+    WidgetsFlutterBinding.ensureInitialized();
+
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWeb;
+    } else if (defaultTargetPlatform != TargetPlatform.android &&
+               defaultTargetPlatform != TargetPlatform.iOS) {
+      // Desktop (Linux, Windows, macOS): use FFI.
+      // NOTE: desktop SQLCipher requires sqlcipher_flutter_libs; without it the
+      // `password` parameter is silently ignored and the DB is unencrypted on
+      // desktop. Tracked as a SEC-006 follow-up. Mobile (Android/iOS) uses the
+      // sqflite_sqlcipher native factory by default — no override needed.
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+    // Mobile (Android/iOS): no override — sqflite_sqlcipher's default native
+    // factory (registered on import of package:sqflite_sqlcipher/sqflite.dart in
+    // database_helper.dart) provides transparent SQLCipher encryption.
+
     runApp(const GlucoTrackApp());
   }, (error, stack) {
     // Log errors — in production these would go to Crashlytics/Sentry
@@ -272,6 +272,7 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'main_shell_add_reading_fab',
         onPressed: _openAdd,
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
