@@ -1,7 +1,8 @@
 // Theme system — three full styles: classic, modern, elder.
 import 'package:flutter/material.dart';
-import '../models/settings.dart';
+
 import '../models/reading.dart';
+import '../models/settings.dart';
 
 class AppTheme {
   static ThemeData forStyle(ThemeStyle style, {bool isDark = false}) {

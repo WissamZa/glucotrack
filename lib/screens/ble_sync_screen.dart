@@ -16,7 +16,12 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+// flutter_blue_plus is imported unconditionally; on unsupported platforms the
+// entire BLE code path is behind an [isBleSupported] guard so the import is
+// fine even if the plugin has no native implementation on that platform.
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../ble/ble_platform.dart';
@@ -28,12 +33,6 @@ import '../models/reading.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../utils/unit_converter.dart';
-
-// flutter_blue_plus is imported unconditionally; on unsupported platforms the
-// entire BLE code path is behind an [isBleSupported] guard so the import is
-// fine even if the plugin has no native implementation on that platform.
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,7 +117,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       _saved = false;
     });
     // FIX-041 / PERF-006: only run the pulse animation while actively scanning.
-    _pulseCtrl.repeat(reverse: true);
+    unawaited(_pulseCtrl.repeat(reverse: true));
 
     try {
       await _requestBlePermissions();
@@ -137,7 +136,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       if (mounted && found.isEmpty) {
         _showSnack(strings.bleNoMetersFound);
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (mounted) _showSnack(strings.bleScanFailed(e));
     } finally {
       // Stop the pulse animation whenever scan ends (success, failure, or early return).
@@ -172,7 +171,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
 
     try {
       await _service!.syncWith(meter);
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('Sync error: $e');
     } finally {
       if (mounted) setState(() => _syncing = false);
@@ -342,7 +341,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
               onPressed: null, // disabled — informational
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14),
+                    horizontal: 24, vertical: 14,),
               ),
             ),
           ],
@@ -420,7 +419,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
               Text(
                 strings.bleSyncedRecords(records.length),
                 style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 15),
+                    fontWeight: FontWeight.w700, fontSize: 15,),
               ),
               if (!_saved && isDone)
                 FilledButton.icon(
@@ -507,7 +506,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
         ExpansionTile(
           leading: const Icon(Icons.terminal, size: 18),
           title: Text(strings.bleDebugLog(logList.length),
-              style: const TextStyle(fontSize: 13)),
+              style: const TextStyle(fontSize: 13),),
           children: [
             Container(
               height: 200,
@@ -570,7 +569,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
               const Divider(),
               const SizedBox(height: 8),
               Text(strings.bleTips,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),),
               const SizedBox(height: 4),
               Text(
                 strings.bleTipsText,
@@ -698,7 +697,7 @@ class _ScanningCard extends StatelessWidget {
             width: 36,
             height: 36,
             child: CircularProgressIndicator(
-                strokeWidth: 3, color: primary),
+                strokeWidth: 3, color: primary,),
           ),
           const SizedBox(height: 14),
           Text(
@@ -710,7 +709,7 @@ class _ScanningCard extends StatelessWidget {
             strings.bleScanningHint,
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
-        ]),
+        ],),
       ),
     );
   }
@@ -742,7 +741,7 @@ class _MeterCard extends StatelessWidget {
               const Icon(Icons.bloodtype, color: Colors.red, size: 22),
         ),
         title: Text(meter.name,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+            style: const TextStyle(fontWeight: FontWeight.w600),),
         subtitle: Text(
           meter.remoteId,
           style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
@@ -757,7 +756,7 @@ class _MeterCard extends StatelessWidget {
               style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13)),
+                  fontSize: 13,),),
         ),
         onTap: onTap,
       ),
@@ -802,10 +801,10 @@ class _ProgressCard extends StatelessWidget {
                       ? _phaseLabel(state.phase, strings)
                       : state.message,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14),
+                      fontWeight: FontWeight.w600, fontSize: 14,),
                 ),
               ),
-            ]),
+            ],),
             const SizedBox(height: 14),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -814,7 +813,7 @@ class _ProgressCard extends StatelessWidget {
                 minHeight: 6,
                 backgroundColor: Colors.grey.shade200,
                 valueColor: AlwaysStoppedAnimation(
-                    isError ? Colors.red : isDone ? Colors.green : primary),
+                    isError ? Colors.red : isDone ? Colors.green : primary,),
               ),
             ),
             const SizedBox(height: 6),
@@ -833,7 +832,7 @@ class _ProgressCard extends StatelessWidget {
   Widget _phaseIcon(bool isDone, bool isError, Color primary) {
     if (isDone) {
       return const Icon(Icons.check_circle_rounded,
-          color: Colors.green, size: 22);
+          color: Colors.green, size: 22,);
     }
     if (isError) {
       return const Icon(Icons.error_rounded, color: Colors.red, size: 22);
@@ -901,7 +900,7 @@ class _RecordTile extends StatelessWidget {
             style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.bold,
-                fontSize: 12),
+                fontSize: 12,),
           ),
         ),
         title: Text(
@@ -972,14 +971,14 @@ class _PairingHint extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(strings.blePairingTitle,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: const TextStyle(fontWeight: FontWeight.bold),),
                   const SizedBox(height: 4),
                   Text(
                     strings.blePairingDesc,
                     style: TextStyle(
                         fontSize: 12.5,
                         color: Colors.brown.shade700,
-                        height: 1.4),
+                        height: 1.4,),
                   ),
                 ],
               ),
@@ -1010,7 +1009,7 @@ class _HelpStep extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white)),
+                    color: Colors.white,),),
           ),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),

@@ -1,4 +1,5 @@
 // ReadingActions — popup menu for edit/delete on each reading row.
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../i18n/strings.dart';
@@ -42,7 +43,7 @@ class ReadingActions extends StatelessWidget {
       onSelected: (v) async {
         if (v == 'edit') {
           await Navigator.pushNamed(context, '/add', arguments: reading);
-          if (context.mounted) context.read<ReadingsProvider>().load();
+          if (context.mounted) unawaited(context.read<ReadingsProvider>().load());
         } else if (v == 'delete') {
           final confirmed = await _confirmDelete(context, strings);
           if (confirmed != true) return;

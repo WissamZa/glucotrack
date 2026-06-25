@@ -312,7 +312,7 @@ class OneTouchProtocol {
   static int parseCounter(List<int> message) {
     if (message.length < 5) {
       throw FormatException(
-          'Counter response too short: ${message.length} bytes');
+          'Counter response too short: ${message.length} bytes',);
     }
     final bd = ByteData.sublistView(Uint8List.fromList(message.sublist(1, 5)));
     return bd.getUint32(0, Endian.little);

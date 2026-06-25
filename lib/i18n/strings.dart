@@ -247,7 +247,7 @@ class AppStrings {
   String get bleScanButton => get('ble_scan_button');
   String get bleScanning => get('ble_scanning');
   String get bleScanningHint => get('ble_scanning_hint');
-  String get bleMetersFound(int count) =>
+  String bleMetersFound(int count) =>
       get('ble_meters_found').replaceAll('{count}', '$count');
   String get bleConnect => get('ble_connect');
   String get blePleaseEnableBt => get('ble_please_enable_bt');

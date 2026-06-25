@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../ble/ble_platform.dart';
+import '../database/database_helper.dart';
 import '../i18n/strings.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
-import '../database/database_helper.dart';
-import '../ble/ble_platform.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,7 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(
-        text: context.read<SettingsProviderState>().settings.userName);
+        text: context.read<SettingsProviderState>().settings.userName,);
   }
 
   @override
@@ -49,7 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Icon(Icons.language, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(strings.language, style: const TextStyle(fontWeight: FontWeight.w600)),
-                ]),
+                ],),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -81,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Icon(Icons.palette, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(strings.displayStyle, style: const TextStyle(fontWeight: FontWeight.w600)),
-                ]),
+                ],),
                 const SizedBox(height: 12),
                 _styleRow(prov, s, ThemeStyle.classic, strings.styleClassic, Icons.medical_services),
                 _styleRow(prov, s, ThemeStyle.modern, strings.styleModern, Icons.nightlight),
@@ -99,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Icon(Icons.monitor_heart, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(strings.diabetesType, style: const TextStyle(fontWeight: FontWeight.w600)),
-                ]),
+                ],),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -142,7 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     '${strings.glucoseTargets} (mg/dL)',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                ]),
+                ],),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -204,7 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(strings.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                ]),
+                ],),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -322,7 +323,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
-                ]),
+                ],),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -359,7 +360,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.bluetooth_connected,
-                      color: Colors.white, size: 22),
+                      color: Colors.white, size: 22,),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -374,7 +375,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Text(
                         'OneTouch Select Plus Flex',
                         style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 12),
+                            color: Colors.grey.shade600, fontSize: 12,),
                       ),
                     ],
                   ),
@@ -402,7 +403,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(width: 4),
                 const Icon(Icons.chevron_right, color: Colors.grey),
-              ]),
+              ],),
             ),
           ),
 

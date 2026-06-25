@@ -2,16 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
+import '../ble/ble_platform.dart';
 import '../i18n/strings.dart';
 import '../models/reading.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../themes/app_theme.dart';
-import '../utils/unit_converter.dart';
-import '../utils/trend_analysis.dart';
 import '../utils/hba1c_calculator.dart';
+import '../utils/trend_analysis.dart';
+import '../utils/unit_converter.dart';
 import '../widgets/reading_actions.dart';
-import '../ble/ble_platform.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -181,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(strings.recentReadings,
-                  style: Theme.of(context).textTheme.titleLarge),
+                  style: Theme.of(context).textTheme.titleLarge,),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, '/chart'),
                 child: Row(
@@ -202,13 +203,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     Icon(Icons.water_drop_outlined,
-                        size: 48, color: Colors.grey.shade400),
+                        size: 48, color: Colors.grey.shade400,),
                     const SizedBox(height: 8),
                     Text(strings.noReadingsYet,
-                        style: TextStyle(color: Colors.grey.shade600)),
+                        style: TextStyle(color: Colors.grey.shade600),),
                     const SizedBox(height: 4),
                     Text(strings.addFirstReading,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),),
                   ],
                 ),
               ),
@@ -255,7 +256,7 @@ class _ReadingHero extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(strings.latestReading,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),),
                 Row(
                   children: [
                     // Trend badge on hero
@@ -270,7 +271,7 @@ class _ReadingHero extends StatelessWidget {
                         child: Text(
                           trend!.direction.arrow,
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold,),
                         ),
                       ),
                     ],
@@ -283,7 +284,7 @@ class _ReadingHero extends StatelessWidget {
                       child: Text(
                         strings.statusLabel(status),
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold,),
                       ),
                     ),
                   ],
@@ -299,12 +300,12 @@ class _ReadingHero extends StatelessWidget {
                         color: Colors.white,
                         fontSize: 48,
                         fontWeight: FontWeight.bold,
-                        height: 1)),
+                        height: 1,),),
                 const SizedBox(width: 4),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text(unitLabel,
-                      style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                      style: const TextStyle(color: Colors.white70, fontSize: 16),),
                 ),
               ],
             ),
@@ -327,7 +328,7 @@ class _ReadingHero extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(timeStr,
-                        style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                        style: const TextStyle(color: Colors.white70, fontSize: 13),),
                   ],
                 ),
                 FloatingActionButton.small(
@@ -568,14 +569,14 @@ class _StatCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(value,
                   style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+                      fontSize: 18, fontWeight: FontWeight.bold, color: color,),),
               if (unit.isNotEmpty)
                 Text(unit,
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),),
               const SizedBox(height: 2),
               Text(label,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.2)),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.2),),
             ],
           ),
         ),
@@ -631,11 +632,11 @@ class _ReadingRow extends StatelessWidget {
                       children: [
                         Text(UnitConverter.format(reading.value, s.unit),
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
+                                fontWeight: FontWeight.bold, fontSize: 16,),),
                         const SizedBox(width: 4),
                         Text(UnitConverter.unitLabel(s.unit),
                             style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600)),
+                                fontSize: 12, color: Colors.grey.shade600,),),
                       ],
                     ),
                     Text(
@@ -702,7 +703,7 @@ class _SyncMeterBanner extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.bluetooth_connected,
-                  color: Colors.white, size: 22),
+                  color: Colors.white, size: 22,),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -714,7 +715,7 @@ class _SyncMeterBanner extends StatelessWidget {
                     style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 14),
+                        fontSize: 14,),
                   ),
                   Text(
                     isBleSupported
@@ -722,7 +723,7 @@ class _SyncMeterBanner extends StatelessWidget {
                         : strings.bleSyncBannerUnsupported,
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.82),
-                        fontSize: 12),
+                        fontSize: 12,),
                   ),
                 ],
               ),

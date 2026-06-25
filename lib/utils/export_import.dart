@@ -63,7 +63,7 @@ class DataExporter {
     final buffer = StringBuffer();
     // Header - quote fields per RFC 4180
     buffer.writeln(
-        '"ID","Value (mg/dL)","Type","DateTime","Notes","Carbs (g)","Insulin (units)"');
+        '"ID","Value (mg/dL)","Type","DateTime","Notes","Carbs (g)","Insulin (units)"',);
     // Rows
     for (final r in readings) {
       final dt = r.timestamp.toIso8601String();
@@ -75,7 +75,7 @@ class DataExporter {
         _csvEscape(r.notes),
         _csvEscape(r.carbs?.toString()),
         _csvEscape(r.insulin?.toString()),
-      ].join(','));
+      ].join(','),);
     }
     return buffer.toString();
   }
@@ -99,7 +99,7 @@ class DataExporter {
     final jsonStr = await exportToJson(data);
     final tempDir = await getTemporaryDirectory();
     final file = File(
-        '${tempDir.path}/glucotrack_backup_${_fileTimestamp()}.json');
+        '${tempDir.path}/glucotrack_backup_${_fileTimestamp()}.json',);
     await file.writeAsString(jsonStr);
     await SharePlus.instance.share(
       ShareParams(
@@ -114,7 +114,7 @@ class DataExporter {
     final csvStr = exportReadingsToCsv(readings);
     final tempDir = await getTemporaryDirectory();
     final file = File(
-        '${tempDir.path}/glucotrack_readings_${_fileTimestamp()}.csv');
+        '${tempDir.path}/glucotrack_readings_${_fileTimestamp()}.csv',);
     await file.writeAsString(csvStr);
     await SharePlus.instance.share(
       ShareParams(
@@ -165,7 +165,7 @@ class DataExporter {
       return ImportResult.failure('Invalid JSON: ${e.message}');
     } on TypeError catch (e) {
       return ImportResult.failure('Schema mismatch: $e');
-    } catch (e) {
+    } on Object catch (e) {
       return ImportResult.failure('Import failed', errorDetail: e.toString());
     }
   }

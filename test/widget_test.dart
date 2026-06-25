@@ -3,10 +3,10 @@
 // Uses a mocked database so no real SQLite is opened.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:glucotrack/i18n/strings.dart';
 import 'package:glucotrack/models/settings.dart';
 import 'package:glucotrack/providers/providers.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   // ── SettingsProviderState unit tests ──────────────────────────────────────

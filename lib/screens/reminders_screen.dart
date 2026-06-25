@@ -2,9 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+
 import '../i18n/strings.dart';
-import '../models/reminder.dart';
 import '../models/reading.dart';
+import '../models/reminder.dart';
 import '../providers/providers.dart';
 
 class RemindersScreen extends StatefulWidget {
@@ -48,7 +49,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.notifications_off_outlined,
-                      size: 64, color: Colors.grey.shade400),
+                      size: 64, color: Colors.grey.shade400,),
                   const SizedBox(height: 12),
                   Text(
                     strings.noReminders,
@@ -112,7 +113,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete_outline,
-                              color: Colors.red, size: 20),
+                              color: Colors.red, size: 20,),
                           tooltip: strings.tooltipDelete,
                           onPressed: () => _deleteReminder(context, prov, r.id, strings),
                         ),
@@ -166,7 +167,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     );
                     if (t != null) {
                       setStx(() => time =
-                          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
+                          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',);
                     }
                   },
                   child: Container(
@@ -256,7 +257,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       label: labelText.trim().isEmpty ? strings.readingType(type) : labelText.trim(),
       type: type,
       enabled: true,
-    ));
+    ),);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(strings.reminderAdded)),

@@ -41,8 +41,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
   _WeeklyStats _getWeeklyStats(List<Reading> readings, Settings s) {
     if (_cacheStale(readings)) {
       _refreshCache(readings, settings: s);
-    } else if (_cachedWeeklyStats == null) {
-      _cachedWeeklyStats = _computeWeeklyStats(readings, s);
+    } else {
+      _cachedWeeklyStats ??= _computeWeeklyStats(readings, s);
     }
     return _cachedWeeklyStats!;
   }
@@ -134,13 +134,13 @@ class _InsightsScreenState extends State<InsightsScreen> {
         .where((r) => {
           ReadingStatus.high,
           ReadingStatus.criticalHigh,
-        }.contains(r.status(s.targetMin, s.targetMax)))
+        }.contains(r.status(s.targetMin, s.targetMax)),)
         .length;
     final lowCount = thisWeekReadings
         .where((r) => {
           ReadingStatus.low,
           ReadingStatus.criticalLow,
-        }.contains(r.status(s.targetMin, s.targetMax)))
+        }.contains(r.status(s.targetMin, s.targetMax)),)
         .length;
 
     return _WeeklyStats(
@@ -173,7 +173,7 @@ class _HbA1cCard extends StatelessWidget {
                 Icon(Icons.science, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(strings.hba1cTitle,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
               ],
             ),
             const SizedBox(height: 16),
@@ -194,7 +194,7 @@ class _HbA1cCard extends StatelessWidget {
                           ),
                         ),
                         Text(strings.hba1cEstimate,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),),
                       ],
                     ),
                   ),
@@ -210,7 +210,7 @@ class _HbA1cCard extends StatelessWidget {
                           ),
                         ),
                         Text(strings.hba1cAverage,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),),
                       ],
                     ),
                   ),
@@ -287,7 +287,7 @@ class _HbA1cCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(message,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600)),
+                  style: TextStyle(color: Colors.grey.shade600),),
             ],
           ),
         ),
@@ -324,7 +324,7 @@ class _TrendCard extends StatelessWidget {
                 Icon(Icons.trending_up, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(strings.trendLabel,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
               ],
             ),
             const SizedBox(height: 16),
@@ -391,7 +391,7 @@ class _TrendCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(message,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600)),
+                  style: TextStyle(color: Colors.grey.shade600),),
             ],
           ),
         ),
@@ -416,10 +416,10 @@ class _WeeklySummaryCard extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.calendar_view_week,
-                    color: Theme.of(context).colorScheme.primary),
+                    color: Theme.of(context).colorScheme.primary,),
                 const SizedBox(width: 8),
                 Text(strings.weeklySummary,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
               ],
             ),
             const SizedBox(height: 16),
@@ -429,15 +429,15 @@ class _WeeklySummaryCard extends StatelessWidget {
               Row(
                 children: [
                   _miniStat('${stats.readingsCount}', strings.readingsThisWeek,
-                      Theme.of(context).colorScheme.primary),
+                      Theme.of(context).colorScheme.primary,),
                   _miniStat(
                       UnitConverter.format(stats.average, unit),
                       strings.avgThisWeek,
-                      const Color(0xFF0D9488)),
+                      const Color(0xFF0D9488),),
                   _miniStat('${stats.inRangePct}%', strings.timeInRangeWeek,
                       stats.inRangePct >= 70
                           ? const Color(0xFF10B981)
-                          : const Color(0xFFF59E0B)),
+                          : const Color(0xFFF59E0B),),
                 ],
               ),
               const SizedBox(height: 12),
@@ -446,13 +446,13 @@ class _WeeklySummaryCard extends StatelessWidget {
                   Expanded(
                     child: _alertChip(
                         '${stats.highCount} ${strings.highReadings}',
-                        const Color(0xFFEF4444)),
+                        const Color(0xFFEF4444),),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _alertChip(
                         '${stats.lowCount} ${strings.lowReadings}',
-                        const Color(0xFFF59E0B)),
+                        const Color(0xFFF59E0B),),
                   ),
                 ],
               ),
@@ -468,11 +468,11 @@ class _WeeklySummaryCard extends StatelessWidget {
           children: [
             Text(value,
                 style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+                    fontSize: 22, fontWeight: FontWeight.bold, color: color,),),
             const SizedBox(height: 4),
             Text(label,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),),
           ],
         ),
       );
@@ -500,11 +500,11 @@ class _WeeklySummaryCard extends StatelessWidget {
           child: Column(
             children: [
               Icon(Icons.calendar_view_week_outlined,
-                  size: 48, color: Colors.grey.shade400),
+                  size: 48, color: Colors.grey.shade400,),
               const SizedBox(height: 8),
               Text(message,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600)),
+                  style: TextStyle(color: Colors.grey.shade600),),
             ],
           ),
         ),

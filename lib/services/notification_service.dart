@@ -3,8 +3,8 @@
 // Wraps flutter_local_notifications to schedule daily recurring reminders
 // at user-specified times. Notifications survive device reboots.
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -26,7 +26,7 @@ class NotificationService {
       if (localName != null) {
         tz.setLocalLocation(tz.getLocation(localName));
       }
-    } catch (_) {
+    } on Exception catch (_) {
       tz.setLocalLocation(tz.UTC);
     }
 
@@ -38,7 +38,7 @@ class NotificationService {
     );
     const settings = InitializationSettings(android: androidInit, iOS: iosInit);
     await _plugin.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
     _initialized = true;
@@ -55,11 +55,10 @@ class NotificationService {
     for (final name in common) {
       try {
         final loc = tz.getLocation(name);
-        if (loc.currentTimeZone.offset(DateTime.now().millisecondsSinceEpoch) ==
-            offset.inMilliseconds) {
+        if (loc.currentTimeZone.offset == offset) {
           return name;
         }
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
     return null;
   }
@@ -100,18 +99,18 @@ class NotificationService {
     const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduled,
-      details,
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: scheduled,
+      notificationDetails: details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
   Future<void> cancelReminder(int id) async {
-    await _plugin.cancel(id);
+    await _plugin.cancel(id: id);
   }
 
   Future<void> cancelAll() async {

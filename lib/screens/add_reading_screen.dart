@@ -116,7 +116,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
           notes: notes.isEmpty ? null : notes,
           carbs: carbs,
           insulin: insulin,
-        ));
+        ),);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -134,7 +134,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
         notes: notes.isEmpty ? null : notes,
         carbs: carbs,
         insulin: insulin,
-      ));
+      ),);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(strings.savedSuccess)),
@@ -186,7 +186,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
               child: Column(
                 children: [
                   Text('${strings.glucoseValue} (${UnitConverter.unitLabel(s.unit)})',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -260,7 +260,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
 
           // Measurement type
           Text(strings.measurementType,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -278,7 +278,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
 
           // Timestamp
           Text(strings.time,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
           const SizedBox(height: 8),
           InkWell(
             onTap: () async {
@@ -341,7 +341,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
 
           // Notes
           Text(strings.notes,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
           const SizedBox(height: 8),
           TextField(
             controller: _notesCtrl,
@@ -389,7 +389,7 @@ class _NumberField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
         const SizedBox(height: 8),
         TextField(
           controller: controller,

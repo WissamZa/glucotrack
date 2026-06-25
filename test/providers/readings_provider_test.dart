@@ -173,7 +173,7 @@ void main() {
       expect(restored.value, original.value);
       expect(restored.type, original.type);
       expect(restored.timestamp.millisecondsSinceEpoch,
-          original.timestamp.millisecondsSinceEpoch);
+          original.timestamp.millisecondsSinceEpoch,);
       expect(restored.notes, original.notes);
       expect(restored.carbs, original.carbs);
       expect(restored.insulin, original.insulin);

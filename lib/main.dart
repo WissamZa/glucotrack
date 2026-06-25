@@ -2,29 +2,29 @@
 //
 // Wires up providers, theme, locale, and routes between the screens.
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 import 'i18n/strings.dart';
 import 'models/settings.dart';
 import 'providers/providers.dart';
-import 'themes/app_theme.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/home_screen.dart';
 import 'screens/add_reading_screen.dart';
+import 'screens/ble_sync_screen.dart';
 import 'screens/chart_screen.dart';
+import 'screens/export_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/insights_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/insights_screen.dart';
-import 'screens/export_screen.dart';
-import 'screens/ble_sync_screen.dart';
 import 'services/notification_service.dart';
+import 'themes/app_theme.dart';
 
 void main() {
   // Ensure Flutter binding is initialized before any async work
@@ -156,7 +156,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
           _error = null;
         });
       }
-    } catch (e, stack) {
+    } on Exception catch (e, stack) {
       debugPrint('=== INIT ERROR ===');
       debugPrint('$e');
       debugPrint('$stack');
@@ -263,7 +263,7 @@ class _MainShellState extends State<MainShell> {
 
   void _openAdd() async {
     await Navigator.of(context).pushNamed('/add');
-    if (mounted) context.read<ReadingsProvider>().load();
+    if (mounted) unawaited(context.read<ReadingsProvider>().load());
   }
 
   @override

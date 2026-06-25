@@ -3,11 +3,12 @@
 // Uses Provider for state management. All DB mutations go through these
 // providers and notify listeners automatically.
 import 'package:flutter/material.dart';
+
 import '../database/database_helper.dart';
+import '../i18n/strings.dart';
 import '../models/reading.dart';
 import '../models/reminder.dart';
 import '../models/settings.dart';
-import '../i18n/strings.dart';
 import '../services/notification_service.dart';
 
 // ===== Readings Provider =====
@@ -168,7 +169,7 @@ extension SettingsProviderPersistence on SettingsProviderState {
       unit: (row['unit'] as String) == 'mg_dL' ? GlucoseUnit.mgDl : GlucoseUnit.mmolL,
       userName: (row['user_name'] as String?) ?? '',
       onboarded: (row['onboarded'] as int) == 1,
-    ));
+    ),);
   }
 
   Future<void> persist(Settings s) async {

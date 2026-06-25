@@ -91,6 +91,7 @@ class ExportScreen extends StatelessWidget {
 
       if (range == null) return;
 
+      if (!context.mounted) return;
       final rProv = context.read<ReadingsProvider>();
       final sProv = context.read<SettingsProviderState>();
 
@@ -120,7 +121,7 @@ class ExportScreen extends StatelessWidget {
           SnackBar(content: Text(strings.exportSuccess)),
         );
       }
-    } catch (e) {
+    } on Exception catch (_) {
       if (context.mounted) {
         _showError(context, strings.importError); // Reuse generic error
       }
@@ -165,17 +166,13 @@ class ExportScreen extends StatelessWidget {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
-        withData: true,
       );
 
       if (result == null || result.files.isEmpty) return;
       final file = result.files.first;
-      if (file.bytes == null) {
-        _showError(context, strings.importError);
-        return;
-      }
+      final fileBytes = await file.readAsBytes();
 
-      final jsonStr = utf8.decode(file.bytes!, allowMalformed: true);
+      final jsonStr = utf8.decode(fileBytes, allowMalformed: true);
       final importResult = DataExporter.importFromJson(jsonStr);
 
       if (!importResult.success || importResult.data == null) {
@@ -186,6 +183,7 @@ class ExportScreen extends StatelessWidget {
       }
       final imported = importResult.data!;
 
+      if (!context.mounted) return;
       final rProv = context.read<ReadingsProvider>();
       final remProv = context.read<RemindersProvider>();
 
@@ -209,7 +207,7 @@ class ExportScreen extends StatelessWidget {
           SnackBar(content: Text(strings.importSuccess(importedCount))),
         );
       }
-    } catch (e) {
+    } on Exception catch (_) {
       if (context.mounted) {
         _showError(context, strings.importError);
       }
@@ -302,10 +300,10 @@ class _ExportCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
                     const SizedBox(height: 2),
                     Text(subtitle,
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),),
                   ],
                 ),
               ),

@@ -134,24 +134,24 @@ class PdfReportService {
             pw.Padding(
               padding: const pw.EdgeInsets.all(6),
               child: pw.Text(h, style: pw.TextStyle(font: fontBold, fontSize: 9)),
-            )).toList(),
+            ),).toList(),
         ),
         ...readings.map((r) => pw.TableRow(
           children: [
             pw.Padding(padding: const pw.EdgeInsets.all(6),
               child: pw.Text(_formatDateTime(r.timestamp),
-                style: pw.TextStyle(font: font, fontSize: 9))),
+                style: pw.TextStyle(font: font, fontSize: 9),),),
             pw.Padding(padding: const pw.EdgeInsets.all(6),
               child: pw.Text(r.type.name,
-                style: pw.TextStyle(font: font, fontSize: 9))),
+                style: pw.TextStyle(font: font, fontSize: 9),),),
             pw.Padding(padding: const pw.EdgeInsets.all(6),
               child: pw.Text('${r.value} $unitLabel',
-                style: pw.TextStyle(font: fontBold, fontSize: 9))),
+                style: pw.TextStyle(font: fontBold, fontSize: 9),),),
             pw.Padding(padding: const pw.EdgeInsets.all(6),
               child: pw.Text(r.notes ?? '',
-                style: pw.TextStyle(font: font, fontSize: 9))),
+                style: pw.TextStyle(font: font, fontSize: 9),),),
           ],
-        )),
+        ),),
       ],
     );
   }

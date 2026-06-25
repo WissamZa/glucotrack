@@ -11,7 +11,6 @@
 // All GATT writes are strictly serialized: one command outstanding at a time,
 // wait for the data notification + ACK before sending the next.
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -154,7 +153,7 @@ class OneTouchBleService {
           device: r.device,
           name: name,
           remoteId: id,
-        ));
+        ),);
         _log('Found $name ($id)');
       }
     });
@@ -209,7 +208,7 @@ class OneTouchBleService {
     _connSub = null;
     try {
       await _connectedDevice?.disconnect();
-    } catch (_) {
+    } on Exception catch (_) {
       // Best-effort disconnect
     }
     _connectedDevice = null;
@@ -241,7 +240,7 @@ class OneTouchBleService {
       }
     });
 
-    await meter.device.connect(timeout: const Duration(seconds: 15));
+    await meter.device.connect(license: License.nonprofit, timeout: const Duration(seconds: 15));
 
     _emit(phase: SyncPhase.discovering, message: 'Discovering services…');
     final services = await meter.device.discoverServices();
@@ -388,7 +387,7 @@ class OneTouchBleService {
         'Meter did not respond within ${commandTimeout.inSeconds}s '
         'to command ${_hex(message)}',
       );
-    });
+    },);
     _log('RX[$mySeq]: ${_hex(Uint8List.fromList(result))}');
     return result;
   }

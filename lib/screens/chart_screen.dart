@@ -69,7 +69,7 @@ class _ChartViewState extends State<_ChartView> {
                   Icon(Icons.show_chart, size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 12),
                   Text(strings.noDataPeriod,
-                      style: TextStyle(color: Colors.grey.shade600)),
+                      style: TextStyle(color: Colors.grey.shade600),),
                 ],
               ),
             )
@@ -112,10 +112,10 @@ class _ChartViewState extends State<_ChartView> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(strings.glucoseChart,
-                                style: Theme.of(context).textTheme.titleLarge),
+                                style: Theme.of(context).textTheme.titleLarge,),
                             Text('${filtered.length} ${strings.statReadings}',
                                 style: TextStyle(
-                                    color: Colors.grey.shade600, fontSize: 12)),
+                                    color: Colors.grey.shade600, fontSize: 12,),),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -165,7 +165,7 @@ class _ChartViewState extends State<_ChartView> {
 
                 // Sort selector
                 Text('${strings.sortBy}:',
-                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade700),),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -188,7 +188,7 @@ class _ChartViewState extends State<_ChartView> {
                         Padding(
                           padding: const EdgeInsets.all(8),
                           child: Text('${strings.recentReadings} (${sortedList.length})',
-                              style: Theme.of(context).textTheme.titleLarge),
+                              style: Theme.of(context).textTheme.titleLarge,),
                         ),
                         ...sortedList.map((r) => _ReadingListTile(reading: r)),
                       ],
@@ -268,7 +268,7 @@ class _ChartViewState extends State<_ChartView> {
     if (data.isEmpty) {
       return Center(
         child: Text(AppStrings.of(context).noDataPeriod,
-            style: TextStyle(color: Colors.grey.shade600)),
+            style: TextStyle(color: Colors.grey.shade600),),
       );
     }
 
@@ -374,7 +374,7 @@ class _ChartViewState extends State<_ChartView> {
               final r = data[spot.x.round()];
               final st = r.status(s.targetMin, s.targetMax);
               return FlDotCirclePainter(radius: 3, color: statusColor(st));
-            }),
+            },),
             belowBarData: _chartKind == _ChartKind.area
                 ? BarAreaData(
                     show: true,
@@ -399,7 +399,7 @@ class _ChartViewState extends State<_ChartView> {
           getTitlesWidget: (v, _) => Padding(
             padding: const EdgeInsets.only(right: 4),
             child: Text('${v.round()}',
-                style: TextStyle(fontSize: 10, color: textColor)),
+                style: TextStyle(fontSize: 10, color: textColor),),
           ),
         ),
       ),
@@ -418,7 +418,7 @@ class _ChartViewState extends State<_ChartView> {
             return Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(fmt.format(r.timestamp),
-                  style: TextStyle(fontSize: 10, color: textColor)),
+                  style: TextStyle(fontSize: 10, color: textColor),),
             );
           },
         ),
@@ -501,13 +501,13 @@ class _StatBox extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(value,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),),
         if (unit.isNotEmpty)
           Text(unit, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
         const SizedBox(height: 2),
         Text(label,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.2)),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.2),),
       ],
     );
   }
@@ -538,7 +538,7 @@ class _ReadingListTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(UnitConverter.format(reading.value, s.unit),
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+              style: const TextStyle(fontWeight: FontWeight.bold),),
           const SizedBox(width: 4),
           Text(UnitConverter.unitLabel(s.unit), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           const SizedBox(width: 8),
@@ -549,7 +549,7 @@ class _ReadingListTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(strings.statusLabel(status),
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor(status))),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor(status)),),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -561,7 +561,7 @@ class _ReadingListTile extends StatelessWidget {
             ),
           ),
           Text(fmt.format(reading.timestamp),
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),),
           const SizedBox(width: 4),
           ReadingActions(reading: reading, compact: true),
         ],

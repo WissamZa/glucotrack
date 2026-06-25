@@ -1,9 +1,10 @@
 // Tests for export/import utilities — CSV injection, JSON round-trip, schema validation
 import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:glucotrack/utils/export_import.dart';
 import 'package:glucotrack/models/reading.dart';
 import 'package:glucotrack/models/reminder.dart';
+import 'package:glucotrack/utils/export_import.dart';
 
 void main() {
   group('CSV export', () {
@@ -169,11 +170,11 @@ void main() {
           ),
         ],
         reminders: [
-          Reminder(
+          const Reminder(
             id: 'rem1',
             time: '08:00',
             label: 'صباحاً',
-            type: 'fasting',
+            type: ReadingType.fasting,
             enabled: true,
           ),
         ],
@@ -186,7 +187,7 @@ void main() {
       expect(result.success, isTrue);
       expect(result.data!.readings.length, 1);
       expect(result.data!.readings[0].notes, 'مرتفع بعد الغداء',
-          reason: 'Arabic text must survive round-trip');
+          reason: 'Arabic text must survive round-trip',);
       expect(result.data!.readings[0].carbs, 60);
       expect(result.data!.readings[0].insulin, 10);
       expect(result.data!.reminders.length, 1);

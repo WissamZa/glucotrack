@@ -13,7 +13,7 @@ class KeystoreService {
   static const _keyStorageKey2 = 'db_encryption_key_v2';
 
   final _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions.defaultOptions,
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 

@@ -122,7 +122,7 @@ void main() {
           SortOrder.oldest,
           SortOrder.highest,
           SortOrder.lowest,
-        ]));
+        ]),);
       });
     });
 

@@ -5,7 +5,6 @@
 // vectors derived from the xDrip open-source implementation.
 //
 // Run with: `flutter test test/ble/onetouch_protocol_test.dart`
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glucotrack/ble/onetouch_protocol.dart';

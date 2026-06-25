@@ -41,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ? (_lang == Language.ar ? 'صديقي' : 'Friend')
           : _nameCtrl.text.trim(),
       onboarded: true,
-    ));
+    ),);
   }
 
   @override
@@ -137,13 +137,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 24),
           Text(strings.appName,
-              style: Theme.of(context).textTheme.headlineLarge),
+              style: Theme.of(context).textTheme.headlineLarge,),
           const SizedBox(height: 8),
           Text(strings.appTagline,
-              style: TextStyle(color: Colors.grey.shade600)),
+              style: TextStyle(color: Colors.grey.shade600),),
           const SizedBox(height: 40),
           Text(strings.chooseLanguage,
-              style: Theme.of(context).textTheme.titleLarge),
+              style: Theme.of(context).textTheme.titleLarge,),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -178,7 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Text(flag, style: const TextStyle(fontSize: 32)),
             const SizedBox(height: 4),
             Text(label,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
           ],
         ),
       ),
@@ -195,7 +195,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 16),
           Text(strings.chooseStyle,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium),
+              style: Theme.of(context).textTheme.headlineMedium,),
           const SizedBox(height: 8),
           Text(
             _lang == Language.ar
@@ -273,7 +273,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   children: [
                     Text(title,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
+                            fontWeight: FontWeight.bold, fontSize: 16,),),
                     const SizedBox(height: 2),
                     Text(desc, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                   ],
@@ -281,7 +281,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               if (selected)
                 Icon(Icons.check_circle,
-                    color: Theme.of(context).colorScheme.primary),
+                    color: Theme.of(context).colorScheme.primary,),
             ],
           ),
         ),
@@ -306,14 +306,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(Icons.monitor_heart,
-                color: Theme.of(context).colorScheme.primary, size: 32),
+                color: Theme.of(context).colorScheme.primary, size: 32,),
           ),
           Text(strings.welcome,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium),
+              style: Theme.of(context).textTheme.headlineMedium,),
           const SizedBox(height: 24),
           Text(strings.yourName,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
           const SizedBox(height: 8),
           TextField(
             controller: _nameCtrl,
@@ -323,7 +323,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 24),
           Text(strings.yourDiabetesType,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
           const SizedBox(height: 8),
           Row(
             children: [
