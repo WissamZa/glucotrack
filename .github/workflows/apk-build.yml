@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ['v*', 'apk-v*']
+    tags: ["v*", "apk-v*"]
 
 permissions:
   contents: write
@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -62,25 +62,41 @@ jobs:
           EOF
           echo "signed=true" >> $GITHUB_OUTPUT
 
-      - name: Build release APK with R8
+      - name: Build release APKs with R8
         run: |
           sed -i "s|^version: .*|version: ${{ steps.meta.outputs.version_name }}+${{ steps.meta.outputs.version_code }}|" pubspec.yaml
+
+          # 1. Build fat APK (contains all architectures)
           flutter build apk --release \
             --build-name=${{ steps.meta.outputs.version_name }} \
             --build-number=${{ steps.meta.outputs.version_code }}
 
-      - name: Generate SHA256 checksum
+          # 2. Build split APKs (reduced size per architecture)
+          flutter build apk --release \
+            --split-per-abi \
+            --build-name=${{ steps.meta.outputs.version_name }} \
+            --build-number=${{ steps.meta.outputs.version_code }}
+
+      - name: Generate SHA256 checksums
         run: |
           cd build/app/outputs/flutter-apk
-          sha256sum app-release.apk > app-release.apk.sha256
+          for apk in *.apk; do
+            sha256sum "$apk" > "$apk.sha256"
+          done
 
-      - name: Rename APK
+      - name: Rename and organize APKs
         run: |
           mkdir -p artifact
-          cp build/app/outputs/flutter-apk/app-release.apk \
-             artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
-          cp build/app/outputs/flutter-apk/app-release.apk.sha256 \
-             artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk.sha256
+          for apk in build/app/outputs/flutter-apk/*.apk; do
+            filename=$(basename "$apk")
+            if [ "$filename" == "app-release.apk" ]; then
+              abi="universal"
+            else
+              abi=$(echo "$filename" | sed 's/app-\(.*\)-release.apk/\1/')
+            fi
+            cp "$apk" "artifact/GlucoTrack-${{ steps.meta.outputs.version }}-$abi.apk"
+            cp "$apk.sha256" "artifact/GlucoTrack-${{ steps.meta.outputs.version }}-$abi.apk.sha256"
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -98,15 +114,17 @@ jobs:
             ## GlucoTrack ${{ steps.meta.outputs.version }}
 
             **Signing:** Production-signed
+            **Build:** Optimized split-APK build for reduced size.
 
             ### Install
-            1. Download GlucoTrack-${{ steps.meta.outputs.version }}.apk
-            2. Verify: sha256sum -c GlucoTrack-${{ steps.meta.outputs.version }}.apk.sha256
+            1. Download the APK matching your device architecture:
+               - `arm64-v8a`: Most modern Android devices (64-bit)
+               - `armeabi-v7a`: Older Android devices (32-bit)
+               - `x86_64`: Android Emulators / some ChromeOS devices
+            2. Verify: `sha256sum -c <apk_file>.sha256`
             3. Allow install from unknown sources
             4. Open the APK
-          files: |
-            artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
-            artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk.sha256
+          files: artifact/*
           draft: false
           prerelease: false
 

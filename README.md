@@ -107,8 +107,22 @@ flutter run                    # debug mode on connected device/emulator
 ```
 
 ### Build APK locally
+
+To build a "fat" APK containing all architectures (largest size):
 ```bash
-flutter build apk --release    # produces build/app/outputs/flutter-apk/app-release.apk
+flutter build apk --release
+```
+
+To build split APKs for each architecture (significantly smaller, recommended for direct distribution):
+```bash
+flutter build apk --release --split-per-abi
+# produces build/app/outputs/flutter-apk/app-arm64-v8a-release.apk, etc.
+```
+
+To build an Android App Bundle (recommended for Google Play Store):
+```bash
+flutter build appbundle
+# produces build/app/outputs/bundle/release/app-release.aab
 ```
 
 ### Generate launcher icons
