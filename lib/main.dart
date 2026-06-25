@@ -7,9 +7,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
-import 'package:sqflite/sqflite.dart' as sqflite_native;
 
 import 'i18n/strings.dart';
 import 'models/settings.dart';
@@ -24,6 +24,7 @@ import 'screens/settings_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/export_screen.dart';
 import 'screens/ble_sync_screen.dart';
+import 'services/notification_service.dart';
 
 void main() {
   // Ensure Flutter binding is initialized before any async work
@@ -31,15 +32,19 @@ void main() {
 
   if (kIsWeb) {
     databaseFactory = databaseFactoryFfiWeb;
-  } else if (defaultTargetPlatform == TargetPlatform.android ||
-             defaultTargetPlatform == TargetPlatform.iOS) {
-    // Mobile: use the native sqflite factory (no FFI needed)
-    databaseFactory = sqflite_native.databaseFactory;
-  } else {
-    // Desktop (Linux, Windows, macOS): use FFI
+  } else if (defaultTargetPlatform != TargetPlatform.android &&
+             defaultTargetPlatform != TargetPlatform.iOS) {
+    // Desktop (Linux, Windows, macOS): use FFI.
+    // NOTE: desktop SQLCipher requires sqlcipher_flutter_libs; without it the
+    // `password` parameter is silently ignored and the DB is unencrypted on
+    // desktop. Tracked as a SEC-006 follow-up. Mobile (Android/iOS) uses the
+    // sqflite_sqlcipher native factory by default — no override needed.
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
+  // Mobile (Android/iOS): no override — sqflite_sqlcipher's default native
+  // factory (registered on import of package:sqflite_sqlcipher/sqflite.dart in
+  // database_helper.dart) provides transparent SQLCipher encryption.
 
   // Wrap the entire app in a zone that catches errors to prevent white screen
   runZonedGuarded(() {
@@ -68,7 +73,7 @@ class GlucoTrackApp extends StatelessWidget {
           final s = settingsProv.settings;
           return MaterialApp(
             title: 'GlucoTrack',
-            debugShowCheckedModeBanner: false,
+            debugShowCheckedModeBanner: kDebugMode,
             theme: AppTheme.forStyle(s.theme),
             locale: Locale(s.language == Language.ar ? 'ar' : 'en'),
             supportedLocales: const [Locale('ar'), Locale('en')],
@@ -126,6 +131,11 @@ class _AppBootstrapState extends State<AppBootstrap> {
 
   Future<void> _init() async {
     try {
+      // FIX-032 (CQ-008): Load locale date-symbol data so DateFormat works
+      // correctly for 'ar' (Arabic month names, RTL digit formatting, etc.)
+      // before any screen renders a localized date string.
+      await initializeDateFormatting();
+
       // Load settings from DB
       if (!mounted) return;
       await context.read<SettingsProviderState>().loadFromDb();
@@ -135,6 +145,10 @@ class _AppBootstrapState extends State<AppBootstrap> {
       await context.read<ReadingsProvider>().load();
       if (!mounted) return;
       await context.read<RemindersProvider>().load();
+
+      if (!mounted) return;
+      await NotificationService().initialize();
+      await NotificationService().requestPermissions();
 
       if (mounted) {
         setState(() {
@@ -262,6 +276,7 @@ class _MainShellState extends State<MainShell> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         elevation: 4,
+        tooltip: strings.tooltipAddReading,
         child: const Icon(Icons.add, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

@@ -1,4 +1,6 @@
 // Chart screen — full charts view with 3 chart types and sort controls.
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -274,8 +276,16 @@ class _ChartViewState extends State<_ChartView> {
       return FlSpot(e.key.toDouble(), e.value.value.toDouble());
     }).toList();
 
+    final values = data.map((r) => r.value.toDouble()).toList();
     final minY = 40.0;
-    final maxY = 300.0;
+    final maxY = values.isEmpty
+        ? 300.0
+        : math.max(
+            300.0,
+            values.reduce(math.min) < 300
+                ? 300.0
+                : values.reduce(math.max) * 1.1,
+          );
     final gridColor = Colors.grey.shade200;
     final textColor = Colors.grey.shade600;
     final lineColor = Theme.of(context).colorScheme.primary;

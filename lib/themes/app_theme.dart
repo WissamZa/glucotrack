@@ -233,8 +233,9 @@ class AppTheme {
 // Status color helper (shared across all themes)
 Color statusColor(ReadingStatus s) {
   switch (s) {
-    case ReadingStatus.low:
     case ReadingStatus.criticalLow:
+    case ReadingStatus.warningLow:
+    case ReadingStatus.low:
       return const Color(0xFFF59E0B);
     case ReadingStatus.inRange:
       return const Color(0xFF10B981);

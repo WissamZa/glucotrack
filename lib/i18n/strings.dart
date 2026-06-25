@@ -125,6 +125,7 @@ class AppStrings {
   String get noReadingsYet => get('no_readings_yet');
   String get addFirstReading => get('add_first_reading');
   String get statusLow => get('status_low');
+  String get statusWarningLow => get('status_warning_low');
   String get statusInRange => get('status_in_range');
   String get statusHigh => get('status_high');
   String get statusCriticalLow => get('status_critical_low');
@@ -215,6 +216,94 @@ class AppStrings {
   String get glucoseInsights => get('glucose_insights');
   String get noTrendData => get('no_trend_data');
 
+  // Tooltips (FIX-016 UX-001) — accessibility labels for IconButtons.
+  String get tooltipAddReading => get('tooltip_add_reading');
+  String get tooltipEdit => get('tooltip_edit');
+  String get tooltipDelete => get('tooltip_delete');
+  String get tooltipClose => get('tooltip_close');
+  String get tooltipDecreaseValue => get('tooltip_decrease_value');
+  String get tooltipIncreaseValue => get('tooltip_increase_value');
+  String get tooltipMoreOptions => get('tooltip_more_options');
+  String get tooltipSort => get('tooltip_sort');
+  String get tooltipHelp => get('tooltip_help');
+  String get tooltipRetry => get('tooltip_retry');
+  String get tooltipCancel => get('tooltip_cancel');
+  String get tooltipSave => get('tooltip_save');
+
+  // Disclaimers (UX-002) — medical accuracy notices for HbA1c & trend arrows.
+  String get disclaimerHba1c => get('disclaimer_hba1c');
+  String get disclaimerTrend => get('disclaimer_trend');
+
+  // Target-range validation errors (UX-002).
+  String get errorTargetRangeInvalid => get('error_target_range_invalid');
+  String get errorTargetRangeTooNarrow => get('error_target_range_too_narrow');
+
+  // BLE sync screen strings (FIX-017 UX-002) — were previously hardcoded English.
+  String get bleSyncTitle => get('ble_sync_title');
+  String get bleHelpTooltip => get('ble_help_tooltip');
+  String get bleUnavailableTitle => get('ble_unavailable_title');
+  String get bleUnavailableDesc => get('ble_unavailable_desc');
+  String get bleAvailablePlatforms => get('ble_available_platforms');
+  String get bleScanButton => get('ble_scan_button');
+  String get bleScanning => get('ble_scanning');
+  String get bleScanningHint => get('ble_scanning_hint');
+  String get bleMetersFound(int count) =>
+      get('ble_meters_found').replaceAll('{count}', '$count');
+  String get bleConnect => get('ble_connect');
+  String get blePleaseEnableBt => get('ble_please_enable_bt');
+  String get bleNoMetersFound => get('ble_no_meters_found');
+  String bleScanFailed(Object error) =>
+      get('ble_scan_failed').replaceAll('{error}', '$error');
+  String bleSyncedRecords(int count) =>
+      get('ble_synced_records').replaceAll('{count}', '$count');
+  String bleSaveSelected(int count) =>
+      get('ble_save_selected').replaceAll('{count}', '$count');
+  String get bleSelectAllNew => get('ble_select_all_new');
+  String get bleDeselectAllNew => get('ble_deselect_all_new');
+  String get bleRecordsSaved => get('ble_records_saved');
+  String get bleSaved => get('ble_saved');
+  String bleDebugLog(int count) =>
+      get('ble_debug_log').replaceAll('{count}', '$count');
+  String get bleStartOver => get('ble_start_over');
+  String get bleHelpTitle => get('ble_help_title');
+  String get bleHelpStep1 => get('ble_help_step1');
+  String get bleHelpStep1Detail => get('ble_help_step1_detail');
+  String get bleHelpStep2 => get('ble_help_step2');
+  String get bleHelpStep3 => get('ble_help_step3');
+  String get bleHelpStep4 => get('ble_help_step4');
+  String get bleHelpStep5 => get('ble_help_step5');
+  String get bleHelpStep6 => get('ble_help_step6');
+  String get bleTips => get('ble_tips');
+  String get bleTipsText => get('ble_tips_text');
+  String get bleGotIt => get('ble_got_it');
+  String get bleHeroDevice => get('ble_hero_device');
+  String get bleHeroDesc => get('ble_hero_desc');
+  String get blePairingTitle => get('ble_pairing_title');
+  String get blePairingDesc => get('ble_pairing_desc');
+  String get bleSyncedFromMeter => get('ble_synced_from_meter');
+  String bleSaveResult(int inserted, int skipped) => get('ble_save_result')
+      .replaceAll('{inserted}', '$inserted')
+      .replaceAll('{skipped}', skipped > 0 ? get('ble_skipped_duplicates').replaceAll('{count}', '$skipped') : '');
+  String get bleControlSolution => get('ble_control_solution');
+  String get bleBeforeMealShort => get('ble_before_meal_short');
+  String get bleAfterMealShort => get('ble_after_meal_short');
+  String get bleFailed => get('ble_failed');
+  String blePercentComplete(int percent) =>
+      get('ble_percent_complete').replaceAll('{percent}', '$percent');
+  String get blePhaseIdle => get('ble_phase_idle');
+  String get blePhaseScanning => get('ble_phase_scanning');
+  String get blePhaseConnecting => get('ble_phase_connecting');
+  String get blePhaseDiscovering => get('ble_phase_discovering');
+  String get blePhaseSubscribing => get('ble_phase_subscribing');
+  String get blePhaseReadingMetadata => get('ble_phase_reading_metadata');
+  String get blePhaseReadingRecords => get('ble_phase_reading_records');
+  String get blePhaseDone => get('ble_phase_done');
+  String get blePhaseError => get('ble_phase_error');
+  // Sync-from-meter banner (home_screen.dart).
+  String get bleSyncBannerTitle => get('ble_sync_banner_title');
+  String get bleSyncBannerSupported => get('ble_sync_banner_supported');
+  String get bleSyncBannerUnsupported => get('ble_sync_banner_unsupported');
+
   String readingType(ReadingType t) {
     switch (t) {
       case ReadingType.fasting:
@@ -234,14 +323,16 @@ class AppStrings {
 
   String statusLabel(ReadingStatus s) {
     switch (s) {
+      case ReadingStatus.criticalLow:
+        return get('status_critical_low');
+      case ReadingStatus.warningLow:
+        return get('status_warning_low');
       case ReadingStatus.low:
         return get('status_low');
       case ReadingStatus.inRange:
         return get('status_in_range');
       case ReadingStatus.high:
         return get('status_high');
-      case ReadingStatus.criticalLow:
-        return get('status_critical_low');
       case ReadingStatus.criticalHigh:
         return get('status_critical_high');
     }
@@ -300,6 +391,7 @@ const Map<String, String> _ar = {
   'type_after_exercise': 'بعد الرياضة',
   'type_other': 'أخرى',
   'status_low': 'منخفض',
+  'status_warning_low': 'تحذير منخفض',
   'status_in_range': 'ضمن النطاق',
   'status_high': 'مرتفع',
   'status_critical_low': 'حرج منخفض',
@@ -419,6 +511,82 @@ const Map<String, String> _ar = {
   'insights': 'تحليلات',
   'glucose_insights': 'تحليلات السكر',
   'no_trend_data': 'لا توجد بيانات كافية لتحليل الاتجاه',
+  // Tooltips + semantics (FIX-016 UX-001)
+  'tooltip_add_reading': 'إضافة قراءة',
+  'tooltip_edit': 'تعديل',
+  'tooltip_delete': 'حذف',
+  'tooltip_close': 'إغلاق',
+  'tooltip_decrease_value': 'إنقاص 10',
+  'tooltip_increase_value': 'زيادة 10',
+  'tooltip_more_options': 'خيارات أخرى',
+  'tooltip_sort': 'ترتيب',
+  'tooltip_help': 'مساعدة',
+  'tooltip_retry': 'إعادة المحاولة',
+  'tooltip_cancel': 'إلغاء',
+  'tooltip_save': 'حفظ',
+  // Disclaimers (UX-002)
+  'disclaimer_hba1c': 'هذا التقدير لـ HbA1c مبني على قراءات الوخز، وليس على جهاز قياس مستمر. قد يختلف عن نتيجة المختبر بنسبة تصل إلى ±1.5%. استشر طبيبك قبل اتخاذ قرارات علاجية.',
+  'disclaimer_trend': 'أسهم الاتجاه مبنية على آخر قراءتين وقد لا تعكس تغيرات السكر في الوقت الفعلي. لا تستخدمها لتحديد جرعة الإنسولين.',
+  // Target-range validation errors (UX-002)
+  'error_target_range_invalid': 'الحد الأدنى يجب أن يكون أقل من الحد الأعلى',
+  'error_target_range_too_narrow': 'النطاق المستهدف ضيق جداً (الحد الأدنى 20 ملغ/ديسيلتر)',
+  // BLE sync screen (FIX-017 UX-002)
+  'ble_sync_title': 'مزامنة من الجهاز',
+  'ble_help_tooltip': 'كيفية المزامنة',
+  'ble_unavailable_title': 'مزامنة BLE غير متاحة',
+  'ble_unavailable_desc': 'مزامنة Bluetooth LE غير مدعومة على هذه المنصة.',
+  'ble_available_platforms': 'متاح على أندرويد و iOS',
+  'ble_scan_button': 'ابحث عن أجهزة OneTouch',
+  'ble_scanning': 'جارٍ البحث عن أجهزة OneTouch…',
+  'ble_scanning_hint': 'تأكد من تشغيل البلوتوث على الجهاز (▲+▼)',
+  'ble_meters_found': 'تم العثور على {count} جهاز قريب',
+  'ble_connect': 'اتصال',
+  'ble_please_enable_bt': 'يرجى تشغيل البلوتوث والمحاولة مرة أخرى.',
+  'ble_no_meters_found': 'لم يتم العثور على أجهزة OneTouch. تأكد من تشغيل بلوتوث الجهاز (اضغط ▲+▼ على الجهاز).',
+  'ble_scan_failed': 'فشل البحث: {error}',
+  'ble_synced_records': 'السجلات المتزامنة ({count})',
+  'ble_save_selected': 'حفظ المحدد ({count})',
+  'ble_select_all_new': 'تحديد الكل الجديد',
+  'ble_deselect_all_new': 'إلغاء تحديد الكل الجديد',
+  'ble_records_saved': 'تم حفظ السجلات في GlucoTrack',
+  'ble_saved': 'تم الحفظ',
+  'ble_debug_log': 'سجل التصحيح ({count} أسطر)',
+  'ble_start_over': 'البدء من جديد',
+  'ble_help_title': 'كيفية مزامنة جهازك',
+  'ble_help_step1': 'ضع الجهاز في وضع البلوتوث:',
+  'ble_help_step1_detail': '• اضغط OK لتشغيل الجهاز\n• اضغط ▲ + ▼ معاً — يظهر رمز البلوتوث',
+  'ble_help_step2': 'اضغط "ابحث عن أجهزة OneTouch"',
+  'ble_help_step3': 'اضغط على جهازك في القائمة',
+  'ble_help_step4': 'أدخل رقم التعريف الشخصي المكوّن من 6 أرقام الظاهر على شاشة الجهاز عند ظهور مربع حوار الاقتران',
+  'ble_help_step5': 'انتظر إكمال المزامنة',
+  'ble_help_step6': 'اضغط "حفظ الكل" لحفظ السجلات في GlucoTrack',
+  'ble_tips': 'نصائح',
+  'ble_tips_text': '• البلوتوث ينطفئ أثناء فحص الدم ويعود بعدها.\n• ابقَ ضمن 8 أمتار من الهاتف.\n• إعادة المزامنة لن تنشئ نسخاً مكررة — تُحدَّد السجلات برقم الجهاز + الرقم التسلسلي.',
+  'ble_got_it': 'فهمت',
+  'ble_hero_device': 'OneTouch Select Plus Flex',
+  'ble_hero_desc': 'مزامنة قراءات السكر لاسلكياً عبر Bluetooth LE. تُحفظ السجلات محلياً على هذا الجهاز.',
+  'ble_pairing_title': 'الاقتران لأول مرة',
+  'ble_pairing_desc': 'يجب اقتران الجهاز مع هذا الهاتف عبر إعدادات بلوتوث أندرويد أولاً. عند ظهور مربع حوار الاقتران، أدخل رقم التعريف الشخصي المكوّن من 6 أرقام الظاهر على شاشة الجهاز.',
+  'ble_synced_from_meter': 'تمت المزامنة من الجهاز',
+  'ble_save_result': 'تم حفظ {inserted} قراءة جديدة{skipped}.',
+  'ble_skipped_duplicates': '، تم تخطي {count} نسخة مكررة',
+  'ble_control_solution': '(محلول فحص)',
+  'ble_before_meal_short': 'قبل الأكل',
+  'ble_after_meal_short': 'بعد الأكل',
+  'ble_failed': 'فشل',
+  'ble_percent_complete': '{percent}% مكتمل',
+  'ble_phase_idle': 'خامل',
+  'ble_phase_scanning': 'جارٍ البحث…',
+  'ble_phase_connecting': 'جارٍ الاتصال…',
+  'ble_phase_discovering': 'اكتشاف الخدمات…',
+  'ble_phase_subscribing': 'الاشتراك في الإشعارات…',
+  'ble_phase_reading_metadata': 'قراءة بيانات الجهاز…',
+  'ble_phase_reading_records': 'قراءة السجلات…',
+  'ble_phase_done': 'اكتملت المزامنة',
+  'ble_phase_error': 'فشلت المزامنة',
+  'ble_sync_banner_title': 'مزامنة من الجهاز',
+  'ble_sync_banner_supported': 'OneTouch Select Plus Flex • اضغط للمزامنة',
+  'ble_sync_banner_unsupported': 'متاح على أندرويد — غير متاح على هذه المنصة',
 };
 
 const Map<String, String> _en = {
@@ -472,6 +640,7 @@ const Map<String, String> _en = {
   'type_after_exercise': 'After Exercise',
   'type_other': 'Other',
   'status_low': 'Low',
+  'status_warning_low': 'Warning Low',
   'status_in_range': 'In Range',
   'status_high': 'High',
   'status_critical_low': 'Critical Low',
@@ -591,4 +760,80 @@ const Map<String, String> _en = {
   'insights': 'Insights',
   'glucose_insights': 'Glucose Insights',
   'no_trend_data': 'Not enough data for trend analysis',
+  // Tooltips + semantics (FIX-016 UX-001)
+  'tooltip_add_reading': 'Add reading',
+  'tooltip_edit': 'Edit',
+  'tooltip_delete': 'Delete',
+  'tooltip_close': 'Close',
+  'tooltip_decrease_value': 'Decrease by 10',
+  'tooltip_increase_value': 'Increase by 10',
+  'tooltip_more_options': 'More options',
+  'tooltip_sort': 'Sort',
+  'tooltip_help': 'Help',
+  'tooltip_retry': 'Retry',
+  'tooltip_cancel': 'Cancel',
+  'tooltip_save': 'Save',
+  // Disclaimers (UX-002)
+  'disclaimer_hba1c': 'This HbA1c estimate is based on finger-stick readings, not a continuous glucose monitor. It may differ from a lab HbA1c by up to ±1.5%. Consult your doctor for clinical decisions.',
+  'disclaimer_trend': 'Trend arrows are based on your last two readings and may not reflect real-time glucose changes. Do not use for insulin dosing.',
+  // Target-range validation errors (UX-002)
+  'error_target_range_invalid': 'Target minimum must be less than target maximum',
+  'error_target_range_too_narrow': 'Target range too narrow (minimum 20 mg/dL gap)',
+  // BLE sync screen (FIX-017 UX-002)
+  'ble_sync_title': 'Sync from Meter',
+  'ble_help_tooltip': 'How to sync',
+  'ble_unavailable_title': 'BLE Sync Not Available',
+  'ble_unavailable_desc': 'Bluetooth LE sync is not supported on this platform.',
+  'ble_available_platforms': 'Available on Android & iOS',
+  'ble_scan_button': 'Scan for OneTouch meters',
+  'ble_scanning': 'Scanning for OneTouch meters…',
+  'ble_scanning_hint': 'Make sure BT is enabled on the meter (▲+▼)',
+  'ble_meters_found': '{count} meter(s) found nearby',
+  'ble_connect': 'Connect',
+  'ble_please_enable_bt': 'Please turn on Bluetooth and try again.',
+  'ble_no_meters_found': 'No OneTouch meters found. Make sure the meter\'s BT is on (press ▲+▼ on the meter).',
+  'ble_scan_failed': 'Scan failed: {error}',
+  'ble_synced_records': 'Synced records ({count})',
+  'ble_save_selected': 'Save selected ({count})',
+  'ble_select_all_new': 'Select all new',
+  'ble_deselect_all_new': 'Deselect all new',
+  'ble_records_saved': 'Records saved to GlucoTrack',
+  'ble_saved': 'Saved',
+  'ble_debug_log': 'Debug log ({count} lines)',
+  'ble_start_over': 'Start over',
+  'ble_help_title': 'How to sync your meter',
+  'ble_help_step1': 'Put meter into BT mode:',
+  'ble_help_step1_detail': '• Press OK to turn the meter on\n• Press ▲ + ▼ together — BT icon appears',
+  'ble_help_step2': 'Tap "Scan for OneTouch meters"',
+  'ble_help_step3': 'Tap your meter in the list',
+  'ble_help_step4': 'Enter the 6-digit PIN shown on the meter LCD when the pairing dialog appears',
+  'ble_help_step5': 'Wait for sync to complete',
+  'ble_help_step6': 'Tap "Save all" to persist records to GlucoTrack',
+  'ble_tips': 'Tips',
+  'ble_tips_text': '• BT turns off during a blood test and back on afterwards.\n• Stay within 8 m of the phone.\n• Re-syncing won\'t create duplicates — records are identified by meter ID + sequence number.',
+  'ble_got_it': 'Got it',
+  'ble_hero_device': 'OneTouch Select Plus Flex',
+  'ble_hero_desc': 'Sync glucose readings wirelessly over Bluetooth LE. Records are saved locally on this device.',
+  'ble_pairing_title': 'First-time pairing',
+  'ble_pairing_desc': 'The meter must be paired with this phone via Android Bluetooth settings first. When the pairing dialog appears, enter the 6-digit PIN shown on the meter\'s LCD screen.',
+  'ble_synced_from_meter': 'Synced from meter',
+  'ble_save_result': 'Saved {inserted} new reading(s){skipped}.',
+  'ble_skipped_duplicates': ', skipped {count} duplicate(s)',
+  'ble_control_solution': '(control solution)',
+  'ble_before_meal_short': 'before meal',
+  'ble_after_meal_short': 'after meal',
+  'ble_failed': 'Failed',
+  'ble_percent_complete': '{percent}% complete',
+  'ble_phase_idle': 'Idle',
+  'ble_phase_scanning': 'Scanning…',
+  'ble_phase_connecting': 'Connecting…',
+  'ble_phase_discovering': 'Discovering services…',
+  'ble_phase_subscribing': 'Subscribing to notifications…',
+  'ble_phase_reading_metadata': 'Reading meter metadata…',
+  'ble_phase_reading_records': 'Reading records…',
+  'ble_phase_done': 'Sync complete',
+  'ble_phase_error': 'Sync failed',
+  'ble_sync_banner_title': 'Sync from meter',
+  'ble_sync_banner_supported': 'OneTouch Select Plus Flex • Tap to sync',
+  'ble_sync_banner_unsupported': 'Available on Android — not on this platform',
 };

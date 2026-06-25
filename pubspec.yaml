@@ -1,5 +1,6 @@
 name: glucotrack
 description: Bilingual Blood Glucose Tracking App — Arabic/English with three display themes and SQLite local storage.
+license: MIT
 publish_to: "none"
 version: 1.2.2+4
 
@@ -16,11 +17,17 @@ dependencies:
   # State management
   provider: ^6.1.2
 
-  # Local database
-  sqflite: ^2.4.1
+  # Unique ID generation (UUIDv4) for readings, reminders, etc.
+  uuid: ^4.5.1
+
+  # Local database (SQLCipher-encrypted at rest)
+  sqflite_sqlcipher: ^2.4.4
   sqflite_common_ffi: ^2.3.4
+  sqflite_common_ffi_web: ^1.1.2
   path: ^1.9.0
-  shared_preferences: ^2.5.3
+
+  # Secure storage for the DB encryption key (Android Keystore / iOS Keychain)
+  flutter_secure_storage: ^9.2.2
 
   # Charts
   fl_chart: ^1.2.0
@@ -30,13 +37,11 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.8
-  flutter_svg: ^2.1.0
 
   # File export/import for local backup
-  file_picker: ^12.0.0-beta.7
+  file_picker: ^8.1.4
   share_plus: ^13.1.0
   path_provider: ^2.1.5
-  sqflite_common_ffi_web: ^1.1.2
   pdf: ^3.11.0
   printing: ^5.13.0
 

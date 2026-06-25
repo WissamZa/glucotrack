@@ -1,6 +1,7 @@
 // Reminders screen — list, add, toggle, delete.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../i18n/strings.dart';
 import '../models/reminder.dart';
 import '../models/reading.dart';
@@ -38,6 +39,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         onPressed: () => _showAddDialog(context, strings),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
+        tooltip: strings.addReminder,
         child: const Icon(Icons.add),
       ),
       body: prov.reminders.isEmpty
@@ -111,6 +113,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         IconButton(
                           icon: const Icon(Icons.delete_outline,
                               color: Colors.red, size: 20),
+                          tooltip: strings.tooltipDelete,
                           onPressed: () => _deleteReminder(context, prov, r.id, strings),
                         ),
                       ],
@@ -248,7 +251,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
   ) async {
     final prov = context.read<RemindersProvider>();
     await prov.add(Reminder(
-      id: 'rem-${DateTime.now().millisecondsSinceEpoch}',
+      id: const Uuid().v4(),
       time: time,
       label: labelText.trim().isEmpty ? strings.readingType(type) : labelText.trim(),
       type: type,

@@ -10,8 +10,63 @@ import '../utils/hba1c_calculator.dart';
 import '../utils/trend_analysis.dart';
 import '../utils/unit_converter.dart';
 
-class InsightsScreen extends StatelessWidget {
+class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
+
+  @override
+  State<InsightsScreen> createState() => _InsightsScreenState();
+}
+
+class _InsightsScreenState extends State<InsightsScreen> {
+  // Cache for expensive computations (FIX-040 / PERF-002/003)
+  List<Reading>? _lastReadingsCache;
+  _WeeklyStats? _cachedWeeklyStats;
+  TrendResult? _cachedTrend;
+  HbA1cResult? _cachedHba1c;
+
+  TrendResult? _getTrend(List<Reading> readings) {
+    if (_cacheStale(readings)) {
+      _refreshCache(readings);
+    }
+    return _cachedTrend;
+  }
+
+  HbA1cResult? _getHba1c(List<Reading> readings) {
+    if (_cacheStale(readings)) {
+      _refreshCache(readings);
+    }
+    return _cachedHba1c;
+  }
+
+  _WeeklyStats _getWeeklyStats(List<Reading> readings, Settings s) {
+    if (_cacheStale(readings)) {
+      _refreshCache(readings, settings: s);
+    } else if (_cachedWeeklyStats == null) {
+      _cachedWeeklyStats = _computeWeeklyStats(readings, s);
+    }
+    return _cachedWeeklyStats!;
+  }
+
+  bool _cacheStale(List<Reading> readings) {
+    return _lastReadingsCache == null ||
+        _lastReadingsCache!.length != readings.length ||
+        (readings.isNotEmpty &&
+            _lastReadingsCache!.isNotEmpty &&
+            _lastReadingsCache!.first.timestamp !=
+                readings.first.timestamp);
+  }
+
+  void _refreshCache(List<Reading> readings, {Settings? settings}) {
+    _lastReadingsCache = readings;
+    _cachedTrend =
+        readings.isEmpty ? null : TrendAnalyzer.fromReadings(readings);
+    _cachedHba1c =
+        readings.isEmpty ? null : HbA1cCalculator.calculate(readings);
+    // Always invalidate the weekly-stats cache; it will be recomputed lazily
+    // by _getWeeklyStats if settings are not supplied here.
+    _cachedWeeklyStats =
+        settings == null ? null : _computeWeeklyStats(readings, settings);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,9 +74,9 @@ class InsightsScreen extends StatelessWidget {
     final rProv = context.watch<ReadingsProvider>();
     final strings = AppStrings.of(context);
 
-    final hba1c = HbA1cCalculator.calculate(rProv.rawReadings);
-    final trend = TrendAnalyzer.fromReadings(rProv.rawReadings);
-    final weeklyStats = _computeWeeklyStats(rProv.rawReadings, s);
+    final hba1c = _getHba1c(rProv.rawReadings);
+    final trend = _getTrend(rProv.rawReadings);
+    final weeklyStats = _getWeeklyStats(rProv.rawReadings, s);
 
     return Scaffold(
       appBar: AppBar(title: Text(strings.glucoseInsights)),
@@ -33,7 +88,14 @@ class InsightsScreen extends StatelessWidget {
           const SizedBox(height: 16),
 
           // === Trend Card ===
-          _TrendCard(trend: trend, strings: strings, isArabic: s.language == Language.ar),
+          _TrendCard(
+            trend: trend,
+            currentValue: rProv.rawReadings.isEmpty ? null : rProv.rawReadings.first.value,
+            targetMin: s.targetMin,
+            targetMax: s.targetMax,
+            strings: strings,
+            isArabic: s.language == Language.ar,
+          ),
           const SizedBox(height: 16),
 
           // === Weekly Summary Card ===
@@ -186,6 +248,29 @@ class _HbA1cCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // HbA1c estimate disclaimer (UX-002) — medical accuracy notice.
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  border: Border.all(color: Colors.amber.shade200),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.amber.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        strings.disclaimerHba1c,
+                        style: TextStyle(fontSize: 10, color: Colors.amber.shade900, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),
@@ -212,9 +297,19 @@ class _HbA1cCard extends StatelessWidget {
 // ===== Trend Card =====
 class _TrendCard extends StatelessWidget {
   final TrendResult? trend;
+  final int? currentValue;
+  final int targetMin;
+  final int targetMax;
   final AppStrings strings;
   final bool isArabic;
-  const _TrendCard({required this.trend, required this.strings, required this.isArabic});
+  const _TrendCard({
+    required this.trend,
+    required this.currentValue,
+    required this.targetMin,
+    required this.targetMax,
+    required this.strings,
+    required this.isArabic,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +339,12 @@ class _TrendCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
-                      color: Color(trend!.direction.colorHex),
+                      color: TrendAnalyzer.colorFor(
+                        trend!.direction,
+                        currentValue ?? 0,
+                        targetMin,
+                        targetMax,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -256,11 +356,16 @@ class _TrendCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Color(trend!.direction.colorHex),
+                          color: TrendAnalyzer.colorFor(
+                            trend!.direction,
+                            currentValue ?? 0,
+                            targetMin,
+                            targetMax,
+                          ),
                         ),
                       ),
                       Text(
-                        '${trend!.ratePerHour >= 0 ? "+" : ""}${trend!.ratePerHour.toStringAsFixed(1)} mg/dL/h',
+                        '${trend!.ratePerMin >= 0 ? "+" : ""}${trend!.ratePerMin.toStringAsFixed(1)} mg/dL/min',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey.shade600,

@@ -2,18 +2,17 @@
 //
 // Reverse-engineered from public sources:
 //   - xDrip VerioHelper.java (Apache-2.0)
-//   - xavaro BlueToothGlucoseOneTouch.java (GPL-3.0)
 //   - glucometerutils protocols.glucometers.tech (MIT)
 //
 // The meter does NOT expose the standard Bluetooth SIG Glucose Service (0x1808).
-// It uses a vendor-private service with a custom AES-128-ECB application-layer
-// authentication handshake on top of BLE bonding.
+// It uses a vendor-private service. We rely on BLE bonding for security and do
+// NOT implement the AES-128-ECB application-layer authentication handshake
+// (which was derived from GPL-3.0 sources and has been removed for license
+// compliance). This matches xDrip's known-working flow against already-bonded
+// meters.
 //
 // All multi-byte integers on the wire are LITTLE-ENDIAN.
 import 'dart:typed_data';
-
-import 'package:pointycastle/block/aes.dart';
-import 'package:pointycastle/api.dart';
 
 /// GATT UUIDs used by every LifeScan "Verio family" meter
 /// (Select Plus Flex, Verio Flex, Verio Reflect, Ultra Plus Flex).
@@ -43,8 +42,6 @@ class OneTouchUuids {
 /// See docs/BLE_PROTOCOL.md for the full table.
 class OneTouchOpcode {
   OneTouchOpcode._();
-  static const int queryChallenge = 0xE6; // + [0x02, 0x08] -> challenge
-  static const int enableFeatures = 0x11; // + 16-byte AES token -> status
   static const int readParameter = 0x09; //  + [0x02, selector]
   static const int readRtc = 0x20; //       + [0x02] -> uint32 sec since 2000
   static const int writeRtc = 0x20; //      + [0x01, ts4]
@@ -215,95 +212,6 @@ class OneTouchTransport {
   static Uint8List buildAck() => Uint8List.fromList([0x81]);
 }
 
-/// AES-128-ECB application-layer authentication.
-///
-/// The OneTouch Reveal app performs this handshake on every connection; xDrip
-/// skips it and still works against already-bonded meters. We implement it so
-/// the sync is robust against firmware variants that require it.
-class OneTouchAuth {
-  OneTouchAuth._();
-
-  /// Static AES-128 key extracted from the OneTouch Reveal APK by the xavaro
-  /// project (deobfuscated via Simple.dezify() XOR with pattern 0x09, 0x05,
-  /// 0x09, 0x02 on the low nibble).
-  static final Uint8List key = Uint8List.fromList([
-    0x48, 0x3b, 0xd3, 0xc2, 0xcb, 0xdf, 0x63, 0x45,
-    0x16, 0x00, 0x04, 0xe6, 0xd5, 0x6d, 0x94, 0x8c,
-  ]);
-
-  /// Convert the meter's 16-byte challenge into the 16-byte AES token to send
-  /// back in the EnableFeatures command.
-  ///
-  /// Algorithm (matches xavaro makeCipherToken):
-  ///   1. rchallenge = challenge.reversed()
-  ///   2. fchallenge[0..1] = rchallenge[2..3]
-  ///      fchallenge[2..5] = rchallenge[4..7]
-  ///      fchallenge[6..7] = rchallenge[0..1]
-  ///      fchallenge[8..15] = fchallenge[0..7]  (duplicate first half)
-  ///   3. token = AES-128-ECB(fchallenge, key)
-  static Uint8List computeToken(Uint8List challenge) {
-    if (challenge.length != 16) {
-      throw ArgumentError(
-        'Challenge must be 16 bytes, got ${challenge.length}',
-      );
-    }
-
-    final r = challenge.reversed.toList();
-    final f = Uint8List(16);
-    f[0] = r[2];
-    f[1] = r[3];
-    f[2] = r[4];
-    f[3] = r[5];
-    f[4] = r[6];
-    f[5] = r[7];
-    f[6] = r[0];
-    f[7] = r[1];
-    for (var i = 0; i < 8; i++) {
-      f[8 + i] = f[i];
-    }
-
-    final aes = AESEngine();
-    aes.init(true, KeyParameter(key));
-    final out = Uint8List(16);
-    aes.processBlock(f, 0, out, 0);
-    return out;
-  }
-
-  /// Decode the UTF-16LE hex string the meter returns as its challenge.
-  ///
-  /// The meter sends 32 UTF-16LE code units encoding ASCII hex characters
-  /// (e.g. "A1B2C3D4E5F6A7B8" as 32 UTF-16LE bytes), which represents 16
-  /// hex bytes. We parse it back to a 16-byte Uint8List.
-  static Uint8List parseChallenge(List<int> raw) {
-    // raw includes the status byte (0x06) at offset 0. Skip it.
-    if (raw.isEmpty) return Uint8List(0);
-    final payload = raw.sublist(1);
-
-    // Decode UTF-16LE pairs into ASCII characters.
-    final sb = StringBuffer();
-    for (var i = 0; i + 1 < payload.length; i += 2) {
-      final codeUnit = (payload[i] & 0xFF) | ((payload[i + 1] & 0xFF) << 8);
-      if (codeUnit > 0x7F) {
-        // Non-ASCII — abort
-        return Uint8List(0);
-      }
-      sb.writeCharCode(codeUnit);
-    }
-    final hexStr = sb.toString();
-
-    // Hex-decode the string (2 chars per byte -> 16 bytes)
-    if (hexStr.length != 32) return Uint8List(0);
-    final out = Uint8List(16);
-    for (var i = 0; i < 16; i++) {
-      final byteStr = hexStr.substring(i * 2, i * 2 + 2);
-      final v = int.tryParse(byteStr, radix: 16);
-      if (v == null) return Uint8List(0);
-      out[i] = v;
-    }
-    return out;
-  }
-}
-
 /// A parsed glucose record from the meter.
 class OneTouchRecord {
   final int sequenceNumber;
@@ -361,14 +269,6 @@ class OneTouchProtocol {
 
   /// Seconds between Unix epoch (1970-01-01) and the meter epoch (2000-01-01).
   static const int meterEpochOffset = 946684800;
-
-  /// Build the QUERY CHALLENGE command: {0xE6, 0x02, 0x08}.
-  static List<int> buildQueryChallenge() =>
-      [OneTouchOpcode.queryChallenge, 0x02, 0x08];
-
-  /// Build the ENABLE FEATURES command: {0x11, <16-byte token>}.
-  static List<int> buildEnableFeatures(Uint8List token) =>
-      [OneTouchOpcode.enableFeatures, ...token];
 
   /// Build the READ RTC command: {0x20, 0x02}.
   static List<int> buildReadRtc() => [OneTouchOpcode.readRtc, 0x02];

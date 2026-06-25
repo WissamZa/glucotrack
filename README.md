@@ -79,13 +79,15 @@
 | Framework | **Flutter 3.27+** (Material 3) |
 | Language | **Dart 3.6+** |
 | State | **Provider** |
-| Database | **sqflite** (SQLite) |
+| Database | **sqflite_sqlcipher** (SQLite) |
 | Charts | **fl_chart** |
 | Localization | **flutter_localizations** + custom AppStrings |
 | Notifications | **flutter_local_notifications** |
 | Date formatting | **intl** |
 | File I/O | **file_picker**, **share_plus**, **path_provider** |
 | Icons | **flutter_launcher_icons** + Material Icons |
+
+> 🔐 The database is encrypted at rest with **SQLCipher**. The encryption key is stored in the Android Keystore / iOS Keychain via `flutter_secure_storage`.
 
 ---
 
@@ -95,6 +97,8 @@
 - [Flutter SDK 3.27+](https://docs.flutter.dev/get-started/install)
 - Android Studio (for SDK + emulator) OR command-line tools
 - Java 17
+
+> 🔐 `flutter_secure_storage` (used to store the SQLCipher DB key) relies on the **Android Keystore** on Android (requires `minSdkVersion` ≥ 18; this project uses 21) and the **iOS Keychain** on iOS — both available out of the box, no extra setup needed.
 
 ### Run in development
 ```bash
@@ -191,12 +195,11 @@ glucotrack/
 
 ## 📋 Database Schema
 
-The app uses SQLite with 4 tables:
+The app uses SQLite with 3 tables:
 
 - **readings** — `id, value, type, timestamp, notes, carbs, insulin`
 - **reminders** — `id, time, label, type, enabled`
 - **settings** — singleton row with `language, theme, diabetes_type, target_min, target_max, unit, user_name, onboarded`
-- **sync_state** — reserved for future cloud sync
 
 Database file location on Android:
 `/data/data/com.wissamza.glucotrack/databases/glucotrack.db`
@@ -288,13 +291,15 @@ MIT © [WissamZa](https://github.com/WissamZa)
 | الإطار | **Flutter 3.27+** (Material 3) |
 | اللغة | **Dart 3.6+** |
 | إدارة الحالة | **Provider** |
-| قاعدة البيانات | **sqflite** (SQLite) |
+| قاعدة البيانات | **sqflite_sqlcipher** (SQLite) |
 | الرسوم البيانية | **fl_chart** |
 | التعريب | **flutter_localizations** + AppStrings مخصص |
 | الإشعارات | **flutter_local_notifications** |
 | تنسيق التاريخ | **intl** |
 | ملفات I/O | **file_picker**, **share_plus**, **path_provider** |
 | الأيقونات | **flutter_launcher_icons** + Material Icons |
+
+> 🔐 قاعدة البيانات مشفّرة عند التخزين باستخدام **SQLCipher**. مفتاح التشفير محفوظ في Android Keystore / iOS Keychain عبر `flutter_secure_storage`.
 
 ---
 
@@ -304,6 +309,8 @@ MIT © [WissamZa](https://github.com/WissamZa)
 - [Flutter SDK 3.27+](https://docs.flutter.dev/get-started/install)
 - Android Studio (لـ SDK + المحاكي) OR أدوات سطر الأوامر
 - Java 17
+
+> 🔐 `flutter_secure_storage` (المستخدمة لحفظ مفتاح تشفير SQLCipher) تعتمد على **Android Keystore** على أندرويد (تتطلب `minSdkVersion` ≥ 18؛ هذا المشروع يستخدم 21) و **iOS Keychain** على iOS — كلاهما متاح افتراضيًا دون إعداد إضافي.
 
 ### التشغيل في وضع التطوير
 ```bash
@@ -400,12 +407,11 @@ glucotrack/
 
 ## 📋 مخطط قاعدة البيانات
 
-يستخدم التطبيق SQLite مع 4 جداول:
+يستخدم التطبيق SQLite مع 3 جداول:
 
 - **readings** — `id, value, type, timestamp, notes, carbs, insulin`
 - **reminders** — `id, time, label, type, enabled`
 - **settings** — صف واحد يحتوي على `language, theme, diabetes_type, target_min, target_max, unit, user_name, onboarded`
-- **sync_state** — محجوز للمزامنة السحابية المستقبلية
 
 موقع ملف قاعدة البيانات على أندرويد:
 `/data/data/com.wissamza.glucotrack/databases/glucotrack.db`

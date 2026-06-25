@@ -98,40 +98,10 @@ identifiers; the rest of the UUID is the common LifeScan Verio base
 The Flutter app does NOT need to handle the PIN itself — `flutter_blue_plus`
 surfaces the system pairing UI automatically.
 
-### Layer 2: AES-128-ECB application-layer auth (optional, xavaro-only)
+### Layer 2: Application-layer handshake
 
-> **Note**: xDrip skips this layer entirely and works against already-bonded
-> meters. The Flutter implementation in this repo defaults to skipping it
-> (`tryAuth: false`). Enable it if you see `UNAUTHORIZED` (0x07) status
-> responses from the meter.
-
-The OneTouch Reveal app performs this handshake on every connection. It uses
-a static AES-128 key extracted from the APK:
-
-```
-AES-128 key (16 bytes, hex): 483bd3c2cbdf6345160004e6d56d948c
-```
-
-**Step A — Read meter challenge:**
-- Client writes command `{0xE6, 0x02, 0x08}` to `af9df7a2`.
-- Meter responds on `af9df7a3` with a UTF-16LE-encoded hex string
-  representing 16 random bytes (32 ASCII hex characters = 64 UTF-16LE bytes).
-
-**Step B — Compute the AES token:**
-1. Reverse the 16-byte challenge.
-2. Build a 16-byte plaintext block `fchallenge` by byte-shuffling:
-   ```
-   fchallenge[0..1] = reversed[2..3]
-   fchallenge[2..5] = reversed[4..7]
-   fchallenge[6..7] = reversed[0..1]
-   fchallenge[8..15] = fchallenge[0..7]   (duplicate first half)
-   ```
-3. `token = AES-128-ECB(fchallenge, key)` (no padding, single block).
-
-**Step C — Send EnableFeatures command:**
-- Client writes `{0x11, <16-byte token>}` to `af9df7a2`.
-- Meter responds with status byte `0x06` (OK) if the challenge was answered
-  correctly, or `0x07` (UNAUTHORIZED) if not.
+Authentication handshake: NOT implemented. We rely on BLE bonding only,
+matching xDrip's known-working flow.
 
 ---
 
@@ -159,39 +129,38 @@ AES-128 key (16 bytes, hex): 483bd3c2cbdf6345160004e6d56d948c
 9. DISCONNECT (or stay connected for live readings)
 ```
 
-### Full flow (xavaro-style — with auth, unit, and ranges)
+### Full flow (xavaro-style — with unit, and ranges)
 
 ```
 1.   SUBSCRIBE af9df7a3
-2.   WRITE  af9df7a2 <- QueryChallenge  {0xE6, 0x02, 0x08}
-3.   NOTIFY af9df7a3 -> challenge (UTF-16LE hex)
-4.   WRITE  af9df7a2 <- EnableFeatures  {0x11, <16-byte AES token>}
-5.   NOTIFY af9df7a3 -> status (0x06)
-6.   WRITE  af9df7a2 <- ReadParameter   {0x09, 0x02, 0x02}
-7.   NOTIFY af9df7a3 -> unit (0x00=mg/dL, 0x01=mmol/L)
-8.   WRITE  af9df7a2 <- ReadRtc         {0x20, 0x02}
-9.   NOTIFY af9df7a3 -> meter_time (uint32 sec since 2000-01-01)
-10.  WRITE  af9df7a2 <- ReadLowRange    {0x0A, 0x02, 0x07}
-11.  NOTIFY af9df7a3 -> low_range (uint32 mg/dL)
-12.  WRITE  af9df7a2 <- ReadHighRange   {0x0A, 0x02, 0x08}
-13.  NOTIFY af9df7a3 -> high_range (uint32 mg/dL)
-14.  WRITE  af9df7a2 <- ReadRecordCount {0x27, 0x00}
-15.  NOTIFY af9df7a3 -> record_count (uint16)
-16.  WRITE  af9df7a2 <- ReadTestCount   {0x0A, 0x02, 0x06}
-17.  NOTIFY af9df7a3 -> test_count (uint32)
-18.  For i = test_count down to (test_count - record_count + 1):
+2.   WRITE  af9df7a2 <- ReadParameter   {0x09, 0x02, 0x02}
+3.   NOTIFY af9df7a3 -> unit (0x00=mg/dL, 0x01=mmol/L)
+4.   WRITE  af9df7a2 <- ReadRtc         {0x20, 0x02}
+5.   NOTIFY af9df7a3 -> meter_time (uint32 sec since 2000-01-01)
+6.   WRITE  af9df7a2 <- ReadLowRange    {0x0A, 0x02, 0x07}
+7.   NOTIFY af9df7a3 -> low_range (uint32 mg/dL)
+8.   WRITE  af9df7a2 <- ReadHighRange   {0x0A, 0x02, 0x08}
+9.   NOTIFY af9df7a3 -> high_range (uint32 mg/dL)
+10.  WRITE  af9df7a2 <- ReadRecordCount {0x27, 0x00}
+11.  NOTIFY af9df7a3 -> record_count (uint16)
+12.  WRITE  af9df7a2 <- ReadTestCount   {0x0A, 0x02, 0x06}
+13.  NOTIFY af9df7a3 -> test_count (uint32)
+14.  For i = test_count down to (test_count - record_count + 1):
        WRITE  af9df7a2 <- ReadRecord {0xB3, lo(i), hi(i)}
        NOTIFY af9df7a3 -> record (11 bytes)
        WRITE  af9df7a2 <- ACK {0x81}
-19.  DISCONNECT
+15.  DISCONNECT
 ```
+
+> Note: xavaro also performs an AES-128-ECB application-layer auth
+> handshake (QueryChallenge/EnableFeatures opcodes) before the read flow.
+> That handshake is NOT implemented in GlucoTrack (see section 3). xDrip
+> skips it and works against already-bonded meters; we follow the xDrip flow.
 
 ### Opcode reference
 
 | Opcode bytes | Function | Response |
 |---|---|---|
-| `0xE6 0x02 0x08` | QUERY challenge | 16-byte challenge (UTF-16LE hex) |
-| `0x11 <16-byte token>` | EnableFeatures (auth response) | status 0x06 |
 | `0x09 0x02 0x02` | READ PARAMETER — glucose unit | 0x00=mg/dL, 0x01=mmol/L |
 | `0x20 0x02` | READ RTC (meter clock) | 4-byte LE uint32 sec since 2000-01-01 |
 | `0x20 0x01 <4-byte ts>` | WRITE RTC (set clock) | (optional) |
@@ -402,25 +371,15 @@ Key files:
 | `app/src/main/java/com/eveningoutpost/dexdrip/services/BluetoothGlucoseMeter.java` | GATT state machine. LifeScan branch at line 357. Manages service discovery, notification subscription, command queue with ACK blocking. |
 | `app/src/main/java/com/eveningoutpost/dexdrip/utils/CRC16ccitt.java` | CRC-16-CCITT implementation. |
 
-### Secondary: xavaro (GPL-3.0) — has the AES auth!
+### Secondary: xavaro (GPL-3.0)
 - Repo: https://github.com/dezi/xavaro
 - File: `asp/SafeHome/app/src/main/java/de/xavaro/android/safehome/BlueToothGlucoseOneTouch.java`
 
-The **only** public source that implements the AES-128-ECB application-layer
-authentication. Key methods:
-| Method | Purpose |
-|---|---|
-| `getReadMeterChallenge()` | Sends `{0xE6, 0x02, 0x08}` |
-| `parseMeterChallenge(byte[])` | Decodes the UTF-16LE hex challenge |
-| `makeCipherToken(byte[])` | Byte-shuffles the challenge and AES-encrypts |
-| `getEnableFeatures()` | Sends `{0x11, <token>}` |
-| `parseResponseInternal(...)` | Multi-packet RX reassembly with ACK |
-| `parseGlucoseRecord(byte[])` | Record field extraction |
-
-Also see `asp/Common/common/src/main/java/de/xavaro/android/common/Simple.java`
-for the `dezify()` XOR-deobfuscation function — the obfuscated key string
-`"==:@M6J0JGMD?6=7839291L4M0?F011A"` decodes to hex
-`483bd3c2cbdf6345160004e6d56d948c`.
+xavaro was historically consulted as a secondary reference for Verio-family
+record parsing and multi-packet reassembly. The AES-128-ECB application-layer
+auth handshake implemented in xavaro is **NOT** included in GlucoTrack, both
+for license reasons (GPL-3.0 is incompatible with this project's license) and
+because xDrip demonstrates that already-bonded meters can be read without it.
 
 ### Tertiary: glucometerutils (MIT) — USB protocol reference
 - Repo: https://github.com/glucometers-tech/glucometerutils
@@ -468,12 +427,12 @@ for the `dezify()` XOR-deobfuscation function — the obfuscated key string
 Things that are NOT publicly documented and would require either an HCI snoop
 log or APK teardown to resolve:
 
-1. **Is the AES-128-ECB application-layer auth required on every connection,
-   or only on first-time pairing?** xDrip skips it and works against
-   already-bonded meters. The safest assumption is "required on first BLE
-   session after pairing, optional on subsequent sessions where the bond
-   keys are still valid" — but this needs an HCI snoop log of the OneTouch
-   Reveal app to confirm.
+1. **Whether the application-layer handshake (QueryChallenge / EnableFeatures)
+   is required on every connection, or only on first-time pairing.** xDrip
+   skips it and works against already-bonded meters; GlucoTrack follows the
+   xDrip flow and does not implement it. If a real-world meter variant turns
+   out to require it, this decision will need to be revisited (and a clean-room
+   implementation written, since the xavaro reference is GPL-3.0).
 
 2. **Does the Select Plus Flex specifically carry non-zero "Blood Sugar
    Mentor" metadata in bytes 6–10** (like the Verio Reflect, which breaks
@@ -515,11 +474,11 @@ log or APK teardown to resolve:
    diagnostic clock offset on standard 0x1808 meters but explicitly narrowed
    the OneTouch Verio path to skip them. Not critical for sync.
 
-10. **The exact AES plaintext block layout** (`fchallenge` byte shuffle in
-    `makeCipherToken`). The xavaro code does the shuffle as documented
-    above and works empirically. If auth fails against a Select Plus Flex,
-    try alternative shuffles. An HCI snoop of OneTouch Reveal connecting to
-    a fresh meter would settle this definitively.
+10. **The semantics of the optional application-layer handshake**
+    (QueryChallenge / EnableFeatures) used by the OneTouch Reveal app. Not
+    implemented in GlucoTrack (see section 3). An HCI snoop of OneTouch Reveal
+    connecting to a fresh meter would document it for future reference, but we
+    do not depend on it for sync.
 
 11. **LE Secure Connections vs Legacy Pairing.** The meter pairs with a
     6-digit PIN (Passkey Entry). Both LE Secure Connections (BT 4.2+) and
@@ -573,8 +532,10 @@ Use this checklist to verify the Flutter implementation against a real meter:
 
 ### Troubleshooting
 - If you see `UNAUTHORIZED (0x07)` status responses:
-  - Set `tryAuth: true` in `OneTouchBleService` constructor
-  - Re-sync — the AES challenge-response handshake will run
+  - Re-pair the meter from the phone's Bluetooth settings (the bond may
+    have been lost or the meter may have re-rolled its random address).
+  - The application-layer AES handshake is intentionally NOT implemented
+    (see section 3); BLE bonding is the sole auth layer.
 - If you see `Device disconnected unexpectedly`:
   - The meter's Bluetooth radio may have timed out (4 hours)
   - Re-enable Bluetooth on the meter (▲ + ▼)
@@ -599,5 +560,4 @@ The Flutter implementation in `lib/ble/` is licensed under the same license
 as the rest of GlucoTrack. The reference implementations it was derived from
 are:
 - xDrip (Apache-2.0): https://github.com/NightscoutFoundation/xDrip
-- xavaro (GPL-3.0): https://github.com/dezi/xavaro
 - glucometerutils (MIT): https://github.com/glucometers-tech/glucometerutils

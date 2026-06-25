@@ -34,6 +34,23 @@ class Settings {
 
   bool get isRtl => language == Language.ar;
 
+  /// Validates the target glucose range.
+  ///
+  /// Returns `null` if all checks pass, otherwise returns a localized-ready
+  /// error message describing the first validation failure.
+  String? validate() {
+    if (targetMin >= targetMax) {
+      return 'Target minimum must be less than target maximum';
+    }
+    if (targetMax - targetMin < 20) {
+      return 'Target range too narrow (minimum 20 mg/dL gap)';
+    }
+    if (targetMin < 40 || targetMax > 300) {
+      return 'Target range must be within 40-300 mg/dL';
+    }
+    return null;
+  }
+
   Settings copyWith({
     Language? language,
     ThemeStyle? theme,

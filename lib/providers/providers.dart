@@ -8,6 +8,7 @@ import '../models/reading.dart';
 import '../models/reminder.dart';
 import '../models/settings.dart';
 import '../i18n/strings.dart';
+import '../services/notification_service.dart';
 
 // ===== Readings Provider =====
 class ReadingsProvider extends ChangeNotifier {
@@ -31,8 +32,17 @@ class ReadingsProvider extends ChangeNotifier {
 
   Future<void> add(Reading r) async {
     await _db.insertReading(r);
-    _readings.insert(0, r);
-    _readings.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    // Binary search for insertion index (readings are sorted DESC by timestamp)
+    var lo = 0, hi = _readings.length;
+    while (lo < hi) {
+      final mid = (lo + hi) ~/ 2;
+      if (_readings[mid].timestamp.compareTo(r.timestamp) > 0) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    _readings.insert(lo, r);
     notifyListeners();
   }
 
@@ -77,6 +87,7 @@ class ReadingsProvider extends ChangeNotifier {
 // ===== Reminders Provider =====
 class RemindersProvider extends ChangeNotifier {
   final _db = DatabaseHelper();
+  final _notif = NotificationService();
   List<Reminder> _reminders = [];
 
   List<Reminder> get reminders => List.unmodifiable(_reminders);
@@ -92,6 +103,9 @@ class RemindersProvider extends ChangeNotifier {
     await _db.insertReminder(r);
     _reminders.add(r);
     _reminders.sort((a, b) => a.time.compareTo(b.time));
+    if (r.enabled) {
+      await _scheduleNotification(r);
+    }
     notifyListeners();
   }
 
@@ -108,13 +122,34 @@ class RemindersProvider extends ChangeNotifier {
     final updated = _reminders[i].copyWith(enabled: !_reminders[i].enabled);
     await _db.updateReminder(updated);
     _reminders[i] = updated;
+    if (updated.enabled) {
+      await _scheduleNotification(updated);
+    } else {
+      await _notif.cancelReminder(id.hashCode);
+    }
     notifyListeners();
   }
 
   Future<void> remove(String id) async {
     await _db.deleteReminder(id);
+    await _notif.cancelReminder(id.hashCode);
     _reminders.removeWhere((r) => r.id == id);
     notifyListeners();
+  }
+
+  Future<void> _scheduleNotification(Reminder r) async {
+    final parts = r.time.split(':');
+    if (parts.length != 2) return;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return;
+    await _notif.scheduleDailyReminder(
+      id: r.id.hashCode,
+      hour: hour,
+      minute: minute,
+      title: 'GlucoTrack',
+      body: r.label.isEmpty ? 'Time to measure your blood glucose' : r.label,
+    );
   }
 }
 

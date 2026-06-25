@@ -1,12 +1,27 @@
-// Glucose trend analysis — calculates direction and rate of change
+// Glucose trend analysis — calculates direction and rate of change.
+//
+// Uses CGM-standard rates in mg/dL per MINUTE (not per hour).
+// Thresholds follow common CGM conventions:
+//   risingFast:   >= +3 mg/dL/min
+//   rising:       +2 to +3 mg/dL/min
+//   stable:       -2 to +2 mg/dL/min
+//   falling:      -2 to -3 mg/dL/min
+//   fallingFast:  <= -3 mg/dL/min
+//
+// Rates exceeding +/-10 mg/dL/min are treated as measurement artifacts
+// and rejected (fromReadings returns null) — they are physiologically
+// implausible for capillary glucose and almost always indicate a
+// corrupted or mismatched reading.
+import 'package:flutter/material.dart';
 import '../models/reading.dart';
 
+/// Glucose trend direction.
 enum TrendDirection {
-  risingFast,   // > 3 mg/dL per hour
-  rising,       // 1-3 mg/dL per hour
-  stable,       // -1 to 1 mg/dL per hour
-  falling,      // -3 to -1 mg/dL per hour
-  fallingFast,  // < -3 mg/dL per hour
+  risingFast, // >= +3 mg/dL/min
+  rising, // +2 to +3 mg/dL/min
+  stable, // -2 to +2 mg/dL/min
+  falling, // -2 to -3 mg/dL/min
+  fallingFast, // <= -3 mg/dL/min
 }
 
 extension TrendDirectionX on TrendDirection {
@@ -54,81 +69,128 @@ extension TrendDirectionX on TrendDirection {
         return '↓↓';
     }
   }
-
-  /// Color for trend indicator
-  /// Note: rising can be good (low value rising to normal) or bad (normal rising to high)
-  /// We use a neutral-semantic approach based on typical usage
-  int get colorHex {
-    switch (this) {
-      case TrendDirection.risingFast:
-        return 0xFFF59E0B; // amber - attention
-      case TrendDirection.rising:
-        return 0xFF10B981; // green - generally positive (recovering from low)
-      case TrendDirection.stable:
-        return 0xFF6B7280; // gray
-      case TrendDirection.falling:
-        return 0xFFF59E0B; // amber - watch out
-      case TrendDirection.fallingFast:
-        return 0xFFEF4444; // red - danger
-    }
-  }
 }
 
+/// Result of a trend calculation.
 class TrendResult {
   final TrendDirection direction;
-  final double ratePerHour; // mg/dL per hour
-  final Duration timeSpan;
+
+  /// Rate of change in mg/dL per MINUTE (CGM standard).
+  ///
+  /// Note: previous versions of this field reported mg/dL per HOUR
+  /// (`ratePerHour`); it was renamed to `ratePerMin` when the calculation
+  /// switched to the CGM-standard per-minute convention.
+  final double ratePerMin;
 
   const TrendResult({
     required this.direction,
-    required this.ratePerHour,
-    required this.timeSpan,
+    required this.ratePerMin,
   });
 }
 
 class TrendAnalyzer {
-  /// Calculate trend between two readings
-  static TrendResult? calculateTrend(Reading? previous, Reading? current) {
-    if (previous == null || current == null) return null;
+  // CGM-standard thresholds in mg/dL per MINUTE (not per hour).
+  static const double _risingFastPerMin = 3.0;
+  static const double _risingPerMin = 2.0;
+  static const double _fallingPerMin = 2.0;
+  static const double _fallingFastPerMin = 3.0;
 
-    final timeDiff = current.timestamp.difference(previous.timestamp);
-    if (timeDiff.inMinutes < 5) return null; // Need at least 5 minutes apart
+  // Maximum plausible physiological rate. Anything beyond this is almost
+  // certainly a measurement artifact (e.g. two readings from different
+  // meters, a missed reading, or a corrupted sample).
+  static const double _maxPhysiologicalRate = 10.0; // mg/dL/min
 
-    final valueDiff = current.value - previous.value;
-    final hours = timeDiff.inMinutes / 60.0;
-    if (hours <= 0) return null;
-
-    final rate = valueDiff / hours;
-
-    TrendDirection direction;
-    if (rate > 3) {
-      direction = TrendDirection.risingFast;
-    } else if (rate > 1) {
-      direction = TrendDirection.rising;
-    } else if (rate >= -1) {
-      direction = TrendDirection.stable;
-    } else if (rate >= -3) {
-      direction = TrendDirection.falling;
-    } else {
-      direction = TrendDirection.fallingFast;
-    }
-
-    return TrendResult(
-      direction: direction,
-      ratePerHour: rate,
-      timeSpan: timeDiff,
-    );
-  }
-
-  /// Find the trend using the two most recent readings
+  /// Compute the trend from the two most recent readings.
+  ///
+  /// The list is assumed to be ordered most-recent-first (this matches the
+  /// ordering maintained by [ReadingsProvider]). Returns `null` if:
+  ///   - there are fewer than 2 readings,
+  ///   - the two readings are less than 1 minute apart,
+  ///   - the timestamps are not in chronological order, or
+  ///   - the computed rate exceeds +/-10 mg/dL/min (non-physiological,
+  ///     likely a measurement artifact).
   static TrendResult? fromReadings(List<Reading> readings) {
     if (readings.length < 2) return null;
-    final sorted = List<Reading>.from(readings)
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    return calculateTrend(sorted[1], sorted[0]);
+
+    final current = readings.first;
+    final previous = readings[1];
+
+    final timeDiff = current.timestamp.difference(previous.timestamp);
+    // Require at least 1 minute gap (was 5 minutes — too coarse for CGM).
+    if (timeDiff.inSeconds < 60) return null;
+    if (!current.timestamp.isAfter(previous.timestamp)) return null;
+
+    final minutes = timeDiff.inSeconds / 60.0;
+    final valueDiff = current.value - previous.value;
+    final ratePerMin = valueDiff / minutes;
+
+    // Filter out non-physiological rates (likely measurement error).
+    if (ratePerMin.abs() > _maxPhysiologicalRate) return null;
+
+    TrendDirection dir;
+    if (ratePerMin >= _risingFastPerMin) {
+      dir = TrendDirection.risingFast;
+    } else if (ratePerMin >= _risingPerMin) {
+      dir = TrendDirection.rising;
+    } else if (ratePerMin <= -_fallingFastPerMin) {
+      dir = TrendDirection.fallingFast;
+    } else if (ratePerMin <= -_fallingPerMin) {
+      dir = TrendDirection.falling;
+    } else {
+      dir = TrendDirection.stable;
+    }
+
+    return TrendResult(direction: dir, ratePerMin: ratePerMin);
   }
 
-  /// Get a trend label localized
+  /// Returns a color that reflects BOTH the trend direction AND the
+  /// absolute glucose value relative to the user's target range.
+  ///
+  /// Semantics:
+  ///   - Critical values (< 54 or > 250 mg/dL) are always RED regardless
+  ///     of direction — the patient needs to act now.
+  ///   - Rising while LOW   -> GREEN  (recovering toward range).
+  ///   - Rising while HIGH  -> RED    (getting worse).
+  ///   - Rising in range    -> AMBER  (about to leave the safe zone).
+  ///   - Falling while HIGH -> GREEN  (improving toward range).
+  ///   - Falling while LOW  -> RED    (getting worse).
+  ///   - Falling in range   -> AMBER  (about to leave the safe zone).
+  ///   - Stable in range    -> GREEN.
+  ///   - Stable out of range -> AMBER.
+  static Color colorFor(
+    TrendDirection direction,
+    int currentValue,
+    int targetMin,
+    int targetMax,
+  ) {
+    final inRange = currentValue >= targetMin && currentValue <= targetMax;
+    final isLow = currentValue < targetMin;
+    final isHigh = currentValue > targetMax;
+    final isCritical = currentValue < 54 || currentValue > 250;
+
+    // Critical values are always red regardless of direction.
+    if (isCritical) return const Color(0xFFDC2626);
+
+    switch (direction) {
+      case TrendDirection.risingFast:
+      case TrendDirection.rising:
+        if (isLow) return const Color(0xFF16A34A); // green: recovering from low
+        if (inRange) return const Color(0xFFF59E0B); // amber: rising out of range
+        if (isHigh) return const Color(0xFFDC2626); // red: rising higher
+        return const Color(0xFFF59E0B);
+      case TrendDirection.stable:
+        if (inRange) return const Color(0xFF16A34A); // green: stable in range
+        return const Color(0xFFF59E0B); // amber: stable out of range
+      case TrendDirection.falling:
+      case TrendDirection.fallingFast:
+        if (isHigh) return const Color(0xFF16A34A); // green: dropping toward range
+        if (inRange) return const Color(0xFFF59E0B); // amber: dropping below range
+        if (isLow) return const Color(0xFFDC2626); // red: dropping lower
+        return const Color(0xFFF59E0B);
+    }
+  }
+
+  /// Localized label for a trend direction.
   static String getLocalizedLabel(TrendDirection trend, bool isArabic) {
     return isArabic ? trend.labelAr : trend.label;
   }

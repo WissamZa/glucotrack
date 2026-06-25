@@ -4,16 +4,16 @@
 //   1. Scan for devices advertising the OneTouch vendor service OR named "OneTouch*"
 //   2. Connect, discover services
 //   3. Subscribe to notifications on af9df7a3
-//   4. (Optional) AES challenge-response auth — skipped by default for already-bonded meters
-//   5. Read meter RTC, test count, record count
-//   6. Loop: ReadRecord(i) for i = test_count down to (test_count - record_count + 1)
-//   7. Return list of [OneTouchRecord]
+//   4. Read meter RTC, test count, record count
+//   5. Loop: ReadRecord(i) for i = test_count down to (test_count - record_count + 1)
+//   6. Return list of [OneTouchRecord]
 //
 // All GATT writes are strictly serialized: one command outstanding at a time,
 // wait for the data notification + ACK before sending the next.
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'onetouch_protocol.dart';
@@ -32,7 +32,6 @@ enum SyncPhase {
   connecting,
   discovering,
   subscribing,
-  authenticating,
   readingMetadata,
   readingRecords,
   done,
@@ -87,7 +86,6 @@ class DiscoveredMeter {
 /// Main BLE sync service. One instance per session — create, use, dispose.
 class OneTouchBleService {
   OneTouchBleService({
-    this.tryAuth = false,
     this.commandTimeout = const Duration(seconds: 5),
     this.scanTimeout = const Duration(seconds: 10),
   }) {
@@ -98,12 +96,6 @@ class OneTouchBleService {
       }
     });
   }
-
-  /// Whether to attempt the AES-128 challenge-response handshake before
-  /// reading records. Default false — matches xDrip's known-working flow
-  /// against already-bonded meters. Enable if you see UNAUTHORIZED (0x07)
-  /// status responses.
-  final bool tryAuth;
 
   /// Per-command timeout. If the meter doesn't respond within this window
   /// we abort the sync with an error.
@@ -192,9 +184,6 @@ class OneTouchBleService {
     try {
       await _connect(meter);
       await _subscribe();
-      if (tryAuth) {
-        await _authenticate();
-      }
       final records = await _readAllRecords();
       _emit(
         phase: SyncPhase.done,
@@ -295,39 +284,6 @@ class OneTouchBleService {
     // Give the BLE stack a moment to actually push the CCCD write to the meter
     await Future.delayed(const Duration(milliseconds: 300));
     _log('Notifications enabled.');
-  }
-
-  Future<void> _authenticate() async {
-    _emit(phase: SyncPhase.authenticating, message: 'Authenticating…');
-
-    // 1. Query challenge
-    final challengeMsg = await _sendCommand(
-      OneTouchProtocol.buildQueryChallenge(),
-    );
-    final challenge = OneTouchAuth.parseChallenge(challengeMsg);
-    if (challenge.length != 16) {
-      throw StateError(
-        'Failed to parse 16-byte challenge (got ${challenge.length} bytes). '
-        'Raw response: ${challengeMsg.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}',
-      );
-    }
-    _log('Got challenge: ${_hex(challenge)}');
-
-    // 2. Compute AES token
-    final token = OneTouchAuth.computeToken(challenge);
-    _log('Computed token: ${_hex(token)}');
-
-    // 3. Send EnableFeatures command
-    final enableMsg = await _sendCommand(
-      OneTouchProtocol.buildEnableFeatures(token),
-    );
-    final status = enableMsg.isEmpty ? 0 : enableMsg[0] & 0xFF;
-    if (status != OneTouchStatus.ok) {
-      throw StateError(
-        'Authentication failed: meter returned ${OneTouchStatus.name(status)}',
-      );
-    }
-    _log('Authentication successful.');
   }
 
   Future<List<OneTouchRecord>> _readAllRecords() async {
@@ -492,9 +448,15 @@ class OneTouchBleService {
   }
 
   void _log(String line) {
-    // ignore: avoid_print
-    print('[OneTouchBLE] $line');
-    _logCtl?.add(line);
+    if (kDebugMode) {
+      final redacted = line.replaceAllMapped(
+        RegExp(r'(challenge|token|key)[:\s]*([0-9a-fA-F]{16,})'),
+        (m) => '${m[1]}: [REDACTED]',
+      );
+      // ignore: avoid_print
+      print('[OneTouchBLE] $redacted');
+      _logCtl?.add(redacted);
+    }
   }
 
   String _hex(List<int> bytes) =>

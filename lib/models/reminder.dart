@@ -1,6 +1,16 @@
 // Reminder model — scheduled measurement reminder.
 import 'reading.dart';
 
+/// Sentinel object used by [Reminder.copyWith] to distinguish
+/// "argument not supplied" from "argument explicitly null".
+/// Defined separately here because the `_unset` sentinel in reading.dart
+/// is file-private (Dart's underscore convention).
+class _UnsetReminder {
+  const _UnsetReminder();
+}
+
+const _unsetReminder = _UnsetReminder();
+
 class Reminder {
   final String id;
   final String time; // "08:00"
@@ -33,17 +43,22 @@ class Reminder {
       );
 
   Reminder copyWith({
-    String? id,
-    String? time,
-    String? label,
-    ReadingType? type,
-    bool? enabled,
+    Object? id = _unsetReminder,
+    Object? time = _unsetReminder,
+    Object? label = _unsetReminder,
+    Object? type = _unsetReminder,
+    Object? enabled = _unsetReminder,
   }) =>
       Reminder(
-        id: id ?? this.id,
-        time: time ?? this.time,
-        label: label ?? this.label,
-        type: type ?? this.type,
-        enabled: enabled ?? this.enabled,
+        id: identical(id, _unsetReminder) ? this.id : id as String,
+        time: identical(time, _unsetReminder) ? this.time : time as String,
+        label:
+            identical(label, _unsetReminder) ? this.label : label as String,
+        type: identical(type, _unsetReminder)
+            ? this.type
+            : type as ReadingType,
+        enabled: identical(enabled, _unsetReminder)
+            ? this.enabled
+            : enabled as bool,
       );
 }

@@ -15,6 +15,7 @@ class ReadingActions extends StatelessWidget {
     final strings = AppStrings.of(context);
     return PopupMenuButton<String>(
       icon: Icon(Icons.more_vert, size: compact ? 18 : 20, color: Colors.grey.shade600),
+      tooltip: strings.tooltipMoreOptions,
       padding: EdgeInsets.zero,
       itemBuilder: (_) => [
         PopupMenuItem(

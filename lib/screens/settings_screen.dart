@@ -491,7 +491,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? userName,
     bool? onboarded,
   }) async {
-    await prov.persist(prov.settings.copyWith(
+    final next = prov.settings.copyWith(
       language: language,
       theme: theme,
       diabetesType: diabetesType,
@@ -500,7 +500,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       unit: unit,
       userName: userName,
       onboarded: onboarded,
-    ));
+    );
+
+    // FIX-029 / BUG-005: validate before persisting so invalid ranges
+    // (e.g. targetMin >= targetMax) never reach the DB.
+    final validationError = next.validate();
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(validationError),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    await prov.persist(next);
   }
 
   Widget _choiceBtn(bool selected, String label, VoidCallback onTap) {

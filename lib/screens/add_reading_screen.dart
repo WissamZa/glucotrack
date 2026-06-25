@@ -8,6 +8,7 @@
 // argument (see Navigator.pushNamed('/add', arguments: reading)).
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../i18n/strings.dart';
 import '../models/reading.dart';
 import '../providers/providers.dart';
@@ -124,7 +125,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
         Navigator.pop(context);
       }
     } else {
-      final id = 'r-${DateTime.now().millisecondsSinceEpoch}-${_type.name}';
+      final id = const Uuid().v4();
       await rProv.add(Reading(
         id: id,
         value: v,
@@ -170,6 +171,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.close),
+            tooltip: strings.tooltipClose,
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -192,6 +194,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
                       IconButton(
                         onPressed: () => _adjust(-10),
                         icon: const Icon(Icons.remove_circle_outline, size: 32),
+                        tooltip: strings.tooltipDecreaseValue,
                       ),
                       const SizedBox(width: 16),
                       SizedBox(
@@ -220,6 +223,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
                       IconButton(
                         onPressed: () => _adjust(10),
                         icon: const Icon(Icons.add_circle_outline, size: 32),
+                        tooltip: strings.tooltipIncreaseValue,
                       ),
                     ],
                   ),
@@ -282,7 +286,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
                 context: context,
                 initialDate: _timestamp,
                 firstDate: DateTime(2020),
-                lastDate: DateTime.now().add(const Duration(days: 1)),
+                lastDate: DateTime.now(),
               );
               if (d == null) return;
               if (!context.mounted) return;

@@ -13,7 +13,9 @@ void main() {
       final testCases = <(int value, int min, int max, ReadingStatus expected)>[
         (40, 80, 180, ReadingStatus.criticalLow),
         (53, 80, 180, ReadingStatus.criticalLow),
-        (54, 80, 180, ReadingStatus.low),
+        (54, 80, 180, ReadingStatus.warningLow),
+        (69, 80, 180, ReadingStatus.warningLow),
+        (70, 80, 180, ReadingStatus.low),
         (79, 80, 180, ReadingStatus.low),
         (80, 80, 180, ReadingStatus.inRange),
         (130, 80, 180, ReadingStatus.inRange),

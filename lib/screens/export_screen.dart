@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -174,13 +175,16 @@ class ExportScreen extends StatelessWidget {
         return;
       }
 
-      final jsonStr = String.fromCharCodes(file.bytes!);
-      final imported = DataExporter.importFromJson(jsonStr);
+      final jsonStr = utf8.decode(file.bytes!, allowMalformed: true);
+      final importResult = DataExporter.importFromJson(jsonStr);
 
-      if (imported == null) {
-        _showError(context, strings.importError);
+      if (!importResult.success || importResult.data == null) {
+        if (context.mounted) {
+          _showError(context, importResult.error ?? strings.importError);
+        }
         return;
       }
+      final imported = importResult.data!;
 
       final rProv = context.read<ReadingsProvider>();
       final remProv = context.read<RemindersProvider>();

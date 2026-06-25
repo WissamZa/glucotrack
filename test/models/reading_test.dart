@@ -164,6 +164,42 @@ void main() {
         expect(ReadingTypeX.fromDb('unknown_type'), ReadingType.other);
       });
     });
+
+    // ── copyWith nullable-field clearing (FIX-002) ─────────────────────────
+    test('copyWith clears nullable fields when null is explicitly passed', () {
+      final original = Reading(
+        id: 'r1',
+        value: 120,
+        type: ReadingType.beforeMeal,
+        timestamp: DateTime(2024, 1, 1, 8, 0),
+        notes: 'High after lunch',
+        carbs: 45,
+        insulin: 10,
+      );
+
+      final cleared = original.copyWith(
+        notes: null,
+        carbs: null,
+        insulin: null,
+      );
+
+      expect(cleared.notes, isNull, reason: 'notes should be cleared');
+      expect(cleared.carbs, isNull, reason: 'carbs should be cleared');
+      expect(cleared.insulin, isNull, reason: 'insulin should be cleared');
+      expect(cleared.value, 120, reason: 'non-cleared fields retained');
+    });
+
+    test('copyWith retains fields when not provided', () {
+      final original = Reading(
+        id: 'r1', value: 120, type: ReadingType.fasting,
+        timestamp: DateTime(2024, 1, 1),
+        notes: 'original', carbs: 30, insulin: 5,
+      );
+      final updated = original.copyWith(value: 130);
+      expect(updated.value, 130);
+      expect(updated.notes, 'original');
+      expect(updated.carbs, 30);
+    });
   });
 }
 

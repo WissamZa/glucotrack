@@ -1,8 +1,8 @@
 // Unit tests for the OneTouch BLE protocol module.
 //
 // These tests can run without a physical meter — they verify the pure-Dart
-// protocol logic (CRC, framing, AES auth, record parsing) against known
-// vectors derived from the xDrip and xavaro open-source implementations.
+// protocol logic (CRC, framing, transport, record parsing) against known
+// vectors derived from the xDrip open-source implementation.
 //
 // Run with: `flutter test test/ble/onetouch_protocol_test.dart`
 import 'dart:typed_data';
@@ -95,86 +95,7 @@ void main() {
     });
   });
 
-  group('OneTouchAuth', () {
-    test('AES key is exactly 16 bytes', () {
-      expect(OneTouchAuth.key.length, 16);
-    });
-
-    test('AES key matches the xavaro-deobfuscated value', () {
-      // From xavaro Simple.dezify("==:@M6J0JGMD?6=7839291L4M0?F011A")
-      // Hex: 483bd3c2cbdf6345160004e6d56d948c
-      final expected = [
-        0x48, 0x3b, 0xd3, 0xc2, 0xcb, 0xdf, 0x63, 0x45,
-        0x16, 0x00, 0x04, 0xe6, 0xd5, 0x6d, 0x94, 0x8c,
-      ];
-      expect(OneTouchAuth.key, Uint8List.fromList(expected));
-    });
-
-    test('parseChallenge decodes UTF-16LE hex string', () {
-      // 32-char hex string = 16 bytes when decoded
-      const hexStr = 'A1B2C3D4E5F6A7B8C1D2E3F4A5B6C7D8';
-      final payload = <int>[0x06]; // status
-      for (final c in hexStr.codeUnits) {
-        payload.add(c & 0xFF);
-        payload.add((c >> 8) & 0xFF);
-      }
-      final challenge = OneTouchAuth.parseChallenge(payload);
-      expect(challenge.length, 16);
-      expect(challenge, equals([
-        0xA1, 0xB2, 0xC3, 0xD4, 0xE5, 0xF6, 0xA7, 0xB8,
-        0xC1, 0xD2, 0xE3, 0xF4, 0xA5, 0xB6, 0xC7, 0xD8,
-      ]));
-    });
-
-    test('parseChallenge rejects too-short input', () {
-      // Only 16 hex chars = 8 bytes — not enough for a 16-byte challenge
-      const hexStr = 'A1B2C3D4E5F6A7B8';
-      final payload = <int>[0x06];
-      for (final c in hexStr.codeUnits) {
-        payload.add(c & 0xFF);
-        payload.add((c >> 8) & 0xFF);
-      }
-      final challenge = OneTouchAuth.parseChallenge(payload);
-      expect(challenge.length, 0);
-    });
-
-    test('computeToken produces 16-byte output', () {
-      final challenge = Uint8List.fromList(List.filled(16, 0x42));
-      final token = OneTouchAuth.computeToken(challenge);
-      expect(token.length, 16);
-    });
-
-    test('computeToken is deterministic (same input -> same output)', () {
-      final challenge = Uint8List.fromList([
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
-      ]);
-      final t1 = OneTouchAuth.computeToken(challenge);
-      final t2 = OneTouchAuth.computeToken(challenge);
-      expect(t1, equals(t2));
-    });
-
-    test('computeToken rejects non-16-byte challenge', () {
-      expect(
-        () => OneTouchAuth.computeToken(Uint8List(15)),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
-  });
-
   group('OneTouchProtocol - command builders', () {
-    test('buildQueryChallenge', () {
-      expect(OneTouchProtocol.buildQueryChallenge(), [0xE6, 0x02, 0x08]);
-    });
-
-    test('buildEnableFeatures', () {
-      final token = Uint8List.fromList(List.filled(16, 0xAB));
-      final cmd = OneTouchProtocol.buildEnableFeatures(token);
-      expect(cmd[0], 0x11);
-      expect(cmd.length, 17);
-      expect(cmd.sublist(1), equals(token));
-    });
-
     test('buildReadRtc', () {
       expect(OneTouchProtocol.buildReadRtc(), [0x20, 0x02]);
     });

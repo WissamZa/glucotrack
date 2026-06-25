@@ -1,11 +1,11 @@
 {
-    "name": "glucotrack",
-    "short_name": "glucotrack",
+    "name": "GlucoTrack",
+    "short_name": "GlucoTrack",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0D9488",
+    "theme_color": "#0D9488",
+    "description": "Bilingual blood glucose tracking app",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,4 +1,16 @@
 // Reading model — represents a single blood glucose measurement.
+
+/// Sentinel object used by [Reading.copyWith] (and other models) to
+/// distinguish "argument not supplied" from "argument explicitly null".
+///
+/// Without this, callers have no way to clear a nullable field via copyWith
+/// because `null` is treated the same as "keep the existing value".
+class _Unset {
+  const _Unset();
+}
+
+const _unset = _Unset();
+
 enum ReadingType {
   fasting,
   beforeMeal,
@@ -31,7 +43,14 @@ extension ReadingTypeX on ReadingType {
   static ReadingType fromDb(String s) => _readingTypeFromString[s] ?? ReadingType.other;
 }
 
-enum ReadingStatus { low, inRange, high, criticalLow, criticalHigh }
+enum ReadingStatus {
+  criticalLow,   // <54 (Level 2 hypo - requires immediate action)
+  warningLow,    // 54-69 (Level 1 hypo - should take action)
+  low,           // 70 to targetMin
+  inRange,       // targetMin to targetMax
+  high,          // targetMax to 250
+  criticalHigh,  // >250
+}
 
 class Reading {
   final String id;
@@ -54,6 +73,7 @@ class Reading {
 
   ReadingStatus status(int targetMin, int targetMax) {
     if (value < 54) return ReadingStatus.criticalLow;
+    if (value < 70) return ReadingStatus.warningLow;
     if (value < targetMin) return ReadingStatus.low;
     if (value <= targetMax) return ReadingStatus.inRange;
     if (value <= 250) return ReadingStatus.high;
@@ -81,21 +101,23 @@ class Reading {
       );
 
   Reading copyWith({
-    String? id,
-    int? value,
-    ReadingType? type,
-    DateTime? timestamp,
-    String? notes,
-    int? carbs,
-    int? insulin,
+    Object? id = _unset,
+    Object? value = _unset,
+    Object? type = _unset,
+    Object? timestamp = _unset,
+    Object? notes = _unset,
+    Object? carbs = _unset,
+    Object? insulin = _unset,
   }) =>
       Reading(
-        id: id ?? this.id,
-        value: value ?? this.value,
-        type: type ?? this.type,
-        timestamp: timestamp ?? this.timestamp,
-        notes: notes ?? this.notes,
-        carbs: carbs ?? this.carbs,
-        insulin: insulin ?? this.insulin,
+        id: identical(id, _unset) ? this.id : id as String,
+        value: identical(value, _unset) ? this.value : value as int,
+        type: identical(type, _unset) ? this.type : type as ReadingType,
+        timestamp: identical(timestamp, _unset)
+            ? this.timestamp
+            : timestamp as DateTime,
+        notes: identical(notes, _unset) ? this.notes : notes as String?,
+        carbs: identical(carbs, _unset) ? this.carbs : carbs as int?,
+        insulin: identical(insulin, _unset) ? this.insulin : insulin as int?,
       );
 }

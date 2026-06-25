@@ -1,97 +1,46 @@
-name: 📱 APK Build & Release (Flutter)
-
-# Builds a signed Android APK from the Flutter project.
-#
-# Trigger:
-#   - Push tag apk-v* → builds + creates Release
-#   - Manual dispatch (workflow_dispatch) → same
-#
-# Signing:
-#   - If ANDROID_KEYSTORE_BASE64 secret is set, signs with production keystore
-#   - Otherwise, signs with debug keystore (for testing only)
+name: Release
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*'
-      - 'apk-v*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version tag (e.g. v1.0.0)"
-        required: false
-        default: "v1.0.0-dev"
+    tags: ['v*', 'apk-v*']
 
 permissions:
   contents: write
 
-concurrency:
-  group: "apk-build-${{ github.ref }}"
-  cancel-in-progress: false
-
 jobs:
-  build-apk:
-    name: Build Flutter APK
+  build-and-release:
+    name: Build + Sign + Release
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: ☕ Setup Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          distribution: "temurin"
-          java-version: "17"
-
-      - name: 🐦 Setup Flutter
-        uses: subosito/flutter-action@v2
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+      - run: flutter pub get
 
-      - name: 📦 Install dependencies
-        run: flutter pub get
-
-      - name: 🔍 Analyze code
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
-        continue-on-error: true
-
-      - name: 🏷️ Determine version
+      - name: Determine version
         id: meta
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/apk-v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/apk-v}"
-            VERSION="v${VERSION#v}"
-          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-            VERSION="v${VERSION#v}"
-          else
-            VERSION="v1.1.0-dev"
-          fi
+          VERSION="${GITHUB_REF#refs/tags/}"
+          VERSION="${VERSION#apk-v}"
+          VERSION="v${VERSION#v}"
           CLEAN="${VERSION#v}"
-
-          if [[ "$CLEAN" == *"dev"* ]] || [[ "$CLEAN" == refs/heads/* ]]; then
-            CODE="${{ github.run_number }}"
-          else
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$CLEAN"
-            : "${MAJOR:=1}"; : "${MINOR:=0}"; : "${PATCH:=0}"
-            # Remove non-numeric characters from PATCH for the calculation
-            PATCH_CLEAN=$(echo "$PATCH" | tr -dc '0-9')
-            : "${PATCH_CLEAN:=0}"
-            CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH_CLEAN))
-          fi
-
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CLEAN"
+          PATCH_CLEAN=$(echo "$PATCH" | tr -dc '0-9')
+          : "${PATCH_CLEAN:=0}"
+          CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH_CLEAN))
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_name=$CLEAN" >> $GITHUB_OUTPUT
           echo "version_code=$CODE" >> $GITHUB_OUTPUT
-          echo "Building GlucoTrack $VERSION (code: $CODE)"
 
-      - name: 🔐 Setup signing keystore
+      - name: Setup signing keystore
+        id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -99,83 +48,68 @@ jobs:
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
-
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "⚠️  ANDROID_KEYSTORE_BASE64 not set. Generating debug keystore."
-            keytool -genkey -v \
-              -keystore release.keystore \
-              -alias glucotrack \
-              -storepass android \
-              -keypass android \
-              -keyalg RSA -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=GlucoTrack, OU=Dev, O=WissamZa, L=Dev, ST=Dev, C=SA"
-            echo "store_password=android" > key.properties
-            echo "key_password=android" >> key.properties
-            echo "key_alias=glucotrack" >> key.properties
-            echo "store_file=release.keystore" >> key.properties
-            echo "signed=false" >> $GITHUB_OUTPUT
-          else
-            echo "🔑 Using production keystore from secrets"
-            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-            echo "store_password=$KEYSTORE_PASS" > key.properties
-            echo "key_password=$KEY_PASS" >> key.properties
-            echo "key_alias=$KEY_ALIAS" >> key.properties
-            echo "store_file=release.keystore" >> key.properties
-            echo "signed=true" >> $GITHUB_OUTPUT
+            echo "ERROR: Tag push requires ANDROID_KEYSTORE_BASE64 secret"
+            echo "Set it in Settings -> Secrets and variables -> Actions"
+            exit 1
           fi
+          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          cat > key.properties << EOF
+          store_password=$KEYSTORE_PASS
+          key_password=$KEY_PASS
+          key_alias=$KEY_ALIAS
+          store_file=release.keystore
+          EOF
+          echo "signed=true" >> $GITHUB_OUTPUT
 
-      - name: 🏗️ Build APK
+      - name: Build release APK with R8
         run: |
           sed -i "s|^version: .*|version: ${{ steps.meta.outputs.version_name }}+${{ steps.meta.outputs.version_code }}|" pubspec.yaml
-          flutter build apk --release --build-name=${{ steps.meta.outputs.version_name }} --build-number=${{ steps.meta.outputs.version_code }}
+          flutter build apk --release \
+            --build-name=${{ steps.meta.outputs.version_name }} \
+            --build-number=${{ steps.meta.outputs.version_code }}
 
-      - name: 📦 Rename APK
+      - name: Generate SHA256 checksum
+        run: |
+          cd build/app/outputs/flutter-apk
+          sha256sum app-release.apk > app-release.apk.sha256
+
+      - name: Rename APK
         run: |
           mkdir -p artifact
           cp build/app/outputs/flutter-apk/app-release.apk \
              artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
-          ls -la artifact/
+          cp build/app/outputs/flutter-apk/app-release.apk.sha256 \
+             artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk.sha256
 
-      - name: 📤 Upload APK artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: glucotrack-apk
-          path: artifact/*.apk
-          retention-days: 90
+          name: glucotrack-release
+          path: artifact/*
+          retention-days: 365
 
-      - name: 📝 Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/apk-v') || github.event_name == 'workflow_dispatch'
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.version }}
-          name: "📱 APK Release ${{ steps.meta.outputs.version }}"
+          name: GlucoTrack ${{ steps.meta.outputs.version }}
           body: |
-            # GlucoTrack Android APK ${{ steps.meta.outputs.version }}
+            ## GlucoTrack ${{ steps.meta.outputs.version }}
 
-            Built with **Flutter 3.22** — native Android build.
+            **Signing:** Production-signed
 
-            ## 📦 Artifact
-            - `GlucoTrack-${{ steps.meta.outputs.version }}.apk` — Signed Android APK
-
-            ## 📲 Installation
-            1. Download the APK on your Android phone
-            2. Allow "Install from unknown sources" in Settings
-            3. Open the APK file to install
-
-            ## ✨ Features
-            - 📝 Log readings (value, type, time, notes, carbs, insulin)
-            - ✏️ Edit & delete readings
-            - 📊 Interactive charts (area / line / bar)
-            - 🔀 Sort by newest / oldest / highest / lowest
-            - 🔔 Reminders for scheduled measurements
-            - 🌐 Bilingual UI (Arabic RTL / English LTR)
-            - 🎨 3 themes (Classic / Modern / Elder)
-            - 💾 Local SQLite storage (offline-first)
-
-            ## 🔐 Signing
-            ${{ steps.signing.outputs.signed == 'true' && '✅ Production-signed' || '⚠️ Debug-signed (testing only)' }}
+            ### Install
+            1. Download GlucoTrack-${{ steps.meta.outputs.version }}.apk
+            2. Verify: sha256sum -c GlucoTrack-${{ steps.meta.outputs.version }}.apk.sha256
+            3. Allow install from unknown sources
+            4. Open the APK
           files: |
             artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk
+            artifact/GlucoTrack-${{ steps.meta.outputs.version }}.apk.sha256
           draft: false
           prerelease: false
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f android/release.keystore android/key.properties

@@ -13,8 +13,40 @@ import '../utils/hba1c_calculator.dart';
 import '../widgets/reading_actions.dart';
 import '../ble/ble_platform.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  // Cache for expensive computations (FIX-040 / PERF-002/003)
+  List<Reading>? _lastReadingsCache;
+  TrendResult? _cachedTrend;
+  HbA1cResult? _cachedHba1c;
+
+  TrendResult? _getTrend(List<Reading> readings) {
+    if (_lastReadingsCache == null ||
+        _lastReadingsCache!.length != readings.length ||
+        (readings.isNotEmpty &&
+            _lastReadingsCache!.isNotEmpty &&
+            _lastReadingsCache!.first.timestamp !=
+                readings.first.timestamp)) {
+      _lastReadingsCache = readings;
+      _cachedTrend =
+          readings.isEmpty ? null : TrendAnalyzer.fromReadings(readings);
+      _cachedHba1c =
+          readings.isEmpty ? null : HbA1cCalculator.calculate(readings);
+    }
+    return _cachedTrend;
+  }
+
+  HbA1cResult? _getHba1c(List<Reading> readings) {
+    // Call _getTrend to refresh cache if needed
+    _getTrend(readings);
+    return _cachedHba1c;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,11 +68,11 @@ class HomeScreen extends StatelessWidget {
         .length;
     final inRangePct = today.isEmpty ? 0 : ((inRange / today.length) * 100).round();
 
-    // Calculate trend
-    final trend = TrendAnalyzer.fromReadings(rProv.rawReadings);
+    // Calculate trend (memoized)
+    final trend = _getTrend(rProv.rawReadings);
 
-    // Calculate HbA1c
-    final hba1c = HbA1cCalculator.calculate(rProv.rawReadings);
+    // Calculate HbA1c (memoized)
+    final hba1c = _getHba1c(rProv.rawReadings);
 
     final greeting = _greeting(now.hour, strings);
 
@@ -57,12 +89,14 @@ class HomeScreen extends StatelessWidget {
           // Insights shortcut button
           IconButton(
             icon: const Icon(Icons.insights_outlined),
+            tooltip: strings.insights,
             onPressed: () => Navigator.pushNamed(context, '/insights'),
           ),
           Stack(
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
+                tooltip: strings.navReminders,
                 onPressed: () => Navigator.pushNamed(context, '/reminders'),
               ),
               if (remProv.activeCount > 0)
@@ -127,7 +161,14 @@ class HomeScreen extends StatelessWidget {
           // Trend indicator
           if (trend != null) ...[
             const SizedBox(height: 12),
-            _TrendChip(trend: trend, strings: strings, isArabic: s.language == Language.ar),
+            _TrendChip(
+              trend: trend,
+              currentValue: latest?.value,
+              targetMin: s.targetMin,
+              targetMax: s.targetMax,
+              strings: strings,
+              isArabic: s.language == Language.ar,
+            ),
           ],
           // Quick actions row
           const SizedBox(height: 16),
@@ -293,6 +334,7 @@ class _ReadingHero extends StatelessWidget {
                   onPressed: () => Navigator.pushNamed(context, '/add'),
                   backgroundColor: Colors.white.withValues(alpha: 0.2),
                   foregroundColor: Colors.white,
+                  tooltip: strings.tooltipAddReading,
                   child: const Icon(Icons.add),
                 ),
               ],
@@ -355,19 +397,37 @@ class _HbA1cQuickChip extends StatelessWidget {
 
 class _TrendChip extends StatelessWidget {
   final TrendResult trend;
+  final int? currentValue;
+  final int targetMin;
+  final int targetMax;
   final AppStrings strings;
   final bool isArabic;
-  const _TrendChip({required this.trend, required this.strings, required this.isArabic});
+  const _TrendChip({
+    required this.trend,
+    required this.currentValue,
+    required this.targetMin,
+    required this.targetMax,
+    required this.strings,
+    required this.isArabic,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Color reflects BOTH trend direction AND the current glucose value
+    // relative to the user's target range (see TrendAnalyzer.colorFor).
+    final color = TrendAnalyzer.colorFor(
+      trend.direction,
+      currentValue ?? 0,
+      targetMin,
+      targetMax,
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Color(trend.direction.colorHex).withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Color(trend.direction.colorHex).withValues(alpha: 0.3),
+          color: color.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -377,7 +437,7 @@ class _TrendChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(trend.direction.colorHex),
+              color: color,
             ),
           ),
           const SizedBox(width: 8),
@@ -387,15 +447,15 @@ class _TrendChip extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
-                color: Color(trend.direction.colorHex),
+                color: color,
               ),
             ),
           ),
           Text(
-            '${trend.ratePerHour >= 0 ? "+" : ""}${trend.ratePerHour.toStringAsFixed(1)} mg/dL/h',
+            '${trend.ratePerMin >= 0 ? "+" : ""}${trend.ratePerMin.toStringAsFixed(1)} mg/dL/min',
             style: TextStyle(
               fontSize: 12,
-              color: Color(trend.direction.colorHex),
+              color: color,
             ),
           ),
         ],
@@ -608,6 +668,7 @@ class _SyncMeterBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final strings = AppStrings.of(context);
 
     return GestureDetector(
       onTap: () => Navigator.of(context).pushNamed('/sync'),
@@ -648,17 +709,17 @@ class _SyncMeterBanner extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Sync from meter',
-                    style: TextStyle(
+                  Text(
+                    strings.bleSyncBannerTitle,
+                    style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 14),
                   ),
                   Text(
                     isBleSupported
-                        ? 'OneTouch Select Plus Flex • Tap to sync'
-                        : 'Available on Android — not on this platform',
+                        ? strings.bleSyncBannerSupported
+                        : strings.bleSyncBannerUnsupported,
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.82),
                         fontSize: 12),

@@ -1,0 +1,10 @@
+GlucoTrack
+Copyright (c) 2024-2026 WissamZa
+
+This product includes software developed by:
+  - The xDrip project (Apache License 2.0) - BLE protocol reference
+  - The glucometerutils project (MIT License) - protocol reference
+  - The Flutter team (BSD-3-Clause) - UI framework
+  - The sqflite authors (BSD-2-Clause) - SQLite plugin
+
+See LICENSES/third-party/ for full license texts.

@@ -3,9 +3,10 @@
 // Schema mirrors the Next.js Prisma schema so data can be exchanged
 // between the web and Flutter apps via the JSON backup format.
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 import '../models/reading.dart';
 import '../models/reminder.dart';
+import '../services/keystore_service.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -22,9 +23,16 @@ class DatabaseHelper {
   Future<Database> _open() async {
     final dbPath = await getDatabasesPath();
     final path = p.join(dbPath, 'glucotrack.db');
+    final key = await KeystoreService().getDbKey();
+
     return openDatabase(
       path,
-      version: 1,
+      password: key,
+      version: 2,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA journal_mode=WAL');
+        await db.execute('PRAGMA foreign_keys=ON');
+      },
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE readings (
@@ -37,12 +45,8 @@ class DatabaseHelper {
             insulin INTEGER
           )
         ''');
-        await db.execute(
-          'CREATE INDEX idx_readings_timestamp ON readings(timestamp)',
-        );
-        await db.execute(
-          'CREATE INDEX idx_readings_type ON readings(type)',
-        );
+        await db.execute('CREATE INDEX idx_readings_timestamp ON readings(timestamp)');
+        await db.execute('CREATE INDEX idx_readings_type ON readings(type)');
 
         await db.execute('''
           CREATE TABLE reminders (
@@ -67,24 +71,26 @@ class DatabaseHelper {
             onboarded INTEGER NOT NULL DEFAULT 0
           )
         ''');
-
-        await db.execute('''
-          CREATE TABLE sync_state (
-            id INTEGER PRIMARY KEY DEFAULT 1,
-            provider TEXT NOT NULL DEFAULT '',
-            connected INTEGER NOT NULL DEFAULT 0,
-            account_email TEXT,
-            access_token TEXT,
-            refresh_token TEXT,
-            expires_at INTEGER,
-            last_sync_at INTEGER,
-            last_sync_status TEXT,
-            last_sync_error TEXT,
-            drive_file_id TEXT
-          )
-        ''');
+        // NOTE: sync_state table removed (SEC-015) — was dead schema that would
+        // have stored plaintext tokens. Re-add with encryption when cloud sync
+        // is actually implemented.
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // v1 -> v2: encrypted DB migration
+        // For new installs, onCreate already ran at v2.
+        // For upgrades from v1 (plaintext DB), the user must export their data,
+        // uninstall, reinstall, and re-import. Document this in release notes.
+        // No schema changes between v1 and v2 — only the storage format changed.
+        if (oldVersion < 2) {
+          // No-op: schema is identical; the password parameter handles encryption
+        }
       },
     );
+  }
+
+  Future<void> close() async {
+    await _db?.close();
+    _db = null;
   }
 
   // ===== Readings =====

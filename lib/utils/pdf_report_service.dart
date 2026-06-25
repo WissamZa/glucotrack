@@ -14,68 +14,80 @@ class PdfReportService {
   }) async {
     final pdf = pw.Document();
 
-    // Use a font that supports Arabic.
-    // PdfGoogleFonts provides access to Google Fonts.
-    final font = pw.Font.helvetica();
+    // Load Arabic-capable fonts from Google Fonts
+    final font = await PdfGoogleFonts.notoSansArabicRegular();
+    final fontBold = await PdfGoogleFonts.notoSansArabicBold();
+    final isArabic = settings.language == Language.ar;
 
     final userName = settings.userName.isEmpty ? 'Patient' : settings.userName;
+    final unitLabel = UnitConverter.unitLabel(settings.unit);
 
+    // Use MultiPage for auto-pagination
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Header - using pw.Text instead of pw.Header as it doesn't support 'style'
-              pw.Text(
-                'Glucose Tracking Report',
-                style: pw.TextStyle(font: font, fontSize: 24, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Text('Patient: $userName', style: pw.TextStyle(font: font, fontSize: 14)),
-              pw.Text('Period: ${_formatDate(startDate)} to ${_formatDate(endDate)}',
-                   style: pw.TextStyle(font: font, fontSize: 14)),
-              pw.SizedBox(height: 20),
-
-              // Summary Statistics
-              _buildSummarySection(readings, settings, font),
-
-              pw.SizedBox(height: 20),
-
-              // Readings Table
-              pw.Text('Detailed Readings', style: pw.TextStyle(font: font, fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 10),
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey300),
-                children: _buildReadingsTable(readings, settings, font),
-              ),
-
-              pw.SizedBox(height: 30),
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Text('Generated on ${_formatDate(DateTime.now())}',
-                             style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey)),
-              ),
-            ],
-          );
-        },
+        margin: const pw.EdgeInsets.all(40),
+        header: (ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              isArabic ? 'تقرير متابعة السكر' : 'Glucose Tracking Report',
+              style: pw.TextStyle(font: fontBold, fontSize: 20),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              '${isArabic ? "المريض" : "Patient"}: $userName  |  '
+              '${isArabic ? "الفترة" : "Period"}: '
+              '${_formatDate(startDate)} - ${_formatDate(endDate)}',
+              style: pw.TextStyle(font: font, fontSize: 10),
+            ),
+            pw.Divider(),
+          ],
+        ),
+        footer: (ctx) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            'CONFIDENTIAL - Medical Record  |  Page ${ctx.pageNumber} of ${ctx.pagesCount}  |  Generated ${_formatDate(DateTime.now())}',
+            style: pw.TextStyle(font: font, fontSize: 8, color: PdfColors.grey),
+          ),
+        ),
+        build: (ctx) => [
+          _buildSummarySection(readings, settings, font, fontBold, unitLabel, isArabic),
+          pw.SizedBox(height: 16),
+          pw.Text(
+            isArabic ? 'القراءات التفصيلية' : 'Detailed Readings',
+            style: pw.TextStyle(font: fontBold, fontSize: 14),
+          ),
+          pw.SizedBox(height: 8),
+          _buildReadingsTable(readings, settings, font, fontBold, unitLabel),
+        ],
       ),
     );
 
-    await Printing.sharePdf(bytes: await pdf.save(), filename: 'Glucose_Report.pdf');
+    final fileName =
+        'Glucose_Report_${_formatDate(startDate)}_to_${_formatDate(endDate)}.pdf';
+    await Printing.sharePdf(bytes: await pdf.save(), filename: fileName);
   }
 
-  static pw.Widget _buildSummarySection(List<Reading> readings, Settings settings, pw.Font font) {
+  static pw.Widget _buildSummarySection(
+    List<Reading> readings, Settings settings,
+    pw.Font font, pw.Font fontBold, String unitLabel, bool isArabic,
+  ) {
     if (readings.isEmpty) {
-      return pw.Text('No data available for the selected period.', style: pw.TextStyle(font: font));
+      return pw.Text(
+        isArabic ? 'لا توجد بيانات للفترة المحددة.' : 'No data available for the selected period.',
+        style: pw.TextStyle(font: font),
+      );
     }
 
-    final values = readings.map((r) => r.value).toList();
-    final avg = (values.reduce((a, b) => a + b) / values.length).round();
-    final min = values.reduce((a, b) => a < b ? a : b);
-    final max = values.reduce((a, b) => a > b ? a : b);
-    final unitLabel = UnitConverter.unitLabel(settings.unit);
+    // Single-fold computation of avg/min/max (PERF-008 fix)
+    var sum = 0, min = readings.first.value, max = readings.first.value;
+    for (final r in readings) {
+      sum += r.value;
+      if (r.value < min) min = r.value;
+      if (r.value > max) max = r.value;
+    }
+    final avg = (sum / readings.length).round();
 
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
@@ -86,57 +98,67 @@ class PdfReportService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          _summaryItem('Average', '$avg $unitLabel', font),
-          _summaryItem('Minimum', '$min $unitLabel', font),
-          _summaryItem('Maximum', '$max $unitLabel', font),
+          _summaryItem(isArabic ? 'المتوسط' : 'Average', '$avg $unitLabel', font, fontBold),
+          _summaryItem(isArabic ? 'الأدنى' : 'Minimum', '$min $unitLabel', font, fontBold),
+          _summaryItem(isArabic ? 'الأعلى' : 'Maximum', '$max $unitLabel', font, fontBold),
         ],
       ),
     );
   }
 
-  static pw.Widget _summaryItem(String label, String value, pw.Font font) {
+  static pw.Widget _summaryItem(String label, String value, pw.Font font, pw.Font fontBold) {
     return pw.Column(
       children: [
         pw.Text(label, style: pw.TextStyle(font: font, fontSize: 12, color: PdfColors.grey700)),
-        pw.Text(value, style: pw.TextStyle(font: font, fontSize: 16, fontWeight: pw.FontWeight.bold)),
+        pw.Text(value, style: pw.TextStyle(font: fontBold, fontSize: 16)),
       ],
     );
   }
 
-  static List<pw.TableRow> _buildReadingsTable(List<Reading> readings, Settings settings, pw.Font font) {
-    final rows = <pw.TableRow>[];
-
-    // Header Row
-    rows.add(
-      pw.TableRow(
-        children: [
-          pw.Text('Date & Time', style: pw.TextStyle(font: font, fontWeight: pw.FontWeight.bold)),
-          pw.Text('Type', style: pw.TextStyle(font: font, fontWeight: pw.FontWeight.bold)),
-          pw.Text('Value', style: pw.TextStyle(font: font, fontWeight: pw.FontWeight.bold)),
-        ],
-      ),
-    );
-
-    for (var r in readings) {
-      rows.add(
+  static pw.Widget _buildReadingsTable(
+    List<Reading> readings, Settings settings,
+    pw.Font font, pw.Font fontBold, String unitLabel,
+  ) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey300),
+      columnWidths: {
+        0: const pw.FixedColumnWidth(100),
+        1: const pw.FixedColumnWidth(80),
+        2: const pw.FixedColumnWidth(60),
+        3: const pw.FlexColumnWidth(2),
+      },
+      children: [
         pw.TableRow(
-          children: [
-            pw.Text(_formatDateTime(r.timestamp), style: pw.TextStyle(font: font)),
-            pw.Text(r.type.name, style: pw.TextStyle(font: font)),
-            pw.Text('${r.value} ${UnitConverter.unitLabel(settings.unit)}', style: pw.TextStyle(font: font)),
-          ],
+          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          children: ['Date & Time', 'Type', 'Value', 'Notes'].map((h) =>
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(6),
+              child: pw.Text(h, style: pw.TextStyle(font: fontBold, fontSize: 9)),
+            )).toList(),
         ),
-      );
-    }
-
-    return rows;
+        ...readings.map((r) => pw.TableRow(
+          children: [
+            pw.Padding(padding: const pw.EdgeInsets.all(6),
+              child: pw.Text(_formatDateTime(r.timestamp),
+                style: pw.TextStyle(font: font, fontSize: 9))),
+            pw.Padding(padding: const pw.EdgeInsets.all(6),
+              child: pw.Text(r.type.name,
+                style: pw.TextStyle(font: font, fontSize: 9))),
+            pw.Padding(padding: const pw.EdgeInsets.all(6),
+              child: pw.Text('${r.value} $unitLabel',
+                style: pw.TextStyle(font: fontBold, fontSize: 9))),
+            pw.Padding(padding: const pw.EdgeInsets.all(6),
+              child: pw.Text(r.notes ?? '',
+                style: pw.TextStyle(font: font, fontSize: 9))),
+          ],
+        )),
+      ],
+    );
   }
 
-  static String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
+  static String _formatDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  static String _formatDateTime(DateTime dt) {
-    return '${_formatDate(dt)} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
+  static String _formatDateTime(DateTime d) =>
+      '${_formatDate(d)} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }

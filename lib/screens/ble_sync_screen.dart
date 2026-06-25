@@ -12,6 +12,7 @@
 // Platform:  Android / iOS / macOS / Windows only.
 //            Linux / Web → shows a graceful "not supported" screen.
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -48,7 +49,9 @@ class _BleSyncScreenState extends State<BleSyncScreen>
     with SingleTickerProviderStateMixin {
   OneTouchBleService? _service;
 
-  final _logs = <String>[];
+  // FIX-041 / PERF-005: Queue gives O(1) removeFirst vs O(n) removeRange on
+  // List, important since the log stream can fire many times per second.
+  final Queue<String> _logs = Queue<String>();
   final _scannedMeters = <DiscoveredMeter>[];
 
   bool _scanning = false;
@@ -73,22 +76,24 @@ class _BleSyncScreenState extends State<BleSyncScreen>
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+    ); // started/stopped on demand by _startScan / scan completion (FIX-041 / PERF-006)
     _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
     );
 
     if (isBleSupported) {
-      _service = OneTouchBleService(tryAuth: false);
+      _service = OneTouchBleService();
       _stateSub = _service!.stateStream.listen((s) {
         if (mounted) setState(() => _state = s);
       });
       _logSub = _service!.logStream.listen((line) {
         if (mounted) {
-          setState(() => _logs.add(line));
-          if (_logs.length > 200) {
-            _logs.removeRange(0, _logs.length - 200);
-          }
+          setState(() {
+            _logs.addLast(line);
+            if (_logs.length > 200) {
+              _logs.removeFirst(); // O(1) on Queue vs O(n) on List
+            }
+          });
         }
       });
     }
@@ -106,11 +111,14 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   // ── Scan ──────────────────────────────────────────────────────────────────
 
   Future<void> _startScan() async {
+    final strings = AppStrings.of(context);
     setState(() {
       _scanning = true;
       _scannedMeters.clear();
       _saved = false;
     });
+    // FIX-041 / PERF-006: only run the pulse animation while actively scanning.
+    _pulseCtrl.repeat(reverse: true);
 
     try {
       await _requestBlePermissions();
@@ -118,7 +126,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       final adapterState = await FlutterBluePlus.adapterState.first;
       if (adapterState != BluetoothAdapterState.on) {
         if (mounted) {
-          _showSnack('Please turn on Bluetooth and try again.');
+          _showSnack(strings.blePleaseEnableBt);
         }
         return;
       }
@@ -127,14 +135,13 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       if (mounted) setState(() => _scannedMeters.addAll(found));
 
       if (mounted && found.isEmpty) {
-        _showSnack(
-          'No OneTouch meters found. Make sure the meter\'s BT is on '
-          '(press ▲+▼ on the meter).',
-        );
+        _showSnack(strings.bleNoMetersFound);
       }
     } catch (e) {
-      if (mounted) _showSnack('Scan failed: $e');
+      if (mounted) _showSnack(strings.bleScanFailed(e));
     } finally {
+      // Stop the pulse animation whenever scan ends (success, failure, or early return).
+      _pulseCtrl.stop();
       if (mounted) setState(() => _scanning = false);
     }
   }
@@ -175,6 +182,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   // ── Save ──────────────────────────────────────────────────────────────────
 
   Future<void> _saveToGlucoTrack() async {
+    final strings = AppStrings.of(context);
     final records = _state.records;
     if (records.isEmpty) return;
 
@@ -198,7 +206,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
         value: rec.glucoseMgDl,
         type: _mealFlagToReadingType(rec.mealFlag),
         timestamp: rec.timestamp,
-        notes: 'Synced from meter',
+        notes: strings.bleSyncedFromMeter,
       );
       await db.insertReading(reading);
       await rProv.add(reading);
@@ -210,10 +218,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       _saved = true;
       _selectedSeqs.clear();
     });
-    _showSnack(
-      'Saved $inserted new reading(s)'
-      '${skipped > 0 ? ', skipped $skipped duplicate(s)' : ''}.',
-    );
+    _showSnack(strings.bleSaveResult(inserted, skipped));
   }
 
   // ── Reset ─────────────────────────────────────────────────────────────────
@@ -256,6 +261,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final strings = AppStrings.of(context);
     final rProv = context.watch<ReadingsProvider>();
 
     final records = _state.records;
@@ -275,10 +281,10 @@ class _BleSyncScreenState extends State<BleSyncScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sync from Meter'),
+        title: Text(strings.bleSyncTitle),
         actions: [
           IconButton(
-            tooltip: 'How to sync',
+            tooltip: strings.bleHelpTooltip,
             icon: const Icon(Icons.help_outline),
             onPressed: () => _showHelpDialog(context),
           ),
@@ -295,6 +301,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   // ── Unsupported Platform ───────────────────────────────────────────────────
 
   Widget _buildUnsupportedView(Color primary) {
+    final strings = AppStrings.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -312,7 +319,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
             ),
             const SizedBox(height: 24),
             Text(
-              'BLE Sync Not Available',
+              strings.bleUnavailableTitle,
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
@@ -321,8 +328,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
             ),
             const SizedBox(height: 12),
             Text(
-              bleUnsupportedReason ??
-                  'Bluetooth LE sync is not supported on this platform.',
+              bleUnsupportedReason ?? strings.bleUnavailableDesc,
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
@@ -332,7 +338,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
             const SizedBox(height: 32),
             OutlinedButton.icon(
               icon: const Icon(Icons.android),
-              label: const Text('Available on Android & iOS'),
+              label: Text(strings.bleAvailablePlatforms),
               onPressed: null, // disabled — informational
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
@@ -348,6 +354,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   // ── Scan View ─────────────────────────────────────────────────────────────
 
   Widget _buildScanView(Color primary) {
+    final strings = AppStrings.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -362,7 +369,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              '${_scannedMeters.length} meter(s) found nearby',
+              strings.bleMetersFound(_scannedMeters.length),
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
             ),
           ),
@@ -378,6 +385,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
 
   Widget _buildSyncView() {
     final s = context.watch<SettingsProviderState>().settings;
+    final strings = AppStrings.of(context);
     final rProv = context.watch<ReadingsProvider>();
     final fmt = DateFormat('yyyy-MM-dd HH:mm');
     final records = _state.records;
@@ -393,6 +401,10 @@ class _BleSyncScreenState extends State<BleSyncScreen>
     final allSelected = unsavedRecords.isNotEmpty && unsavedRecords.every((rec) => _selectedSeqs.contains(rec.sequenceNumber));
     final someSelected = unsavedRecords.isNotEmpty && unsavedRecords.any((rec) => _selectedSeqs.contains(rec.sequenceNumber)) && !allSelected;
 
+    // FIX-041 / PERF-005: _logs is a Queue — snapshot it to a List for indexed
+    // access in the debug-log ListView below.
+    final logList = _logs.toList();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -406,18 +418,14 @@ class _BleSyncScreenState extends State<BleSyncScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                s.language == Language.ar 
-                    ? 'السجلات المتزامنة (${records.length})' 
-                    : 'Synced records (${records.length})',
+                strings.bleSyncedRecords(records.length),
                 style: const TextStyle(
                     fontWeight: FontWeight.w700, fontSize: 15),
               ),
               if (!_saved && isDone)
                 FilledButton.icon(
                   icon: const Icon(Icons.save_alt, size: 18),
-                  label: Text(s.language == Language.ar
-                      ? 'حفظ المحدد (${_selectedSeqs.length})'
-                      : 'Save selected (${_selectedSeqs.length})'),
+                  label: Text(strings.bleSaveSelected(_selectedSeqs.length)),
                   onPressed: _selectedSeqs.isEmpty ? null : _saveToGlucoTrack,
                 ),
             ],
@@ -447,9 +455,9 @@ class _BleSyncScreenState extends State<BleSyncScreen>
                     },
                   ),
                   Text(
-                    allSelected 
-                        ? (s.language == Language.ar ? 'إلغاء تحديد الكل' : 'Deselect all new')
-                        : (s.language == Language.ar ? 'تحديد الكل الجديد' : 'Select all new'),
+                    allSelected
+                        ? strings.bleDeselectAllNew
+                        : strings.bleSelectAllNew,
                     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                 ],
@@ -487,16 +495,18 @@ class _BleSyncScreenState extends State<BleSyncScreen>
         if (_saved)
           Card(
             color: Colors.green.shade50,
-            child: const ListTile(
-              leading: Icon(Icons.check_circle, color: Colors.green),
-              title: Text('Records saved to GlucoTrack'),
+            child: ListTile(
+              leading: const Icon(Icons.check_circle, color: Colors.green),
+              title: Text(strings.bleRecordsSaved),
             ),
           ),
 
         // ── Debug log ──
+        // FIX-041 / PERF-005: logList is the List snapshot of the _logs Queue
+        // (see top of _buildSyncView).
         ExpansionTile(
           leading: const Icon(Icons.terminal, size: 18),
-          title: Text('Debug log (${_logs.length} lines)',
+          title: Text(strings.bleDebugLog(logList.length),
               style: const TextStyle(fontSize: 13)),
           children: [
             Container(
@@ -507,9 +517,9 @@ class _BleSyncScreenState extends State<BleSyncScreen>
               ),
               child: ListView.builder(
                 padding: const EdgeInsets.all(8),
-                itemCount: _logs.length,
+                itemCount: logList.length,
                 itemBuilder: (_, i) => Text(
-                  _logs[i],
+                  logList[i],
                   style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 10.5,
@@ -526,7 +536,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
         if (isDone || isError)
           OutlinedButton.icon(
             icon: const Icon(Icons.refresh),
-            label: const Text('Start over'),
+            label: Text(strings.bleStartOver),
             onPressed: _reset,
           ),
       ],
@@ -536,43 +546,35 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   // ── Help dialog ───────────────────────────────────────────────────────────
 
   void _showHelpDialog(BuildContext context) {
+    final strings = AppStrings.of(context);
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('How to sync your meter'),
-        content: const SingleChildScrollView(
+        title: Text(strings.bleHelpTitle),
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _HelpStep(n: '1', text: 'Put meter into BT mode:'),
+              _HelpStep(n: '1', text: strings.bleHelpStep1),
               Padding(
-                padding: EdgeInsets.only(left: 16, bottom: 8),
-                child: Text('• Press OK to turn the meter on\n'
-                    '• Press ▲ + ▼ together — BT icon appears'),
+                padding: const EdgeInsets.only(left: 16, bottom: 8),
+                child: Text(strings.bleHelpStep1Detail),
               ),
-              _HelpStep(n: '2', text: 'Tap "Scan for OneTouch meters"'),
-              _HelpStep(n: '3', text: 'Tap your meter in the list'),
-              _HelpStep(
-                  n: '4',
-                  text: 'Enter the 6-digit PIN shown on the meter LCD '
-                      'when the pairing dialog appears'),
-              _HelpStep(n: '5', text: 'Wait for sync to complete'),
-              _HelpStep(
-                  n: '6',
-                  text: 'Tap "Save all" to persist records to GlucoTrack'),
-              SizedBox(height: 12),
-              Divider(),
-              SizedBox(height: 8),
-              Text('Tips',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              SizedBox(height: 4),
+              _HelpStep(n: '2', text: strings.bleHelpStep2),
+              _HelpStep(n: '3', text: strings.bleHelpStep3),
+              _HelpStep(n: '4', text: strings.bleHelpStep4),
+              _HelpStep(n: '5', text: strings.bleHelpStep5),
+              _HelpStep(n: '6', text: strings.bleHelpStep6),
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(strings.bleTips,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 4),
               Text(
-                '• BT turns off during a blood test and back on afterwards.\n'
-                '• Stay within 8 m of the phone.\n'
-                '• Re-syncing won\'t create duplicates — records are '
-                'identified by meter ID + sequence number.',
-                style: TextStyle(fontSize: 13, height: 1.5),
+                strings.bleTipsText,
+                style: const TextStyle(fontSize: 13, height: 1.5),
               ),
             ],
           ),
@@ -580,7 +582,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Got it'),
+            child: Text(strings.bleGotIt),
           ),
         ],
       ),
@@ -599,6 +601,7 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -631,7 +634,7 @@ class _HeroCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'OneTouch Select Plus Flex',
+                    strings.bleHeroDevice,
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium
@@ -639,8 +642,7 @@ class _HeroCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Sync glucose readings wirelessly over Bluetooth LE. '
-                    'Records are saved locally on this device.',
+                    strings.bleHeroDesc,
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall
@@ -663,9 +665,10 @@ class _ScanButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return FilledButton.icon(
       icon: const Icon(Icons.bluetooth_searching),
-      label: const Text('Scan for OneTouch meters'),
+      label: Text(strings.bleScanButton),
       onPressed: onPressed,
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
@@ -683,6 +686,7 @@ class _ScanningCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return Card(
       elevation: 0,
       color: primary.withValues(alpha: 0.06),
@@ -698,13 +702,13 @@ class _ScanningCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'Scanning for OneTouch meters…',
+            strings.bleScanning,
             style: TextStyle(fontWeight: FontWeight.w600, color: primary),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Make sure BT is enabled on the meter (▲+▼)',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+          Text(
+            strings.bleScanningHint,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ]),
       ),
@@ -720,6 +724,7 @@ class _MeterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final strings = AppStrings.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -748,8 +753,8 @@ class _MeterCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: const Text('Connect',
-              style: TextStyle(
+          child: Text(strings.bleConnect,
+              style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                   fontSize: 13)),
@@ -767,6 +772,7 @@ class _ProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final strings = AppStrings.of(context);
     final isDone = state.phase == SyncPhase.done;
     final isError = state.phase == SyncPhase.error;
 
@@ -793,7 +799,7 @@ class _ProgressCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   state.message.isEmpty
-                      ? _phaseLabel(state.phase)
+                      ? _phaseLabel(state.phase, strings)
                       : state.message,
                   style: const TextStyle(
                       fontWeight: FontWeight.w600, fontSize: 14),
@@ -814,8 +820,8 @@ class _ProgressCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               isError
-                  ? 'Failed'
-                  : '${(state.fraction * 100).round()}% complete',
+                  ? strings.bleFailed
+                  : strings.blePercentComplete((state.fraction * 100).round()),
               style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ],
@@ -839,18 +845,17 @@ class _ProgressCard extends StatelessWidget {
     );
   }
 
-  String _phaseLabel(SyncPhase p) {
+  String _phaseLabel(SyncPhase p, AppStrings strings) {
     switch (p) {
-      case SyncPhase.idle:           return 'Idle';
-      case SyncPhase.scanning:       return 'Scanning…';
-      case SyncPhase.connecting:     return 'Connecting…';
-      case SyncPhase.discovering:    return 'Discovering services…';
-      case SyncPhase.subscribing:    return 'Subscribing to notifications…';
-      case SyncPhase.authenticating: return 'Authenticating…';
-      case SyncPhase.readingMetadata:return 'Reading meter metadata…';
-      case SyncPhase.readingRecords: return 'Reading records…';
-      case SyncPhase.done:           return 'Sync complete';
-      case SyncPhase.error:          return 'Sync failed';
+      case SyncPhase.idle:           return strings.blePhaseIdle;
+      case SyncPhase.scanning:       return strings.blePhaseScanning;
+      case SyncPhase.connecting:     return strings.blePhaseConnecting;
+      case SyncPhase.discovering:    return strings.blePhaseDiscovering;
+      case SyncPhase.subscribing:    return strings.blePhaseSubscribing;
+      case SyncPhase.readingMetadata:return strings.blePhaseReadingMetadata;
+      case SyncPhase.readingRecords: return strings.blePhaseReadingRecords;
+      case SyncPhase.done:           return strings.blePhaseDone;
+      case SyncPhase.error:          return strings.blePhaseError;
     }
   }
 }
@@ -880,6 +885,7 @@ class _RecordTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     final color = _glucoseColor(record.glucoseMgDl, settings);
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -900,12 +906,12 @@ class _RecordTile extends StatelessWidget {
         ),
         title: Text(
           '${UnitConverter.formatWithUnit(record.glucoseMgDl, settings.unit)}'
-          '${record.isControlSolution ? ' (control solution)' : ''}',
+          '${record.isControlSolution ? ' ${strings.bleControlSolution}' : ''}',
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
         subtitle: Text(
           '${fmt.format(record.timestamp)} · seq ${record.sequenceNumber}'
-          '${record.mealFlag != 0 ? ' · ${_mealLabel(record.mealFlag)}' : ''}',
+          '${record.mealFlag != 0 ? ' · ${_mealLabel(record.mealFlag, strings)}' : ''}',
           style: const TextStyle(fontSize: 12),
         ),
         trailing: alreadySaved
@@ -916,7 +922,7 @@ class _RecordTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  settings.language == Language.ar ? 'تم الحفظ' : 'Saved',
+                  strings.bleSaved,
                   style: const TextStyle(
                     color: Colors.grey,
                     fontSize: 11,
@@ -932,10 +938,10 @@ class _RecordTile extends StatelessWidget {
     );
   }
 
-  String _mealLabel(int flag) {
+  String _mealLabel(int flag, AppStrings strings) {
     switch (flag) {
-      case 1:  return 'before meal';
-      case 2:  return 'after meal';
+      case 1:  return strings.bleBeforeMealShort;
+      case 2:  return strings.bleAfterMealShort;
       default: return '';
     }
   }
@@ -946,6 +952,7 @@ class _PairingHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return Card(
       elevation: 0,
       color: Colors.amber.shade50,
@@ -964,13 +971,11 @@ class _PairingHint extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('First-time pairing',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(strings.blePairingTitle,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
-                    'The meter must be paired with this phone via Android '
-                    'Bluetooth settings first. When the pairing dialog appears, '
-                    'enter the 6-digit PIN shown on the meter\'s LCD screen.',
+                    strings.blePairingDesc,
                     style: TextStyle(
                         fontSize: 12.5,
                         color: Colors.brown.shade700,
