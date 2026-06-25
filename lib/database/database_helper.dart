@@ -25,7 +25,7 @@ class DatabaseHelper {
   Future<Database> _open() async {
     final bool isMobile = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
-         defaultTargetPlatform == TargetPlatform.iOS);
+            defaultTargetPlatform == TargetPlatform.iOS);
 
     final String dbPath;
     if (isMobile) {
@@ -37,7 +37,11 @@ class DatabaseHelper {
     final key = await KeystoreService().getDbKey();
 
     Future<void> onConfigure(Database db) async {
-      await db.execute('PRAGMA journal_mode=WAL');
+      try {
+        await db.execute('PRAGMA journal_mode=WAL');
+      } catch (e) {
+        debugPrint('Failed to set WAL mode: $e');
+      }
       await db.execute('PRAGMA foreign_keys=ON');
     }
 
@@ -53,7 +57,8 @@ class DatabaseHelper {
           insulin INTEGER
         )
       ''');
-      await db.execute('CREATE INDEX idx_readings_timestamp ON readings(timestamp)');
+      await db.execute(
+          'CREATE INDEX idx_readings_timestamp ON readings(timestamp)');
       await db.execute('CREATE INDEX idx_readings_type ON readings(type)');
 
       await db.execute('''
@@ -126,7 +131,8 @@ class DatabaseHelper {
 
   Future<Reading> insertReading(Reading r) async {
     final db = await this.db;
-    await db.insert('readings', r.toDb(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('readings', r.toDb(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
     return r;
   }
 
@@ -153,7 +159,8 @@ class DatabaseHelper {
 
   Future<Reminder> insertReminder(Reminder r) async {
     final db = await this.db;
-    await db.insert('reminders', r.toDb(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('reminders', r.toDb(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
     return r;
   }
 
