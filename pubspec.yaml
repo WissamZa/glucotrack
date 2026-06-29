@@ -27,7 +27,7 @@ dependencies:
   pointycastle: ^4.0.0
   printing: ^5.15.0
   provider: ^6.1.2
-  share_plus: ^13.1.0
+  share_plus: ^13.2.0
   sqflite_common_ffi: ^2.3.4
   sqflite_common_ffi_web: ^1.1.2
   sqflite_sqlcipher: ^3.4.0
