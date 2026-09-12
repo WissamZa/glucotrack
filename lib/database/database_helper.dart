@@ -50,10 +50,11 @@ class DatabaseHelper {
 
     Future<void> onCreate(Database db, int version) async {
       // Fresh installs walk the exact same path as upgrades: the v2 schema
-      // followed by the additive v3 migration. One source of truth per table
+      // followed by the additive migrations. One source of truth per table
       // version means the migration path stays exercised by tests.
       await createSchemaV2(db);
       await migrateToV3(db);
+      await migrateToV4(db);
     }
 
     Future<void> onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -65,13 +66,19 @@ class DatabaseHelper {
       if (oldVersion < 3) {
         await migrateToV3(db);
       }
+      // v4 — additive only: richer medication schedules (weekday mask +
+      // multiple times per day), the medication-taken log, and the
+      // uses_insulin preference. Never touches existing rows.
+      if (oldVersion < 4) {
+        await migrateToV4(db);
+      }
     }
 
     if (isMobile) {
       return sqlcipher.openDatabase(
         path,
         password: key,
-        version: 3,
+        version: 4,
         onConfigure: onConfigure,
         onCreate: onCreate,
         onUpgrade: onUpgrade,
@@ -80,7 +87,7 @@ class DatabaseHelper {
       return databaseFactory.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 3,
+          version: 4,
           onConfigure: onConfigure,
           onCreate: onCreate,
           onUpgrade: onUpgrade,
@@ -145,6 +152,33 @@ class DatabaseHelper {
     await db.execute('ALTER TABLE settings ADD COLUMN height_cm REAL');
     await _createHealthMetrics(db);
     await _createWaterLog(db);
+  }
+
+  /// v3 → v4 migration — additive only: richer medication schedules
+  /// (weekday mask + multiple times per day), the medication-taken log,
+  /// and the uses_insulin preference.
+  @visibleForTesting
+  static Future<void> migrateToV4(Database db) async {
+    await db.execute(
+      'ALTER TABLE reminders ADD COLUMN days_mask INTEGER NOT NULL DEFAULT 127',
+    );
+    await db.execute('ALTER TABLE reminders ADD COLUMN times TEXT');
+    await db.execute(
+      'ALTER TABLE settings ADD COLUMN uses_insulin INTEGER NOT NULL DEFAULT 0',
+    );
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS medication_log (
+        id TEXT PRIMARY KEY,
+        reminder_id TEXT NOT NULL,
+        taken_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_medication_log_taken ON medication_log(taken_at)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_medication_log_reminder ON medication_log(reminder_id)',
+    );
   }
 
   static Future<void> _createHealthMetrics(Database db) async {
@@ -230,6 +264,46 @@ class DatabaseHelper {
   Future<void> deleteReminder(String id) async {
     final db = await this.db;
     await db.delete('reminders', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ===== Medication log =====
+  Future<List<MedicationLogEntry>> getMedicationLog({
+    String? reminderId,
+  }) async {
+    final db = await this.db;
+    final rows = await db.query(
+      'medication_log',
+      where: reminderId != null ? 'reminder_id = ?' : null,
+      whereArgs: reminderId != null ? [reminderId] : null,
+      orderBy: 'taken_at DESC',
+    );
+    return rows.map(MedicationLogEntry.fromDb).toList();
+  }
+
+  Future<MedicationLogEntry> insertMedicationLog(MedicationLogEntry e) async {
+    final db = await this.db;
+    await db.insert(
+      'medication_log',
+      e.toDb(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    return e;
+  }
+
+  Future<void> deleteMedicationLog(String id) async {
+    final db = await this.db;
+    await db.delete('medication_log', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Removes the whole log trail of a deleted reminder (keeps the table tidy
+  /// without orphan rows).
+  Future<void> deleteMedicationLogForReminder(String reminderId) async {
+    final db = await this.db;
+    await db.delete(
+      'medication_log',
+      where: 'reminder_id = ?',
+      whereArgs: [reminderId],
+    );
   }
 
   // ===== Settings (singleton) =====

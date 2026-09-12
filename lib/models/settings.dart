@@ -23,6 +23,7 @@ class Settings {
   final String userName;
   final bool onboarded;
   final double? heightCm; // optional — enables BMI calculation
+  final bool usesInsulin; // shows the insulin field when adding readings
 
   const Settings({
     this.language = Language.ar,
@@ -34,6 +35,7 @@ class Settings {
     this.userName = '',
     this.onboarded = false,
     this.heightCm,
+    this.usesInsulin = false,
   });
 
   bool get isRtl => language == Language.ar;
@@ -65,6 +67,7 @@ class Settings {
     String? userName,
     bool? onboarded,
     double? heightCm,
+    bool? usesInsulin,
   }) => Settings(
     language: language ?? this.language,
     theme: theme ?? this.theme,
@@ -75,6 +78,7 @@ class Settings {
     userName: userName ?? this.userName,
     onboarded: onboarded ?? this.onboarded,
     heightCm: heightCm ?? this.heightCm,
+    usesInsulin: usesInsulin ?? this.usesInsulin,
   );
 }
 

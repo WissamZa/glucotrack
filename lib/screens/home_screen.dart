@@ -17,6 +17,7 @@ import '../utils/trend_analysis.dart';
 import '../utils/unit_converter.dart';
 import '../widgets/emergency_guidance_dialog.dart';
 import '../widgets/reading_actions.dart';
+import '../widgets/screen_padding.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -147,7 +148,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          tabBarBottomClearance(context),
+        ),
         children: [
           if (latest != null)
             _ReadingHero(latest: latest, trend: trend, unit: s.unit),

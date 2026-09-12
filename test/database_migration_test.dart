@@ -176,15 +176,16 @@ void main() {
     });
   });
 
-  group('fresh install path (v2 schema + migration)', () {
-    test('onCreate-equivalent path produces a working v3 database', () async {
+  group('fresh install path (v2 schema + migrations)', () {
+    test('onCreate-equivalent path produces a working v4 database', () async {
       final db = await databaseFactory.openDatabase(
         inMemoryDatabasePath,
         options: OpenDatabaseOptions(
-          version: 3,
+          version: 4,
           onCreate: (db, version) async {
             await DatabaseHelper.createSchemaV2(db);
             await DatabaseHelper.migrateToV3(db);
+            await DatabaseHelper.migrateToV4(db);
           },
         ),
       );
@@ -218,6 +219,7 @@ void main() {
         'user_name': '',
         'onboarded': 0,
         'height_cm': 175.0,
+        'uses_insulin': 1,
       });
       await db.insert(
         'health_metrics',
@@ -228,17 +230,95 @@ void main() {
         ).toDb(),
       );
       await db.insert('water_log', {'date': '2026-09-12', 'cups': 3});
+      await db.insert(
+        'medication_log',
+        MedicationLogEntry(
+          id: 'log1',
+          reminderId: 'rem1',
+          takenAt: DateTime(2026, 9, 12, 8),
+        ).toDb(),
+      );
 
       expect((await db.query('readings')).length, 1);
       final rem = Reminder.fromDb((await db.query('reminders')).first);
       expect(rem.kind, ReminderKind.medication);
       final settingsRow = (await db.query('settings')).first;
       expect(settingsRow['height_cm'], 175.0);
+      expect(settingsRow['uses_insulin'], 1);
       expect((await db.query('health_metrics')).length, 1);
       expect((await db.query('water_log')).length, 1);
+      expect((await db.query('medication_log')).length, 1);
 
       await db.close();
     });
+  });
+
+  group('v3 → v4 migration preserves user data', () {
+    test('reminders keep meaning; days_mask defaults to every day', () async {
+      final db = await openV2Database();
+      await DatabaseHelper.migrateToV3(db);
+      await db.insert('reminders', {
+        'id': 'rem1',
+        'time': '20:00',
+        'label': 'ميتفورمين · 500 ملغ',
+        'type': 'other',
+        'enabled': 1,
+        'kind': 'medication',
+      });
+
+      await DatabaseHelper.migrateToV4(db);
+
+      final r = Reminder.fromDb((await db.query('reminders')).first);
+      expect(r.kind, ReminderKind.medication);
+      expect(
+        r.daysMask,
+        WeekdayBits.everyDay,
+        reason: 'Pre-v4 reminders must keep firing every day',
+      );
+      expect(r.effectiveTimes, ['20:00']);
+      expect(r.timesPerDay, 1);
+
+      await db.close();
+    });
+
+    test(
+      'settings keep uses_insulin = 0 and medication_log is usable',
+      () async {
+        final db = await openV2Database();
+        await DatabaseHelper.migrateToV3(db);
+        await db.insert('settings', {
+          'id': 1,
+          'language': 'en',
+          'theme': 'elder',
+          'diabetes_type': 'type1',
+          'target_min': 80,
+          'target_max': 180,
+          'unit': 'mg_dL',
+          'user_name': 'Wissam',
+          'onboarded': 1,
+        });
+
+        await DatabaseHelper.migrateToV4(db);
+
+        final settingsRow = (await db.query('settings')).first;
+        expect(settingsRow['user_name'], 'Wissam');
+        expect(settingsRow['uses_insulin'], 0);
+
+        await db.insert(
+          'medication_log',
+          MedicationLogEntry(
+            id: 'log1',
+            reminderId: 'remX',
+            takenAt: DateTime(2026, 9, 12, 21, 30),
+          ).toDb(),
+        );
+        final log = await db.query('medication_log');
+        expect(log.length, 1);
+        expect(MedicationLogEntry.fromDb(log.first).takenAt.hour, 21);
+
+        await db.close();
+      },
+    );
   });
 
   // ── Reminder model backward compatibility (old backups / DB rows) ────────

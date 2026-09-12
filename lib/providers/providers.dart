@@ -3,6 +3,7 @@
 // Uses Provider for state management. All DB mutations go through these
 // providers and notify listeners automatically.
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../database/database_helper.dart';
 import '../i18n/strings.dart';
@@ -91,13 +92,36 @@ class RemindersProvider extends ChangeNotifier {
   final _db = DatabaseHelper();
   final _notif = NotificationService();
   List<Reminder> _reminders = [];
+  final Map<String, List<MedicationLogEntry>> _medLog = {};
 
   List<Reminder> get reminders => List.unmodifiable(_reminders);
   int get activeCount => _reminders.where((r) => r.enabled).length;
 
+  /// Medication-taken history per reminder id, newest first.
+  List<MedicationLogEntry> medicationLogFor(String reminderId) =>
+      List.unmodifiable(_medLog[reminderId] ?? const []);
+
+  /// How many doses were logged for [reminderId] today.
+  int takenTodayCount(String reminderId) {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    return (_medLog[reminderId] ?? const [])
+        .where((e) => e.takenAt.isAfter(todayStart))
+        .length;
+  }
+
   Future<void> load() async {
     _reminders = await _db.getReminders();
     _reminders.sort((a, b) => a.time.compareTo(b.time));
+    final log = await _db.getMedicationLog();
+    _medLog
+      ..clear()
+      ..addEntries(
+        log.map((e) => MapEntry(e.reminderId, <MedicationLogEntry>[])),
+      );
+    for (final e in log) {
+      _medLog[e.reminderId]!.add(e);
+    }
     notifyListeners();
   }
 
@@ -112,9 +136,16 @@ class RemindersProvider extends ChangeNotifier {
   }
 
   Future<void> update(Reminder r) async {
-    await _db.updateReminder(r);
     final i = _reminders.indexWhere((x) => x.id == r.id);
+    final old = i >= 0 ? _reminders[i] : null;
+    await _db.updateReminder(r);
     if (i >= 0) _reminders[i] = r;
+    // The schedule (days × times) may have changed: cancel every pending
+    // notification of the OLD schedule before installing the new one.
+    if (old != null) await _cancelNotification(old);
+    if (r.enabled) {
+      await _scheduleNotification(r);
+    }
     notifyListeners();
   }
 
@@ -127,37 +158,90 @@ class RemindersProvider extends ChangeNotifier {
     if (updated.enabled) {
       await _scheduleNotification(updated);
     } else {
-      await _notif.cancelReminder(id.hashCode);
+      await _cancelNotification(updated);
     }
     notifyListeners();
   }
 
   Future<void> remove(String id) async {
+    final i = _reminders.indexWhere((x) => x.id == id);
+    if (i >= 0) await _cancelNotification(_reminders[i]);
     await _db.deleteReminder(id);
-    await _notif.cancelReminder(id.hashCode);
-    _reminders.removeWhere((r) => r.id == id);
+    await _db.deleteMedicationLogForReminder(id);
+    _medLog.remove(id);
+    if (i >= 0) _reminders.removeAt(i);
     notifyListeners();
   }
 
-  Future<void> _scheduleNotification(Reminder r) async {
-    final parts = r.time.split(':');
-    if (parts.length != 2) return;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return;
-    final isMedication = r.kind == ReminderKind.medication;
-    await _notif.scheduleDailyReminder(
-      id: r.id.hashCode,
-      hour: hour,
-      minute: minute,
-      title: 'GlucoTrack',
-      body: r.label.isEmpty
-          ? (isMedication
-                ? 'Time to take your medication'
-                : 'Time to measure your blood glucose')
-          : r.label,
-      medication: isMedication,
+  /// Log a "medication taken" event now.
+  Future<void> markTaken(String reminderId) async {
+    final entry = MedicationLogEntry(
+      id: const Uuid().v4(),
+      reminderId: reminderId,
+      takenAt: DateTime.now(),
     );
+    await _db.insertMedicationLog(entry);
+    _medLog
+        .putIfAbsent(reminderId, () => <MedicationLogEntry>[])
+        .insert(0, entry);
+    notifyListeners();
+  }
+
+  /// Stable unique notification id per (reminder, weekday, time) combo.
+  /// String.hashCode is deterministic across runs, so cancelling works
+  /// after app restarts.
+  static int _notificationId(Reminder r, int? weekday, String time) {
+    final parts = time.split(':');
+    final hour = int.tryParse(parts[0]) ?? 0;
+    final minute = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0;
+    return Object.hash(r.id, weekday, hour, minute) & 0x7FFFFFFF;
+  }
+
+  Future<void> _scheduleNotification(Reminder r) async {
+    final isMedication = r.kind == ReminderKind.medication;
+    final weekdays = _activeWeekdays(r);
+    if (weekdays.isEmpty) return;
+
+    for (final weekday in weekdays) {
+      for (final time in r.effectiveTimes) {
+        final parts = time.split(':');
+        final hour = int.tryParse(parts[0]);
+        final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+        if (hour == null || minute == null) continue;
+        await _notif.scheduleReminder(
+          id: _notificationId(r, weekday, time),
+          weekday: weekday,
+          hour: hour,
+          minute: minute,
+          title: 'GlucoTrack',
+          body: r.label.isEmpty
+              ? (isMedication
+                    ? 'Time to take your medication'
+                    : 'Time to measure your blood glucose')
+              : r.label,
+          medication: isMedication,
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelNotification(Reminder r) async {
+    for (final weekday in _activeWeekdays(r)) {
+      for (final time in r.effectiveTimes) {
+        await _notif.cancelReminder(_notificationId(r, weekday, time));
+      }
+    }
+  }
+
+  /// Weekdays to schedule for a reminder: null (= every day) for measurement
+  /// reminders, or the active weekday numbers (DateTime.monday..sunday) for
+  /// medications honoring the day mask.
+  static List<int?> _activeWeekdays(Reminder r) {
+    if (r.kind == ReminderKind.measurement) return <int?>[null];
+    return <int?>[
+      for (var bit = 0; bit < 7; bit++)
+        if ((r.daysMask & (1 << bit)) != 0) bit + 1,
+    ];
   }
 }
 
@@ -252,6 +336,7 @@ extension SettingsProviderPersistence on SettingsProviderState {
         userName: (row['user_name'] as String?) ?? '',
         onboarded: (row['onboarded'] as int) == 1,
         heightCm: (row['height_cm'] as num?)?.toDouble(),
+        usesInsulin: (row['uses_insulin'] as int? ?? 0) == 1,
       ),
     );
   }
@@ -267,6 +352,7 @@ extension SettingsProviderPersistence on SettingsProviderState {
       'user_name': s.userName,
       'onboarded': s.onboarded ? 1 : 0,
       'height_cm': s.heightCm,
+      'uses_insulin': s.usesInsulin ? 1 : 0,
     });
     update(s);
   }
@@ -281,6 +367,7 @@ extension SettingsProviderPersistence on SettingsProviderState {
       'unit': 'mg_dL',
       'user_name': '',
       'onboarded': 0,
+      'uses_insulin': 0,
     });
     update(const Settings());
   }

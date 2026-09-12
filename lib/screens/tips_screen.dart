@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../data/health_tips.dart';
 import '../i18n/strings.dart';
 import '../models/settings.dart';
+import '../widgets/screen_padding.dart';
 
 class TipsScreen extends StatefulWidget {
   const TipsScreen({super.key});
@@ -68,7 +69,12 @@ class _TipsScreenState extends State<TipsScreen> {
           ),
           Expanded(
             child: ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                pushedScreenBottomClearance(context),
+              ),
               itemCount: tips.length,
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (_, i) {

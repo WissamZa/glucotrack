@@ -301,7 +301,9 @@ class _MainShellState extends State<MainShell> {
         tooltip: strings.tooltipAddReading,
         child: const Icon(Icons.add, size: 28),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      // Same as centerDocked but nudged ~10px lower, per user preference —
+      // the notch follows the FAB automatically.
+      floatingActionButtonLocation: const LowerCenterDockedFabLocation(),
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
@@ -363,5 +365,21 @@ class _MainShellState extends State<MainShell> {
         ),
       ),
     );
+  }
+}
+
+/// [FloatingActionButtonLocation.centerDocked] with a small downward offset
+/// so the add-reading FAB sits slightly lower in the BottomAppBar notch.
+class LowerCenterDockedFabLocation extends FloatingActionButtonLocation {
+  const LowerCenterDockedFabLocation();
+
+  static const double _lowerBy = 10;
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
+    final base = FloatingActionButtonLocation.centerDocked.getOffset(
+      scaffoldGeometry,
+    );
+    return Offset(base.dx, base.dy + _lowerBy);
   }
 }

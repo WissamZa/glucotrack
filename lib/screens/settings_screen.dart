@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
@@ -7,7 +11,11 @@ import '../database/database_helper.dart';
 import '../i18n/strings.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
+import '../services/drive_sync_service.dart';
+import '../utils/backup_merge.dart';
+import '../utils/export_import.dart';
 import '../utils/unit_converter.dart';
+import '../widgets/screen_padding.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -49,7 +57,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(strings.settings)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        // Bottom clearance for the MainShell BottomAppBar + gesture inset so
+        // the last items are fully reachable.
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          tabBarBottomClearance(context),
+        ),
         children: [
           _SectionTitle(strings.appearance),
           _Card(
@@ -176,6 +191,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
 
           _SectionTitle(strings.health),
+          // Insulin preference — controls whether the insulin dose field is
+          // offered when adding a reading.
+          _Card(
+            child: Row(
+              children: [
+                Icon(
+                  Icons.vaccines,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        strings.usesInsulinLabel,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        strings.usesInsulinHint,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: s.usesInsulin,
+                  onChanged: (v) => _update(prov, usesInsulin: v),
+                ),
+              ],
+            ),
+          ),
           _Card(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,77 +514,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
 
           _SectionTitle(strings.integrations),
-          _Card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF3B82F6), Color(0xFF22C55E)],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.cloud, color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Google Drive',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            strings.comingSoon,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        strings.comingSoon,
-                        style: const TextStyle(
-                          color: Color(0xFFF59E0B),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    strings.comingSoonDesc,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const _DriveSyncCard(),
           // ── BLE Meter Sync — LIVE ─────────────────────────────────────
           _Card(
             child: InkWell(
@@ -708,6 +688,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? userName,
     bool? onboarded,
     double? heightCm,
+    bool? usesInsulin,
   }) async {
     final next = prov.settings.copyWith(
       language: language,
@@ -719,6 +700,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       userName: userName,
       onboarded: onboarded,
       heightCm: heightCm,
+      usesInsulin: usesInsulin,
     );
 
     // FIX-029 / BUG-005: validate before persisting so invalid ranges
@@ -855,6 +837,282 @@ class _Card extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Card(
         child: Padding(padding: const EdgeInsets.all(16), child: child),
+      ),
+    );
+  }
+}
+
+/// Google Drive backup sync card — least-privilege (drive.appdata scope
+/// only): the app can touch its own hidden app-data folder and nothing else.
+class _DriveSyncCard extends StatefulWidget {
+  const _DriveSyncCard();
+
+  @override
+  State<_DriveSyncCard> createState() => _DriveSyncCardState();
+}
+
+class _DriveSyncCardState extends State<_DriveSyncCard> {
+  GoogleSignInAccount? _account;
+  DateTime? _lastBackup;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (DriveSyncService.isSupported) _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    final account = await DriveSyncService().currentUser();
+    if (!mounted) return;
+    setState(() => _account = account);
+    if (account != null) {
+      final last = await DriveSyncService().lastBackupTime();
+      if (mounted) setState(() => _lastBackup = last);
+    }
+  }
+
+  void _snack(String message, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error ? Colors.red : null,
+      ),
+    );
+  }
+
+  Future<void> _signIn() async {
+    setState(() => _busy = true);
+    try {
+      final account = await DriveSyncService().signIn();
+      final last = await DriveSyncService().lastBackupTime();
+      if (!mounted) return;
+      setState(() {
+        _account = account;
+        _lastBackup = last;
+      });
+    } on Exception {
+      _snack(AppStrings.of(context).driveSetupError, error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _syncNow() async {
+    final strings = AppStrings.of(context);
+    setState(() => _busy = true);
+    try {
+      final data = await collectExportData(context);
+      final result = await DriveSyncService().uploadBackup(
+        jsonEncode(data.toJson()),
+      );
+      if (!mounted) return;
+      if (result.success) {
+        setState(() => _lastBackup = result.lastBackupTime);
+        _snack(strings.driveSynced);
+      } else {
+        _snack(strings.driveSetupError, error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _restore() async {
+    final strings = AppStrings.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(strings.driveRestore),
+        content: Text(strings.restoreConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(strings.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text(strings.ok),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final jsonStr = await DriveSyncService().downloadBackup();
+      if (!mounted) return;
+      if (jsonStr == null) {
+        _snack(strings.driveNoBackupRestore);
+        return;
+      }
+      final importResult = DataExporter.importFromJson(jsonStr);
+      if (!importResult.success || importResult.data == null) {
+        _snack(strings.importError, error: true);
+        return;
+      }
+      await mergeImportedData(context, importResult.data!);
+      if (!mounted) return;
+      _snack(strings.driveRestored);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _signOut() async {
+    await DriveSyncService().signOut();
+    if (!mounted) return;
+    setState(() {
+      _account = null;
+      _lastBackup = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF22C55E)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.cloud_sync, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  strings.driveSync,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            strings.drivePrivacyNote,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.5,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (!DriveSyncService.isSupported)
+            Text(
+              strings.driveUnsupported,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            )
+          else if (_account == null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _busy ? null : _signIn,
+                icon: _busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.login, size: 18),
+                label: Text(strings.driveSignIn),
+              ),
+            )
+          else ...[
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: primary.withValues(alpha: 0.15),
+                  backgroundImage: _account!.photoUrl != null
+                      ? NetworkImage(_account!.photoUrl!)
+                      : null,
+                  child: _account!.photoUrl == null
+                      ? Text(
+                          _account!.email.isNotEmpty
+                              ? _account!.email[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(fontSize: 12, color: primary),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        strings.driveSignedInAs,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      Text(
+                        _account!.email,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: _busy ? null : _signOut,
+                  child: Text(strings.driveSignOut),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _lastBackup != null
+                  ? strings.driveLastBackup(
+                      DateFormat(
+                        'd MMM yyyy · HH:mm',
+                        AppStrings.of(context).lang.code,
+                      ).format(_lastBackup!.toLocal()),
+                    )
+                  : strings.driveNoBackup,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _busy ? null : _syncNow,
+                    icon: const Icon(Icons.cloud_upload, size: 18),
+                    label: Text(strings.driveSyncNow),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _restore,
+                    icon: const Icon(Icons.cloud_download, size: 18),
+                    label: Text(strings.driveRestore),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

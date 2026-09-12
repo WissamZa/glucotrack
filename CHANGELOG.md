@@ -3,6 +3,30 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.4.0+6] — 2026-09-12
+
+### Added — medication scheduling & log (DB v4, additive migration)
+- Medication reminders now support **days of the week** (7-day selector with localized names; presets like every day / weekend) and **multiple times per day** (e.g. 08:00 + 14:00 + 20:00). Notifications are scheduled per (day × time) using `dayOfWeekAndTime` matching; editing a schedule cancels the old pending notifications first.
+- **Medication log**: a "Taken now" button on each medication card records the dose in a new `medication_log` table; the card shows "taken today N of M" progress and a history sheet lists every logged dose with date and time.
+- Reminders are now **editable** — tap a card to change its schedule, name, or dose.
+
+### Added — Google Drive backup sync (least privilege)
+- Settings → Integrations replaces the "Coming soon" card with a working **Google Drive Sync**: sign in, one-tap **Sync now** (upload full JSON backup), and **Restore backup** (duplicate-safe merge).
+- Requests **only** the `drive.appdata` scope — a hidden per-app folder the user's other apps (and the Drive UI) cannot see; GlucoTrack can never touch any other Drive file. Data moves directly phone ↔ Google, with no intermediary server. See `docs/DRIVE_SYNC_SETUP.md` for the one-time OAuth client setup.
+- Available on Android & iOS; other platforms show the card as unsupported.
+
+### Changed — UX
+- The glucose value placeholder is now a **neutral semi-transparent gray** so it can no longer be mistaken for an entered value (the input style is large and bold).
+- The **insulin dose field** in Add Reading is now hidden unless the user enables "I use insulin" in Settings (it always appears when editing a reading that already has a dose).
+- Fixed pages being **cut off at the bottom**: scrollables in all tabs and pushed screens now clear the BottomAppBar and the system gesture inset (last cards are fully reachable).
+- The center **add-reading FAB sits slightly lower** in the BottomAppBar notch.
+
+### Data preservation (upgrade guarantee, unchanged)
+- DB migration v3 → v4 is additive only (`days_mask`, `times`, `uses_insulin` columns + `medication_log` table). All pre-existing reminders default to "every day, existing single time" and keep firing exactly as before — covered by automated migration tests.
+
+### Tests
+- 178 total (up from 166): v3→v4 migration data-preservation, weekday-bit math, schedule round-trips, medication log, legacy-reminder defaults.
+
 ## [1.3.0+5] — 2026-09-12
 
 ### Data preservation (upgrade guarantee)

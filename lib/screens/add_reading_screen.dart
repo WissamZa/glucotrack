@@ -36,6 +36,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
   late DateTime _timestamp;
   ReadingType _type = ReadingType.fasting;
   String? _editingId;
+  bool _editingHadInsulin = false;
   bool _initialized = false;
 
   @override
@@ -65,6 +66,7 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
     final arg = ModalRoute.of(context)?.settings.arguments;
     if (arg is Reading) {
       _editingId = arg.id;
+      _editingHadInsulin = arg.insulin != null;
       _valueCtrl.text = '${arg.value}';
       _type = arg.type;
       _notesCtrl.text = arg.notes ?? '';
@@ -243,7 +245,15 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
                           ),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
+                            // Neutral, clearly-placeholder gray so the hint is
+                            // never mistaken for an entered value (the text
+                            // style is large/bold for real input).
                             hintText: '120',
+                            hintStyle: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0x42000000),
+                            ),
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
@@ -352,7 +362,9 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Carbs + Insulin
+          // Carbs + Insulin (insulin only for users who take it — set in
+          // Settings → "I use insulin"). When editing a reading that has an
+          // insulin value, the field always shows so the value stays editable.
           Row(
             children: [
               Expanded(
@@ -361,13 +373,15 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
                   controller: _carbsCtrl,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _NumberField(
-                  label: strings.insulinUnits,
-                  controller: _insulinCtrl,
+              if (s.usesInsulin || _editingHadInsulin) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _NumberField(
+                    label: strings.insulinUnits,
+                    controller: _insulinCtrl,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 16),

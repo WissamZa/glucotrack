@@ -13,6 +13,7 @@ import '../providers/providers.dart';
 import '../themes/app_theme.dart';
 import '../utils/unit_converter.dart';
 import '../widgets/reading_actions.dart';
+import '../widgets/screen_padding.dart';
 
 enum _Period { today, week, month, all }
 
@@ -78,7 +79,12 @@ class _ChartViewState extends State<_ChartView> {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                tabBarBottomClearance(context),
+              ),
               children: [
                 // Period selector
                 _segmented<_Period>(

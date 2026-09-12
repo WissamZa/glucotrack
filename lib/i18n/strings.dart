@@ -3,6 +3,7 @@
 // This file combines translations (AR/EN) with the SettingsProvider
 // state management class to avoid circular imports.
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/reading.dart';
 import '../models/settings.dart';
@@ -369,6 +370,58 @@ class AppStrings {
   String get kindMedication => get('kind_medication');
   String get errorMedicationName => get('error_medication_name');
 
+  // ===== Medication schedule (v1.4) =====
+  String get reminderDays => get('reminder_days');
+  String get everyDay => get('every_day');
+  String get addTime => get('add_time');
+  String get timesPerDay => get('times_per_day');
+  String get duplicateTime => get('duplicate_time');
+  String takenToday(int count, int total) =>
+      get('taken_today')
+          .replaceAll('{count}', '$count')
+          .replaceAll('{total}', '$total');
+  String get allDosesTaken => get('all_doses_taken');
+  String get markTaken => get('mark_taken');
+  String get medicationHistory => get('medication_history');
+  String get noMedicationLog => get('no_medication_log');
+  String get editReminder => get('edit_reminder');
+
+  /// Localized label for a reminder's day pattern.
+  String daysPatternLabel(String pattern) => get(pattern);
+
+  /// Localized weekday short names (Sat..Fri) for the 7-day selector.
+  List<String> weekdayShortNames() {
+    // 2026-09-07 is a Monday — same order as Reminder.daysMask bits.
+    final base = DateTime(2026, 9, 7);
+    final locale = lang.code;
+    return [
+      for (var i = 0; i < 7; i++)
+        DateFormat.E(locale).format(base.add(Duration(days: i))),
+    ];
+  }
+
+  // ===== Insulin preference (v1.4) =====
+  String get usesInsulinLabel => get('uses_insulin');
+  String get usesInsulinHint => get('uses_insulin_hint');
+
+  // ===== Google Drive sync (v1.4) =====
+  String get driveSync => get('drive_sync');
+  String get driveSignIn => get('drive_sign_in');
+  String get driveSignedInAs => get('drive_signed_in_as');
+  String get driveSyncNow => get('drive_sync_now');
+  String get driveRestore => get('drive_restore');
+  String get driveSignOut => get('drive_sign_out');
+  String driveLastBackup(String date) =>
+      get('drive_last_backup').replaceAll('{date}', date);
+  String get driveNoBackup => get('drive_no_backup');
+  String get driveSynced => get('drive_synced');
+  String get driveRestored => get('drive_restored');
+  String get driveNoBackupRestore => get('drive_no_backup_restore');
+  String get drivePrivacyNote => get('drive_privacy_note');
+  String get driveUnsupported => get('drive_unsupported');
+  String get driveSetupError => get('drive_setup_error');
+  String get restoreConfirm => get('restore_confirm');
+
   String readingType(ReadingType t) {
     switch (t) {
       case ReadingType.fasting:
@@ -700,6 +753,40 @@ const Map<String, String> _ar = {
   'kind_measurement': 'قياس السكر',
   'kind_medication': 'دواء',
   'error_medication_name': 'أدخل اسم الدواء',
+  // Medication schedule (v1.4)
+  'reminder_days': 'الأيام',
+  'every_day': 'كل الأيام',
+  'weekdays_pattern': 'أيام العمل',
+  'weekend_pattern': 'الجمعة والسبت',
+  'custom_days': 'أيام مخصصة',
+  'add_time': 'إضافة وقت',
+  'times_per_day': 'المرات يومياً',
+  'duplicate_time': 'هذا الوقت مضاف بالفعل',
+  'taken_today': 'تم اليوم {count} من {total}',
+  'all_doses_taken': 'اكتملت جرعات اليوم',
+  'mark_taken': 'تناولته الآن',
+  'medication_history': 'سجل تناول الدواء',
+  'no_medication_log': 'لا يوجد سجل تناول بعد',
+  'edit_reminder': 'تعديل التذكير',
+  // Insulin preference (v1.4)
+  'uses_insulin': 'أستخدم الأنسولين',
+  'uses_insulin_hint': 'يُظهر حقل جرعة الأنسولين عند إضافة القراءات',
+  // Google Drive sync (v1.4)
+  'drive_sync': 'المزامنة مع Google Drive',
+  'drive_sign_in': 'تسجيل الدخول والمزامنة',
+  'drive_signed_in_as': 'مسجّل باسم',
+  'drive_sync_now': 'مزامنة الآن',
+  'drive_restore': 'استعادة نسخة',
+  'drive_sign_out': 'تسجيل الخروج',
+  'drive_last_backup': 'آخر نسخة احتياطية: {date}',
+  'drive_no_backup': 'لا توجد نسخة احتياطية على Drive بعد',
+  'drive_synced': 'تمت المزامنة بنجاح',
+  'drive_restored': 'تم استيراد النسخة الاحتياطية',
+  'drive_no_backup_restore': 'لا توجد نسخة للاستعادة',
+  'drive_privacy_note': 'صلاحيات محدودة: يصل التطبيق فقط إلى مجلد بياناته المخفي على Drive ولا يمكنه قراءة أي ملف آخر لديك. تنتقل البيانات مباشرة بين هاتفك وGoogle دون أي وسيط.',
+  'drive_unsupported': 'المزامنة متاحة على أندرويد و iOS',
+  'drive_setup_error': 'تعذر تسجيل الدخول إلى Google. تأكد من إعداد OAuth client للتطبيق (راجع docs/DRIVE_SYNC_SETUP.md).',
+  'restore_confirm': 'سيتم دمج النسخة الاحتياطية مع بياناتك الحالية بدون ازدواج. هل تريد المتابعة؟',
 };
 
 const Map<String, String> _en = {
@@ -999,4 +1086,38 @@ const Map<String, String> _en = {
   'kind_measurement': 'Glucose check',
   'kind_medication': 'Medication',
   'error_medication_name': 'Enter the medication name',
+  // Medication schedule (v1.4)
+  'reminder_days': 'Days',
+  'every_day': 'Every day',
+  'weekdays_pattern': 'Weekdays',
+  'weekend_pattern': 'Weekend',
+  'custom_days': 'Custom days',
+  'add_time': 'Add time',
+  'times_per_day': 'Times per day',
+  'duplicate_time': 'This time is already added',
+  'taken_today': 'Taken today {count} of {total}',
+  'all_doses_taken': 'All doses taken',
+  'mark_taken': 'Taken now',
+  'medication_history': 'Medication Log',
+  'no_medication_log': 'No doses logged yet',
+  'edit_reminder': 'Edit Reminder',
+  // Insulin preference (v1.4)
+  'uses_insulin': 'I use insulin',
+  'uses_insulin_hint': 'Shows the insulin dose field when adding readings',
+  // Google Drive sync (v1.4)
+  'drive_sync': 'Google Drive Sync',
+  'drive_sign_in': 'Sign in & sync',
+  'drive_signed_in_as': 'Signed in as',
+  'drive_sync_now': 'Sync now',
+  'drive_restore': 'Restore backup',
+  'drive_sign_out': 'Sign out',
+  'drive_last_backup': 'Last backup: {date}',
+  'drive_no_backup': 'No backup on Drive yet',
+  'drive_synced': 'Synced successfully',
+  'drive_restored': 'Backup restored',
+  'drive_no_backup_restore': 'Nothing to restore',
+  'drive_privacy_note': 'Least privilege: the app can only access its own hidden Drive folder and cannot read any other file. Data moves directly between your phone and Google — no intermediate server.',
+  'drive_unsupported': 'Available on Android & iOS',
+  'drive_setup_error': 'Google sign-in failed. Make sure the app OAuth client is configured (see docs/DRIVE_SYNC_SETUP.md).',
+  'restore_confirm': 'The backup will be merged with your current data without duplicates. Continue?',
 };

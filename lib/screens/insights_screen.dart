@@ -11,6 +11,7 @@ import '../themes/app_theme.dart';
 import '../utils/hba1c_calculator.dart';
 import '../utils/trend_analysis.dart';
 import '../utils/unit_converter.dart';
+import '../widgets/screen_padding.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -85,7 +86,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(strings.glucoseInsights)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          pushedScreenBottomClearance(context),
+        ),
         children: [
           // === Health Tracking Summary (weight / BP / water) ===
           const _HealthTrackingCard(),

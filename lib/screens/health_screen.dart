@@ -13,6 +13,7 @@ import '../i18n/strings.dart';
 import '../models/health_metric.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
+import '../widgets/screen_padding.dart';
 
 class HealthScreen extends StatefulWidget {
   const HealthScreen({super.key});
@@ -63,7 +64,12 @@ class _HealthScreenState extends State<HealthScreen> {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                pushedScreenBottomClearance(context),
+              ),
               children: [
                 _summaryRow(prov, settings, strings),
                 const SizedBox(height: 16),

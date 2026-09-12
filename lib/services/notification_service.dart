@@ -94,12 +94,18 @@ class NotificationService {
         ?.requestNotificationsPermission();
   }
 
-  /// Schedule a daily reminder at the given [hour]:[minute].
-  /// [id] should be a stable hash of the reminder ID.
-  /// [medication] selects the dedicated medication channel (distinct icon
-  /// description and category) so users can configure it separately.
-  Future<void> scheduleDailyReminder({
+  /// Schedule a repeating reminder at the given [hour]:[minute].
+  ///
+  /// - [weekday] == null → repeats every day (legacy measurement behavior).
+  /// - [weekday] 1..7 (DateTime.monday..sunday) → repeats only on that
+  ///   weekday (`DateTimeComponents.dayOfWeekAndTime`), used by medication
+  ///   schedules with per-day selection.
+  /// [id] must be unique per (reminder, weekday, time) combination.
+  /// [medication] selects the dedicated medication channel so users can
+  /// configure it separately.
+  Future<void> scheduleReminder({
     required int id,
+    int? weekday,
     required int hour,
     required int minute,
     required String title,
@@ -116,8 +122,14 @@ class NotificationService {
       hour,
       minute,
     );
+    if (weekday != null) {
+      // Walk forward until the weekday matches (0..6 hops).
+      while (scheduled.weekday != weekday) {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+    }
     if (scheduled.isBefore(now)) {
-      scheduled = scheduled.add(const Duration(days: 1));
+      scheduled = scheduled.add(const Duration(days: 7));
     }
 
     final androidDetails = medication
@@ -152,7 +164,9 @@ class NotificationService {
       scheduledDate: scheduled,
       notificationDetails: details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+      matchDateTimeComponents: weekday == null
+          ? DateTimeComponents.time
+          : DateTimeComponents.dayOfWeekAndTime,
     );
   }
 

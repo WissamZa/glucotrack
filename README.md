@@ -46,7 +46,8 @@
 - 🚨 **Emergency guidance** — actionable first-aid steps when a reading is critical (< 54, 54–69, or > 250 mg/dL), on Home and right after saving a critical reading
 - ⚖️ **Weight & blood-pressure tracking** — entries with weight trend chart and BMI (WHO bands) from an optional height setting
 - 💧 **Water tracker** — daily 8-cup goal with ± buttons and a last-7-days mini chart
-- 💊 **Medication reminders** — dedicated notification channel, name + dose in the reminder
+- 💊 **Medication reminders** — dedicated notification channel, name + dose, days-of-week selector and multiple times per day, plus a "taken" log with history
+- ☁️ **Google Drive backup** (optional) — least-privilege `drive.appdata` scope only (hidden per-app folder, nothing else), direct phone↔Google transfer, sync & restore ([setup](docs/DRIVE_SYNC_SETUP.md))
 
 ### Accessibility & Localization
 - 🌐 **Bilingual UI** — Arabic (RTL) and English (LTR) with instant switching
@@ -298,7 +299,8 @@ MIT © [WissamZa](https://github.com/WissamZa)
 - 🚨 **إرشادات الطوارئ** — خطوات إسعاف ذاتي عند القراءات الحرجة (أقل من 54، بين 54-69، أو أعلى من 250 ملغ/ديسيلتر) في الرئيسية وفور حفظ قراءة حرجة
 - ⚖️ **متابعة الوزن والضغط** — قياسات مع رسم بياني لتطور الوزن ومؤشر كتلة الجسم BMI (بتصنيف WHO) من طول اختياري
 - 💧 **عدّاد الماء** — هدف يومي 8 أكواب مع أزرار ± ورسوم مصغرة لآخر 7 أيام
-- 💊 **تذكيرات الدواء** — قناة إشعار مخصصة مع اسم الدواء والجرعة
+- 💊 **تذكيرات الدواء** — قناة إشعار مخصصة، اسم الدواء والجرعة، محدد أيام الأسبوع وعدة أوقات يومياً، وسجل تناول بالتاريخ
+- ☁️ **نسخ احتياطي على Google Drive** (اختياري) — بأقل صلاحية ممكنة `drive.appdata` (مجلد مخفي خاص بالتطبيق فقط)، نقل مباشر هاتف↔Google، مزامنة واستعادة ([الإعداد](docs/DRIVE_SYNC_SETUP.md))
 
 ### إمكانية الوصول والتخصيص
 - 🌐 **واجهة ثنائية اللغة** — العربية (RTL) والإنجليزية (LTR) مع تبديل فوري
