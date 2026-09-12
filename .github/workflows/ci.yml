@@ -69,8 +69,10 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      # `flutter pub audit` was removed from the Flutter toolchain; report
+      # outdated/transitive dependencies instead (informational, always green).
       - name: Dependency audit
-        run: flutter pub audit --no-fatal-infos
+        run: dart pub outdated --show-all
       - name: Check for hardcoded secrets
         uses: gitleaks/gitleaks-action@v3
         env:
