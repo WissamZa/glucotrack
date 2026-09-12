@@ -79,7 +79,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: License check (no GPL in MIT project)
         run: |
-          if grep -r 'GPL-3.0' lib/; then
+          # Fail on GPL-3.0 references outside comments. Prose inside comment
+          # lines (e.g. BLE_PROTOCOL-derived doc comments noting that GPL code
+          # was removed for license reasons) is not a licensing violation.
+          # grep output is 'path:content', so ':[whitespace]//' filters comments.
+          if grep -rn 'GPL-3.0' lib/ | grep -vE ':[[:space:]]*(//|\*|/\*)'; then
             echo 'ERROR: GPL-3.0 code found in lib/'
             exit 1
           fi
