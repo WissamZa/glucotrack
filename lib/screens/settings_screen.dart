@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +10,8 @@ import '../database/database_helper.dart';
 import '../i18n/strings.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
-import '../services/drive_sync_service.dart';
+import '../services/webdav_sync_service.dart';
+import '../utils/backup_crypto.dart';
 import '../utils/backup_merge.dart';
 import '../utils/export_import.dart';
 import '../utils/unit_converter.dart';
@@ -514,7 +514,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
 
           _SectionTitle(strings.integrations),
-          const _DriveSyncCard(),
+          const _WebDavSyncCard(),
           // ── BLE Meter Sync — LIVE ─────────────────────────────────────
           _Card(
             child: InkWell(
@@ -842,34 +842,59 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// Google Drive backup sync card — least-privilege (drive.appdata scope
-/// only): the app can touch its own hidden app-data folder and nothing else.
-class _DriveSyncCard extends StatefulWidget {
-  const _DriveSyncCard();
+/// WebDAV backup-sync card — user-provided server (Nextcloud / Koofr /
+/// self-hosted…), no developer registration, end-to-end encryption with a
+/// user passphrase before anything leaves the phone.
+class _WebDavSyncCard extends StatefulWidget {
+  const _WebDavSyncCard();
 
   @override
-  State<_DriveSyncCard> createState() => _DriveSyncCardState();
+  State<_WebDavSyncCard> createState() => _WebDavSyncCardState();
 }
 
-class _DriveSyncCardState extends State<_DriveSyncCard> {
-  GoogleSignInAccount? _account;
-  DateTime? _lastBackup;
+class _WebDavSyncCardState extends State<_WebDavSyncCard> {
+  final _urlCtrl = TextEditingController();
+  final _userCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _passphraseCtrl = TextEditingController();
+  bool _encrypt = true;
+  bool _editing = false; // show the config form
+  bool _configured = false;
   bool _busy = false;
+  bool _obscurePassphrase = true;
+  DateTime? _lastSync;
 
   @override
   void initState() {
     super.initState();
-    if (DriveSyncService.isSupported) _restoreSession();
+    _loadConfig();
   }
 
-  Future<void> _restoreSession() async {
-    final account = await DriveSyncService().currentUser();
+  @override
+  void dispose() {
+    _urlCtrl.dispose();
+    _userCtrl.dispose();
+    _passCtrl.dispose();
+    _passphraseCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadConfig() async {
+    final config = await WebDavSyncService().loadConfig();
+    final last = await WebDavSyncService().lastSyncTime();
     if (!mounted) return;
-    setState(() => _account = account);
-    if (account != null) {
-      final last = await DriveSyncService().lastBackupTime();
-      if (mounted) setState(() => _lastBackup = last);
-    }
+    setState(() {
+      if (config != null) {
+        _urlCtrl.text = config.url;
+        _userCtrl.text = config.username;
+        _passCtrl.text = config.password;
+        _passphraseCtrl.text = config.passphrase;
+        _encrypt = config.encrypt;
+      }
+      _configured = config != null && config.isComplete;
+      _editing = !_configured;
+      _lastSync = last;
+    });
   }
 
   void _snack(String message, {bool error = false}) {
@@ -882,37 +907,81 @@ class _DriveSyncCardState extends State<_DriveSyncCard> {
     );
   }
 
-  Future<void> _signIn() async {
+  WebDavConfig _configFromFields() => WebDavConfig(
+    url: _urlCtrl.text.trim(),
+    username: _userCtrl.text.trim(),
+    password: _passCtrl.text,
+    encrypt: _encrypt,
+    passphrase: _passphraseCtrl.text,
+  );
+
+  Future<void> _saveAndTest() async {
+    final strings = AppStrings.of(context);
+    final config = _configFromFields();
+    if (!config.baseUrl.startsWith('http') || config.username.isEmpty) {
+      _snack(strings.errorTargetRangeInvalid, error: true);
+      return;
+    }
+    if (config.encrypt && config.passphrase.isEmpty) {
+      _snack(strings.webdavEncryptHint, error: true);
+      return;
+    }
+
     setState(() => _busy = true);
     try {
-      final account = await DriveSyncService().signIn();
-      final last = await DriveSyncService().lastBackupTime();
+      final errorCode = await WebDavSyncService().testConnection(config);
+      if (!mounted) return;
+      if (errorCode != null) {
+        _snack(
+          strings.webdavTestFail(_errorLabel(strings, errorCode)),
+          error: true,
+        );
+        return;
+      }
+      await WebDavSyncService().saveConfig(config);
       if (!mounted) return;
       setState(() {
-        _account = account;
-        _lastBackup = last;
+        _configured = true;
+        _editing = false;
       });
-    } on Exception {
-      _snack(AppStrings.of(context).driveSetupError, error: true);
+      _snack(strings.webdavTestOk);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  String _errorLabel(AppStrings strings, String code) {
+    switch (code) {
+      case 'unauthorized':
+        return strings.webdavPassword;
+      case 'not_found':
+        return strings.webdavUrl;
+      case 'invalid_url':
+        return strings.webdavUrl;
+      case 'timeout':
+        return strings.webdavNeverSynced;
+      default:
+        return code;
+    }
+  }
+
   Future<void> _syncNow() async {
     final strings = AppStrings.of(context);
+    final config = await WebDavSyncService().loadConfig();
+    if (config == null || !mounted) return;
     setState(() => _busy = true);
     try {
       final data = await collectExportData(context);
-      final result = await DriveSyncService().uploadBackup(
+      final result = await WebDavSyncService().uploadBackup(
+        config,
         jsonEncode(data.toJson()),
       );
       if (!mounted) return;
       if (result.success) {
-        setState(() => _lastBackup = result.lastBackupTime);
-        _snack(strings.driveSynced);
+        setState(() => _lastSync = result.syncedAt);
+        _snack(strings.webdavSynced);
       } else {
-        _snack(strings.driveSetupError, error: true);
+        _snack(strings.webdavTestFail(result.errorCode ?? ''), error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -924,7 +993,7 @@ class _DriveSyncCardState extends State<_DriveSyncCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: Text(strings.driveRestore),
+        title: Text(strings.webdavRestore),
         content: Text(strings.restoreConfirm),
         actions: [
           TextButton(
@@ -940,40 +1009,56 @@ class _DriveSyncCardState extends State<_DriveSyncCard> {
     );
     if (confirmed != true || !mounted) return;
 
+    final config = await WebDavSyncService().loadConfig();
+    if (config == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      final jsonStr = await DriveSyncService().downloadBackup();
-      if (!mounted) return;
-      if (jsonStr == null) {
-        _snack(strings.driveNoBackupRestore);
+      String? json;
+      try {
+        json = await WebDavSyncService().downloadBackup(config);
+      } on BackupCryptoException catch (e) {
+        if (!mounted) return;
+        _snack(
+          e.code == 'wrong_passphrase_or_corrupt'
+              ? strings.webdavWrongPassphrase
+              : strings.importError,
+          error: true,
+        );
         return;
       }
-      final importResult = DataExporter.importFromJson(jsonStr);
+      if (!mounted) return;
+      if (json == null) {
+        _snack(strings.webdavNoBackupRestore);
+        return;
+      }
+      final importResult = DataExporter.importFromJson(json);
       if (!importResult.success || importResult.data == null) {
         _snack(strings.importError, error: true);
         return;
       }
       await mergeImportedData(context, importResult.data!);
       if (!mounted) return;
-      _snack(strings.driveRestored);
+      _snack(strings.webdavRestored);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _signOut() async {
-    await DriveSyncService().signOut();
+  Future<void> _remove() async {
+    await WebDavSyncService().clearConfig();
     if (!mounted) return;
     setState(() {
-      _account = null;
-      _lastBackup = null;
+      _configured = false;
+      _editing = true;
+      _lastSync = null;
+      _passCtrl.clear();
+      _passphraseCtrl.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
-    final primary = Theme.of(context).colorScheme.primary;
 
     return _Card(
       child: Column(
@@ -990,20 +1075,69 @@ class _DriveSyncCardState extends State<_DriveSyncCard> {
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.cloud_sync, color: Colors.white),
+                child: const Icon(Icons.dns, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  strings.driveSync,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      strings.webdavSync,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if (_configured && !_editing)
+                      Container(
+                        margin: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981)
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '🔐 ${strings.webdavEncryptedBadge}',
+                          style: const TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.help_outline, size: 20),
+                color: Colors.grey.shade500,
+                tooltip: strings.webdavWhatIsTitle,
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (dialogCtx) => AlertDialog(
+                    title: Text(strings.webdavWhatIsTitle),
+                    content: SingleChildScrollView(
+                      child: Text(
+                        strings.webdavWhatIsBody,
+                        style: const TextStyle(height: 1.6, fontSize: 13.5),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: Text(strings.ok),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
-            strings.drivePrivacyNote,
+            strings.webdavDesc,
             style: TextStyle(
               fontSize: 11.5,
               height: 1.5,
@@ -1011,84 +1145,124 @@ class _DriveSyncCardState extends State<_DriveSyncCard> {
             ),
           ),
           const SizedBox(height: 12),
-          if (!DriveSyncService.isSupported)
-            Text(
-              strings.driveUnsupported,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            )
-          else if (_account == null)
+
+          if (_editing) ...[
+            TextField(
+              controller: _urlCtrl,
+              keyboardType: TextInputType.url,
+              decoration: InputDecoration(
+                labelText: strings.webdavUrl,
+                hintText: 'https://cloud.example.com/remote.php/dav/files/user/glucotrack/',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _userCtrl,
+                    decoration: InputDecoration(
+                      labelText: strings.webdavUsername,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _passCtrl,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: strings.webdavPassword,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    strings.webdavEncrypt,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                Switch(
+                  value: _encrypt,
+                  onChanged: (v) => setState(() => _encrypt = v),
+                ),
+              ],
+            ),
+            if (_encrypt) ...[
+              TextField(
+                controller: _passphraseCtrl,
+                obscureText: _obscurePassphrase,
+                decoration: InputDecoration(
+                  labelText: strings.webdavPassphrase,
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassphrase
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () => setState(
+                      () => _obscurePassphrase = !_obscurePassphrase,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                strings.webdavEncryptHint,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.4,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _busy ? null : _signIn,
+                onPressed: _busy ? null : _saveAndTest,
                 icon: _busy
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.login, size: 18),
-                label: Text(strings.driveSignIn),
+                    : const Icon(Icons.cloud_upload, size: 18),
+                label: Text(strings.webdavSaveTest),
               ),
-            )
-          else ...[
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 14,
-                  backgroundColor: primary.withValues(alpha: 0.15),
-                  backgroundImage: _account!.photoUrl != null
-                      ? NetworkImage(_account!.photoUrl!)
-                      : null,
-                  child: _account!.photoUrl == null
-                      ? Text(
-                          _account!.email.isNotEmpty
-                              ? _account!.email[0].toUpperCase()
-                              : '?',
-                          style: TextStyle(fontSize: 12, color: primary),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        strings.driveSignedInAs,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      Text(
-                        _account!.email,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: _busy ? null : _signOut,
-                  child: Text(strings.driveSignOut),
-                ),
-              ],
             ),
-            const SizedBox(height: 8),
+          ] else ...[
             Text(
-              _lastBackup != null
-                  ? strings.driveLastBackup(
+              _urlCtrl.text,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _lastSync != null
+                  ? strings.webdavLastSync(
                       DateFormat(
                         'd MMM yyyy · HH:mm',
-                        AppStrings.of(context).lang.code,
-                      ).format(_lastBackup!.toLocal()),
+                        strings.lang.code,
+                      ).format(_lastSync!.toLocal()),
                     )
-                  : strings.driveNoBackup,
+                  : strings.webdavNeverSynced,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 12),
@@ -1097,17 +1271,36 @@ class _DriveSyncCardState extends State<_DriveSyncCard> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: _busy ? null : _syncNow,
-                    icon: const Icon(Icons.cloud_upload, size: 18),
-                    label: Text(strings.driveSyncNow),
+                    icon: const Icon(Icons.sync, size: 18),
+                    label: Text(strings.webdavSyncNow),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _busy ? null : _restore,
-                    icon: const Icon(Icons.cloud_download, size: 18),
-                    label: Text(strings.driveRestore),
+                    icon: const Icon(Icons.restore, size: 18),
+                    label: Text(strings.webdavRestore),
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _editing = true),
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: Text(strings.webdavEdit),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: _busy ? null : _remove,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  label: Text(strings.webdavRemove),
                 ),
               ],
             ),

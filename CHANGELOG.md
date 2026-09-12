@@ -3,6 +3,17 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.5.0+7] — 2026-09-13
+
+### Added — one-tap medication schedule
+- Choosing the number of doses per day (1–4) **auto-generates the remaining times** from the first dose time (evenly spread across the waking window, 6-hour max gap, snapped to 15 minutes — e.g. first 08:00 + 3 doses → 08:00 / 14:00 / 20:00). Every generated time stays individually editable; changing the count or the first dose re-seeds the schedule.
+
+### Changed — cloud sync: WebDAV replaces Google Drive
+- **Google Drive sync is disabled and removed** (it required developer-side OAuth registration). Replaced with **WebDAV sync**: the user connects their OWN server — self-hosted Nextcloud, Koofr, Synology, or any standard WebDAV host — so **no developer account at any provider is needed**.
+- The backup is **encrypted on the phone before upload** (AES-256-GCM, key derived from a user passphrase via PBKDF2-HMAC-SHA256, 100k iterations): the server only ever stores ciphertext, and restore on another device just needs the same passphrase. Credentials live in the system secure storage (Android Keystore / iOS Keychain), never in the database.
+- Available on **all platforms** (desktop included). See `docs/WEBDAV_SYNC.md`.
+- Removed the `google_sign_in` dependency.
+
 ## [1.4.0+6] — 2026-09-12
 
 ### Added — medication scheduling & log (DB v4, additive migration)

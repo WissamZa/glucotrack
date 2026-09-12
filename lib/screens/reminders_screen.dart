@@ -176,7 +176,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
           ? existing.label.split('·').skip(1).join('·').trim()
           : '',
     );
-    // Times: editable list for medications; single time for measurements.
+    // Times: the first dose seeds an auto-generated schedule; every time
+    // stays individually editable.
+    var doseCount = existing?.timesPerDay ?? 1;
     var times = existing != null
         ? List<String>.from(existing.effectiveTimes)
         : <String>['08:00'];
@@ -278,54 +280,61 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Multiple times per day.
-                  _sectionLabel('${strings.timesPerDay} (${times.length})'),
+                  // Doses per day — the first dose seeds an auto schedule.
+                  _sectionLabel(strings.doseCount),
                   const SizedBox(height: 8),
-                  for (var i = 0; i < times.length; i++)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _timeTile(
-                            stx,
-                            times[i],
-                            (t) => setStx(() => times[i] = t),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final n in const [1, 2, 3, 4])
+                        ChoiceChip(
+                          label: Text(
+                            '$n',
+                            style: const TextStyle(fontSize: 12),
                           ),
+                          selected: doseCount == n,
+                          onSelected: (_) => setStx(() {
+                            doseCount = n;
+                            times = MedSchedule.generateTimes(times.first, n);
+                          }),
                         ),
-                        if (times.length > 1)
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            color: Colors.red.shade300,
-                            tooltip: strings.delete,
-                            onPressed: () => setStx(() => times.removeAt(i)),
-                          ),
-                      ],
-                    ),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
-                      onPressed: () async {
-                        final t = await showTimePicker(
-                          context: stx,
-                          initialTime: const TimeOfDay(hour: 20, minute: 0),
-                        );
-                        if (t == null) return;
-                        final next =
-                            '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-                        if (times.contains(next)) {
-                          if (stx.mounted) {
-                            ScaffoldMessenger.of(stx).showSnackBar(
-                              SnackBar(content: Text(strings.duplicateTime)),
-                            );
-                          }
-                          return;
-                        }
-                        setStx(() => times.add(next));
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: Text(strings.addTime),
-                    ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _sectionLabel(
+                    doseCount == 1
+                        ? strings.reminderTime
+                        : strings.firstDoseTime,
                   ),
                   const SizedBox(height: 8),
+                  _timeTile(stx, times.first, (t) {
+                    // Changing the first dose re-seeds the whole schedule.
+                    setStx(
+                      () => times = MedSchedule.generateTimes(t, doseCount),
+                    );
+                  }),
+                  if (doseCount > 1) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      strings.autoScheduleHint,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (var i = 1; i < times.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _timeTile(
+                          stx,
+                          times[i],
+                          (t) => setStx(() => times[i] = t),
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 16),
 
                   // Weekday selection.
                   _sectionLabel(strings.reminderDays),

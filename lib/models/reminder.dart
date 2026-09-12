@@ -38,6 +38,53 @@ class WeekdayBits {
   static bool isActive(int mask, DateTime day) => (mask & bitFor(day)) != 0;
 }
 
+/// Auto-generates dose times for a medication schedule.
+///
+/// The user only enters the FIRST dose time; the remaining times are spread
+/// evenly between it and 23:30 (capped at 6-hour gaps), rounded to 15
+/// minutes. Any generated time stays individually editable afterwards.
+class MedSchedule {
+  MedSchedule._();
+
+  static final RegExp _timePattern = RegExp(r'^(\d{1,2}):(\d{2})$');
+
+  static int _parseMinutes(String time) {
+    final m = _timePattern.firstMatch(time.trim());
+    if (m == null) return 8 * 60;
+    final h = int.parse(m.group(1)!);
+    final min = int.parse(m.group(2)!);
+    return (h * 60 + min).clamp(0, 24 * 60 - 1);
+  }
+
+  static String _format(int minutes) {
+    final m = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
+    return '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+  }
+
+  /// Returns [count] times ("HH:mm"), starting at [firstTime].
+  /// [count] is clamped to 1..6.
+  static List<String> generateTimes(String firstTime, int count) {
+    final n = count.clamp(1, 6);
+    final first = _parseMinutes(firstTime);
+    if (n == 1) return [_format(first)];
+
+    // Waking-day window: keep the last dose at or before 23:30.
+    const windowEnd = 23 * 60 + 30;
+    var span = windowEnd - first;
+    // Late first dose that leaves no room — single-time fallback would be
+    // surprising; instead distribute over the minimum 1-hour gaps and let
+    // the last dose(s) wrap past midnight rather than dropping doses.
+    if (span < 60 * (n - 1)) span = 60 * (n - 1);
+
+    var spacing = span ~/ (n - 1);
+    spacing = spacing.clamp(60, 6 * 60);
+    // Snap to 15-minute increments for clean defaults.
+    spacing = (spacing ~/ 15) * 15;
+
+    return [for (var i = 0; i < n; i++) _format(first + i * spacing)];
+  }
+}
+
 /// Sentinel object used by [Reminder.copyWith] to distinguish
 /// "argument not supplied" from "argument explicitly null".
 /// Defined separately here because the `_unset` sentinel in reading.dart

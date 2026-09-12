@@ -404,22 +404,38 @@ class AppStrings {
   String get usesInsulinLabel => get('uses_insulin');
   String get usesInsulinHint => get('uses_insulin_hint');
 
-  // ===== Google Drive sync (v1.4) =====
-  String get driveSync => get('drive_sync');
-  String get driveSignIn => get('drive_sign_in');
-  String get driveSignedInAs => get('drive_signed_in_as');
-  String get driveSyncNow => get('drive_sync_now');
-  String get driveRestore => get('drive_restore');
-  String get driveSignOut => get('drive_sign_out');
-  String driveLastBackup(String date) =>
-      get('drive_last_backup').replaceAll('{date}', date);
-  String get driveNoBackup => get('drive_no_backup');
-  String get driveSynced => get('drive_synced');
-  String get driveRestored => get('drive_restored');
-  String get driveNoBackupRestore => get('drive_no_backup_restore');
-  String get drivePrivacyNote => get('drive_privacy_note');
-  String get driveUnsupported => get('drive_unsupported');
-  String get driveSetupError => get('drive_setup_error');
+  // ===== Medication auto-schedule (v1.5) =====
+  String get doseCount => get('dose_count');
+  String get firstDoseTime => get('first_dose_time');
+  String get autoScheduleHint => get('auto_schedule_hint');
+
+  // ===== WebDAV sync (v1.5) =====
+  String get webdavSync => get('webdav_sync');
+  String get webdavSyncNow => get('webdav_sync_now');
+  String get webdavRestore => get('webdav_restore');
+  String get webdavDesc => get('webdav_desc');
+  String get webdavUrl => get('webdav_url');
+  String get webdavUsername => get('webdav_username');
+  String get webdavPassword => get('webdav_password');
+  String get webdavEncrypt => get('webdav_encrypt');
+  String get webdavEncryptHint => get('webdav_encrypt_hint');
+  String get webdavPassphrase => get('webdav_passphrase');
+  String get webdavSaveTest => get('webdav_save_test');
+  String get webdavTestOk => get('webdav_test_ok');
+  String webdavTestFail(String error) =>
+      get('webdav_test_fail').replaceAll('{error}', error);
+  String get webdavEdit => get('webdav_edit');
+  String get webdavRemove => get('webdav_remove');
+  String webdavLastSync(String date) =>
+      get('webdav_last_sync').replaceAll('{date}', date);
+  String get webdavEncryptedBadge => get('webdav_encrypted_badge');
+  String get webdavNeverSynced => get('webdav_never_synced');
+  String get webdavWhatIsTitle => get('webdav_what_is_title');
+  String get webdavWhatIsBody => get('webdav_what_is_body');
+  String get webdavSynced => get('webdav_synced');
+  String get webdavRestored => get('webdav_restored');
+  String get webdavNoBackupRestore => get('webdav_no_backup_restore');
+  String get webdavWrongPassphrase => get('webdav_wrong_passphrase');
   String get restoreConfirm => get('restore_confirm');
 
   String readingType(ReadingType t) {
@@ -772,21 +788,37 @@ const Map<String, String> _ar = {
   'uses_insulin': 'أستخدم الأنسولين',
   'uses_insulin_hint': 'يُظهر حقل جرعة الأنسولين عند إضافة القراءات',
   // Google Drive sync (v1.4)
-  'drive_sync': 'المزامنة مع Google Drive',
-  'drive_sign_in': 'تسجيل الدخول والمزامنة',
-  'drive_signed_in_as': 'مسجّل باسم',
-  'drive_sync_now': 'مزامنة الآن',
-  'drive_restore': 'استعادة نسخة',
-  'drive_sign_out': 'تسجيل الخروج',
-  'drive_last_backup': 'آخر نسخة احتياطية: {date}',
-  'drive_no_backup': 'لا توجد نسخة احتياطية على Drive بعد',
-  'drive_synced': 'تمت المزامنة بنجاح',
-  'drive_restored': 'تم استيراد النسخة الاحتياطية',
-  'drive_no_backup_restore': 'لا توجد نسخة للاستعادة',
-  'drive_privacy_note': 'صلاحيات محدودة: يصل التطبيق فقط إلى مجلد بياناته المخفي على Drive ولا يمكنه قراءة أي ملف آخر لديك. تنتقل البيانات مباشرة بين هاتفك وGoogle دون أي وسيط.',
-  'drive_unsupported': 'المزامنة متاحة على أندرويد و iOS',
-  'drive_setup_error': 'تعذر تسجيل الدخول إلى Google. تأكد من إعداد OAuth client للتطبيق (راجع docs/DRIVE_SYNC_SETUP.md).',
   'restore_confirm': 'سيتم دمج النسخة الاحتياطية مع بياناتك الحالية بدون ازدواج. هل تريد المتابعة؟',
+  // Medication auto-schedule (v1.5)
+  'dose_count': 'عدد الجرعات يومياً',
+  'first_dose_time': 'وقت الجرعة الأولى',
+  'auto_schedule_hint':
+      'تُولّد بقية الأوقات تلقائياً — انقر على أي وقت لتعديله',
+  // WebDAV sync (v1.5)
+  'webdav_sync': 'المزامنة عبر WebDAV',
+  'webdav_sync_now': 'مزامنة الآن',
+  'webdav_restore': 'استعادة',
+  'webdav_desc': 'اربط خادم WebDAV خاص بك (Nextcloud، Koofr، Synology...) — بلا تسجيل مطوّر، والنسخة تُشفّر على هاتفك قبل رفعها فلا يقرأ الخادم محتواها.',
+  'webdav_url': 'عنوان مجلد WebDAV',
+  'webdav_username': 'اسم المستخدم',
+  'webdav_password': 'كلمة المرور',
+  'webdav_encrypt': 'تشفير النسخة قبل الرفع',
+  'webdav_encrypt_hint': 'لا يمكن فك النسخة على الخادم إلا بكلمة مرور التشفير — احفظها في مكان آمن',
+  'webdav_passphrase': 'كلمة مرور التشفير',
+  'webdav_save_test': 'حفظ واختبار الاتصال',
+  'webdav_test_ok': 'الاتصال ناجح — تم حفظ الإعدادات',
+  'webdav_test_fail': 'فشل الاتصال: {error}',
+  'webdav_edit': 'تعديل الإعدادات',
+  'webdav_remove': 'إزالة الإعداد',
+  'webdav_last_sync': 'آخر مزامنة: {date}',
+  'webdav_encrypted_badge': 'مشفرة',
+  'webdav_never_synced': 'لم تتم أي مزامنة بعد',
+  'webdav_what_is_title': 'ما هو WebDAV؟',
+  'webdav_what_is_body': 'WebDAV بروتوكول تخزين سحابي قياسي تدعمه خدمات كثيرة: خادم Nextcloud الشخصي، Koofr، Synology، وغيرها. أنشئ مجلداً على الخدمة التي تفضلها، أدخل عنوانه وبيانات الدخول هنا، وسيتولى التطبيق رفع نسخة مشفرة بالكامل من بياناتك واستعادتها على أي جهاز — دون أي تسجيل للمطور لدى مزود خدمة.',
+  'webdav_synced': 'تمت المزامنة بنجاح',
+  'webdav_restored': 'تم استيراد النسخة الاحتياطية',
+  'webdav_no_backup_restore': 'لا توجد نسخة للاستعادة على الخادم',
+  'webdav_wrong_passphrase': 'كلمة مرور التشفير غير صحيحة',
 };
 
 const Map<String, String> _en = {
@@ -1105,19 +1137,34 @@ const Map<String, String> _en = {
   'uses_insulin': 'I use insulin',
   'uses_insulin_hint': 'Shows the insulin dose field when adding readings',
   // Google Drive sync (v1.4)
-  'drive_sync': 'Google Drive Sync',
-  'drive_sign_in': 'Sign in & sync',
-  'drive_signed_in_as': 'Signed in as',
-  'drive_sync_now': 'Sync now',
-  'drive_restore': 'Restore backup',
-  'drive_sign_out': 'Sign out',
-  'drive_last_backup': 'Last backup: {date}',
-  'drive_no_backup': 'No backup on Drive yet',
-  'drive_synced': 'Synced successfully',
-  'drive_restored': 'Backup restored',
-  'drive_no_backup_restore': 'Nothing to restore',
-  'drive_privacy_note': 'Least privilege: the app can only access its own hidden Drive folder and cannot read any other file. Data moves directly between your phone and Google — no intermediate server.',
-  'drive_unsupported': 'Available on Android & iOS',
-  'drive_setup_error': 'Google sign-in failed. Make sure the app OAuth client is configured (see docs/DRIVE_SYNC_SETUP.md).',
   'restore_confirm': 'The backup will be merged with your current data without duplicates. Continue?',
+  // Medication auto-schedule (v1.5)
+  'dose_count': 'Doses per day',
+  'first_dose_time': 'First dose time',
+  'auto_schedule_hint': 'The remaining times are generated automatically — tap any time to edit it',
+  // WebDAV sync (v1.5)
+  'webdav_sync': 'WebDAV Sync',
+  'webdav_sync_now': 'Sync now',
+  'webdav_restore': 'Restore',
+  'webdav_desc': 'Connect your own WebDAV server (Nextcloud, Koofr, Synology...) — no developer registration, and the backup is encrypted on your phone before upload so the server never sees its contents.',
+  'webdav_url': 'WebDAV folder URL',
+  'webdav_username': 'Username',
+  'webdav_password': 'Password',
+  'webdav_encrypt': 'Encrypt backup before upload',
+  'webdav_encrypt_hint': 'The stored backup can only be opened with this passphrase — keep it somewhere safe',
+  'webdav_passphrase': 'Encryption passphrase',
+  'webdav_save_test': 'Save & test connection',
+  'webdav_test_ok': 'Connection OK — settings saved',
+  'webdav_test_fail': 'Connection failed: {error}',
+  'webdav_edit': 'Edit settings',
+  'webdav_remove': 'Remove setup',
+  'webdav_last_sync': 'Last sync: {date}',
+  'webdav_encrypted_badge': 'Encrypted',
+  'webdav_never_synced': 'Never synced yet',
+  'webdav_what_is_title': 'What is WebDAV?',
+  'webdav_what_is_body': 'WebDAV is a standard cloud-storage protocol supported by many services: a personal Nextcloud server, Koofr, Synology, and more. Create a folder on the service you prefer, enter its URL and your credentials here, and the app will upload a fully encrypted backup and restore it on any device — with no developer account at any provider.',
+  'webdav_synced': 'Synced successfully',
+  'webdav_restored': 'Backup restored',
+  'webdav_no_backup_restore': 'No backup on the server yet',
+  'webdav_wrong_passphrase': 'Wrong encryption passphrase',
 };

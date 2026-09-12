@@ -47,7 +47,7 @@
 - ⚖️ **Weight & blood-pressure tracking** — entries with weight trend chart and BMI (WHO bands) from an optional height setting
 - 💧 **Water tracker** — daily 8-cup goal with ± buttons and a last-7-days mini chart
 - 💊 **Medication reminders** — dedicated notification channel, name + dose, days-of-week selector and multiple times per day, plus a "taken" log with history
-- ☁️ **Google Drive backup** (optional) — least-privilege `drive.appdata` scope only (hidden per-app folder, nothing else), direct phone↔Google transfer, sync & restore ([setup](docs/DRIVE_SYNC_SETUP.md))
+- ☁️ **WebDAV backup** (optional) — connect your own server (Nextcloud, Koofr, Synology…), no developer registration, backup **encrypted on-device** (AES-256-GCM + PBKDF2 passphrase) before upload ([guide](docs/WEBDAV_SYNC.md))
 
 ### Accessibility & Localization
 - 🌐 **Bilingual UI** — Arabic (RTL) and English (LTR) with instant switching
@@ -300,7 +300,7 @@ MIT © [WissamZa](https://github.com/WissamZa)
 - ⚖️ **متابعة الوزن والضغط** — قياسات مع رسم بياني لتطور الوزن ومؤشر كتلة الجسم BMI (بتصنيف WHO) من طول اختياري
 - 💧 **عدّاد الماء** — هدف يومي 8 أكواب مع أزرار ± ورسوم مصغرة لآخر 7 أيام
 - 💊 **تذكيرات الدواء** — قناة إشعار مخصصة، اسم الدواء والجرعة، محدد أيام الأسبوع وعدة أوقات يومياً، وسجل تناول بالتاريخ
-- ☁️ **نسخ احتياطي على Google Drive** (اختياري) — بأقل صلاحية ممكنة `drive.appdata` (مجلد مخفي خاص بالتطبيق فقط)، نقل مباشر هاتف↔Google، مزامنة واستعادة ([الإعداد](docs/DRIVE_SYNC_SETUP.md))
+- ☁️ **نسخ احتياطي عبر WebDAV** (اختياري) — اربط خادمك الخاص (Nextcloud، Koofr، Synology…) بلا تسجيل مطوّر، والنسخة **مشفرة على الجهاز** قبل الرفع (AES-256-GCM + كلمة مرور) ([الدليل](docs/WEBDAV_SYNC.md))
 
 ### إمكانية الوصول والتخصيص
 - 🌐 **واجهة ثنائية اللغة** — العربية (RTL) والإنجليزية (LTR) مع تبديل فوري
