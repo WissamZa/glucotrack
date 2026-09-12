@@ -24,7 +24,8 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace "com.wissamza.glucotrack"
-    compileSdk = 36
+    // 37: required to compile permission_handler_android (backward compatible).
+    compileSdk = 37
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -39,7 +40,8 @@ android {
 
     defaultConfig {
         applicationId "com.wissamza.glucotrack"
-        minSdkVersion flutter.minSdkVersion
+        // flutter_secure_storage v11 requires API 24 (drops Android 5.x/6.x).
+        minSdkVersion 24
         targetSdk = 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

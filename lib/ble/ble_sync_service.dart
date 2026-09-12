@@ -59,14 +59,13 @@ class SyncState {
     double? fraction,
     List<OneTouchRecord>? records,
     String? error,
-  }) =>
-      SyncState(
-        phase: phase ?? this.phase,
-        message: message ?? this.message,
-        fraction: fraction ?? this.fraction,
-        records: records ?? this.records,
-        error: error ?? this.error,
-      );
+  }) => SyncState(
+    phase: phase ?? this.phase,
+    message: message ?? this.message,
+    fraction: fraction ?? this.fraction,
+    records: records ?? this.records,
+    error: error ?? this.error,
+  );
 }
 
 /// A discovered OneTouch meter.
@@ -103,7 +102,8 @@ class OneTouchBleService {
   /// How long to scan before giving up.
   final Duration scanTimeout;
 
-  StreamController<SyncState>? _stateCtl = StreamController<SyncState>.broadcast();
+  StreamController<SyncState>? _stateCtl =
+      StreamController<SyncState>.broadcast();
   StreamController<String>? _logCtl = StreamController<String>.broadcast();
 
   late StreamSubscription<BluetoothAdapterState> _adapterSub;
@@ -149,11 +149,7 @@ class OneTouchBleService {
         final id = r.device.remoteId.str;
         if (seen.contains(id)) continue;
         seen.add(id);
-        found.add(DiscoveredMeter(
-          device: r.device,
-          name: name,
-          remoteId: id,
-        ),);
+        found.add(DiscoveredMeter(device: r.device, name: name, remoteId: id));
         _log('Found $name ($id)');
       }
     });
@@ -240,7 +236,10 @@ class OneTouchBleService {
       }
     });
 
-    await meter.device.connect(license: License.nonprofit, timeout: const Duration(seconds: 15));
+    await meter.device.connect(
+      license: License.nonprofit,
+      timeout: const Duration(seconds: 15),
+    );
 
     _emit(phase: SyncPhase.discovering, message: 'Discovering services…');
     final services = await meter.device.discoverServices();
@@ -276,7 +275,10 @@ class OneTouchBleService {
   }
 
   Future<void> _subscribe() async {
-    _emit(phase: SyncPhase.subscribing, message: 'Subscribing to notifications…');
+    _emit(
+      phase: SyncPhase.subscribing,
+      message: 'Subscribing to notifications…',
+    );
     final notify = _notifyChar!;
     await notify.setNotifyValue(true);
     _notifySub = notify.lastValueStream.listen(_onNotify);
@@ -286,10 +288,7 @@ class OneTouchBleService {
   }
 
   Future<List<OneTouchRecord>> _readAllRecords() async {
-    _emit(
-      phase: SyncPhase.readingMetadata,
-      message: 'Reading meter time…',
-    );
+    _emit(phase: SyncPhase.readingMetadata, message: 'Reading meter time…');
     final meterTime = await _readRtc();
     _log('Meter time: $meterTime');
 
@@ -329,7 +328,9 @@ class OneTouchBleService {
       final record = await _readRecord(seq);
       if (record != null && !record.isControlSolution) {
         records.add(record);
-        _log('  seq=$seq glucose=${record.glucoseMgDl} mg/dL @ ${record.timestamp}');
+        _log(
+          '  seq=$seq glucose=${record.glucoseMgDl} mg/dL @ ${record.timestamp}',
+        );
       } else if (record != null && record.isControlSolution) {
         _log('  seq=$seq skipped (control solution)');
       }
@@ -382,12 +383,15 @@ class OneTouchBleService {
     _log('TX[$mySeq]: ${_hex(tx)}');
     await _writeChar!.write(tx, withoutResponse: false);
 
-    final result = await completer.future.timeout(commandTimeout, onTimeout: () {
-      throw TimeoutException(
-        'Meter did not respond within ${commandTimeout.inSeconds}s '
-        'to command ${_hex(message)}',
-      );
-    },);
+    final result = await completer.future.timeout(
+      commandTimeout,
+      onTimeout: () {
+        throw TimeoutException(
+          'Meter did not respond within ${commandTimeout.inSeconds}s '
+          'to command ${_hex(message)}',
+        );
+      },
+    );
     _log('RX[$mySeq]: ${_hex(Uint8List.fromList(result))}');
     return result;
   }
@@ -415,7 +419,9 @@ class OneTouchBleService {
     if (p != null && !p.isCompleted) {
       p.complete(parsed);
     } else {
-      _log('Received data with no pending command: ${_hex(Uint8List.fromList(parsed))}');
+      _log(
+        'Received data with no pending command: ${_hex(Uint8List.fromList(parsed))}',
+      );
     }
   }
 

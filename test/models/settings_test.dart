@@ -117,12 +117,15 @@ void main() {
     group('SortOrder enum', () {
       test('has all four expected values', () {
         expect(SortOrder.values.length, 4);
-        expect(SortOrder.values, containsAll([
-          SortOrder.newest,
-          SortOrder.oldest,
-          SortOrder.highest,
-          SortOrder.lowest,
-        ]),);
+        expect(
+          SortOrder.values,
+          containsAll([
+            SortOrder.newest,
+            SortOrder.oldest,
+            SortOrder.highest,
+            SortOrder.lowest,
+          ]),
+        );
       });
     });
 

@@ -3,6 +3,7 @@
 // This file combines translations (AR/EN) with the SettingsProvider
 // state management class to avoid circular imports.
 import 'package:flutter/material.dart';
+
 import '../models/reading.dart';
 import '../models/settings.dart';
 
@@ -19,7 +20,11 @@ class SettingsProviderState extends ChangeNotifier {
 
 class SettingsInherited extends InheritedWidget {
   final SettingsProviderState data;
-  const SettingsInherited({super.key, required this.data, required super.child});
+  const SettingsInherited({
+    super.key,
+    required this.data,
+    required super.child,
+  });
 
   @override
   bool updateShouldNotify(SettingsInherited old) =>
@@ -197,7 +202,8 @@ class AppStrings {
   String get exportJson => get('export_json');
   String get exportCsv => get('export_csv');
   String get shareBackup => get('share_backup');
-  String importSuccess(int count) => get('import_success').replaceAll('{count}', '$count');
+  String importSuccess(int count) =>
+      get('import_success').replaceAll('{count}', '$count');
   String get importError => get('import_error');
   String get exportSuccess => get('export_success');
   String get medicationLog => get('medication_log');
@@ -283,7 +289,12 @@ class AppStrings {
   String get bleSyncedFromMeter => get('ble_synced_from_meter');
   String bleSaveResult(int inserted, int skipped) => get('ble_save_result')
       .replaceAll('{inserted}', '$inserted')
-      .replaceAll('{skipped}', skipped > 0 ? get('ble_skipped_duplicates').replaceAll('{count}', '$skipped') : '');
+      .replaceAll(
+        '{skipped}',
+        skipped > 0
+            ? get('ble_skipped_duplicates').replaceAll('{count}', '$skipped')
+            : '',
+      );
   String get bleControlSolution => get('ble_control_solution');
   String get bleBeforeMealShort => get('ble_before_meal_short');
   String get bleAfterMealShort => get('ble_after_meal_short');
@@ -303,6 +314,60 @@ class AppStrings {
   String get bleSyncBannerTitle => get('ble_sync_banner_title');
   String get bleSyncBannerSupported => get('ble_sync_banner_supported');
   String get bleSyncBannerUnsupported => get('ble_sync_banner_unsupported');
+
+  // ===== Health tips (v1.3) =====
+  String get tips => get('tips');
+  String get tipsDisclaimer => get('tips_disclaimer');
+  String get tipOfTheDay => get('tip_of_the_day');
+  String get viewAllTips => get('view_all_tips');
+  String tipsCount(int count) =>
+      get('tips_count').replaceAll('{count}', '$count');
+
+  // ===== Emergency guidance (v1.3) =====
+  String get latestCritical => get('latest_critical');
+  String get immediateGuidance => get('immediate_guidance');
+  String get emergencySeekHelp => get('emergency_seek_help');
+  String get emergencyNote => get('emergency_note');
+
+  // ===== Weight / BP / water tracking (v1.3) =====
+  String get healthMetricsTitle => get('health_metrics_title');
+  String get weightKg => get('weight_kg');
+  String get heightCmLabel => get('height_cm_label');
+  String get heightHint => get('height_hint');
+  String get bloodPressure => get('blood_pressure');
+  String get systolic => get('systolic');
+  String get diastolic => get('diastolic');
+  String get addEntry => get('add_entry');
+  String get latestWeight => get('latest_weight');
+  String get bmiLabel => get('bmi_label');
+  String get bmiUnderweight => get('bmi_underweight');
+  String get bmiNormal => get('bmi_normal');
+  String get bmiOverweight => get('bmi_overweight');
+  String get bmiObese => get('bmi_obese');
+  String get weightTrend => get('weight_trend');
+  String get noMetricsYet => get('no_metrics_yet');
+  String get addFirstMetric => get('add_first_metric');
+  String get metricSaved => get('metric_saved');
+  String get metricDeleted => get('metric_deleted');
+  String get errorWeight => get('error_weight');
+  String get errorHeight => get('error_height');
+  String get errorBp => get('error_bp');
+  String get errorMetricEmpty => get('error_metric_empty');
+  String get deleteMetricConfirm => get('delete_metric_confirm');
+  String get healthTrackingCard => get('health_tracking_card');
+  String get waterTracker => get('water_tracker');
+  String waterProgress(int count, int goal) =>
+      get('water_progress')
+          .replaceAll('{count}', '$count')
+          .replaceAll('{goal}', '$goal');
+  String get waterGoalReached => get('water_goal_reached');
+  String get waterLast7 => get('water_last7');
+
+  // ===== Medication reminders (v1.3) =====
+  String get reminderKind => get('reminder_kind');
+  String get kindMeasurement => get('kind_measurement');
+  String get kindMedication => get('kind_medication');
+  String get errorMedicationName => get('error_medication_name');
 
   String readingType(ReadingType t) {
     switch (t) {
@@ -529,7 +594,8 @@ const Map<String, String> _ar = {
   'disclaimer_trend': 'أسهم الاتجاه مبنية على آخر قراءتين وقد لا تعكس تغيرات السكر في الوقت الفعلي. لا تستخدمها لتحديد جرعة الإنسولين.',
   // Target-range validation errors (UX-002)
   'error_target_range_invalid': 'الحد الأدنى يجب أن يكون أقل من الحد الأعلى',
-  'error_target_range_too_narrow': 'النطاق المستهدف ضيق جداً (الحد الأدنى 20 ملغ/ديسيلتر)',
+  'error_target_range_too_narrow':
+      'النطاق المستهدف ضيق جداً (الحد الأدنى 20 ملغ/ديسيلتر)',
   // BLE sync screen (FIX-017 UX-002)
   'ble_sync_title': 'مزامنة من الجهاز',
   'ble_help_tooltip': 'كيفية المزامنة',
@@ -554,7 +620,8 @@ const Map<String, String> _ar = {
   'ble_start_over': 'البدء من جديد',
   'ble_help_title': 'كيفية مزامنة جهازك',
   'ble_help_step1': 'ضع الجهاز في وضع البلوتوث:',
-  'ble_help_step1_detail': '• اضغط OK لتشغيل الجهاز\n• اضغط ▲ + ▼ معاً — يظهر رمز البلوتوث',
+  'ble_help_step1_detail':
+      '• اضغط OK لتشغيل الجهاز\n• اضغط ▲ + ▼ معاً — يظهر رمز البلوتوث',
   'ble_help_step2': 'اضغط "ابحث عن أجهزة OneTouch"',
   'ble_help_step3': 'اضغط على جهازك في القائمة',
   'ble_help_step4': 'أدخل رقم التعريف الشخصي المكوّن من 6 أرقام الظاهر على شاشة الجهاز عند ظهور مربع حوار الاقتران',
@@ -587,6 +654,52 @@ const Map<String, String> _ar = {
   'ble_sync_banner_title': 'مزامنة من الجهاز',
   'ble_sync_banner_supported': 'OneTouch Select Plus Flex • اضغط للمزامنة',
   'ble_sync_banner_unsupported': 'متاح على أندرويد — غير متاح على هذه المنصة',
+  // Health tips (v1.3)
+  'tips': 'النصائح',
+  'tips_disclaimer': 'هذه النصائح تثقيف عام لمرضى السكري وليست بديلاً عن رأي الطبيب. استشر فريق الرعاية الصحية قبل تطبيق أي تغيير على علاجك أو نظامك الغذائي.',
+  'tip_of_the_day': 'نصيحة اليوم',
+  'view_all_tips': 'كل النصائح',
+  'tips_count': '{count} نصيحة',
+  // Emergency guidance (v1.3)
+  'latest_critical': 'آخر قراءة حرجة',
+  'immediate_guidance': 'اضغط لعرض الإرشادات الفورية',
+  'emergency_seek_help': 'متى تطلب المساعدة؟',
+  'emergency_note': 'إرشادات عامة للإسعاف الذاتي وليست بديلاً عن استشارة الطبيب. عند الشك، اتصل بالإسعاف أو طبيبك.',
+  // Weight / BP / water (v1.3)
+  'health_metrics_title': 'الوزن والضغط',
+  'weight_kg': 'الوزن (كجم)',
+  'height_cm_label': 'الطول (سم)',
+  'height_hint': 'يُستخدم لحساب مؤشر كتلة الجسم (اختياري)',
+  'blood_pressure': 'ضغط الدم',
+  'systolic': 'الانقباضي (الأعلى)',
+  'diastolic': 'الانبساطي (الأدنى)',
+  'add_entry': 'إضافة قياس',
+  'latest_weight': 'آخر وزن',
+  'bmi_label': 'مؤشر كتلة الجسم (BMI)',
+  'bmi_underweight': 'نقص وزن',
+  'bmi_normal': 'وزن طبيعي',
+  'bmi_overweight': 'زيادة وزن',
+  'bmi_obese': 'سمنة',
+  'weight_trend': 'تطور الوزن',
+  'no_metrics_yet': 'لا توجد قياسات وزن أو ضغط بعد',
+  'add_first_metric': 'سجّل وزنك أو ضغطك الأول',
+  'metric_saved': 'تم حفظ القياس',
+  'metric_deleted': 'تم حذف القياس',
+  'error_weight': 'أدخل وزناً صحيحاً (20–400 كجم)',
+  'error_height': 'أدخل طولاً صحيحاً (80–250 سم)',
+  'error_bp': 'أدخل ضغطاً صحيحاً (انقباضي 60–260، انبساطي 30–150)',
+  'error_metric_empty': 'أدخل وزناً أو ضغط دم على الأقل',
+  'delete_metric_confirm': 'حذف هذا القياس؟',
+  'health_tracking_card': 'متابعة الوزن والضغط والماء',
+  'water_tracker': 'تتبع الماء',
+  'water_progress': '{count} من {goal} أكواب',
+  'water_goal_reached': 'أحسنت! حققت هدف اليوم',
+  'water_last7': 'آخر 7 أيام',
+  // Medication reminders (v1.3)
+  'reminder_kind': 'نوع التذكير',
+  'kind_measurement': 'قياس السكر',
+  'kind_medication': 'دواء',
+  'error_medication_name': 'أدخل اسم الدواء',
 };
 
 const Map<String, String> _en = {
@@ -777,13 +890,16 @@ const Map<String, String> _en = {
   'disclaimer_hba1c': 'This HbA1c estimate is based on finger-stick readings, not a continuous glucose monitor. It may differ from a lab HbA1c by up to ±1.5%. Consult your doctor for clinical decisions.',
   'disclaimer_trend': 'Trend arrows are based on your last two readings and may not reflect real-time glucose changes. Do not use for insulin dosing.',
   // Target-range validation errors (UX-002)
-  'error_target_range_invalid': 'Target minimum must be less than target maximum',
-  'error_target_range_too_narrow': 'Target range too narrow (minimum 20 mg/dL gap)',
+  'error_target_range_invalid':
+      'Target minimum must be less than target maximum',
+  'error_target_range_too_narrow':
+      'Target range too narrow (minimum 20 mg/dL gap)',
   // BLE sync screen (FIX-017 UX-002)
   'ble_sync_title': 'Sync from Meter',
   'ble_help_tooltip': 'How to sync',
   'ble_unavailable_title': 'BLE Sync Not Available',
-  'ble_unavailable_desc': 'Bluetooth LE sync is not supported on this platform.',
+  'ble_unavailable_desc':
+      'Bluetooth LE sync is not supported on this platform.',
   'ble_available_platforms': 'Available on Android & iOS',
   'ble_scan_button': 'Scan for OneTouch meters',
   'ble_scanning': 'Scanning for OneTouch meters…',
@@ -836,4 +952,51 @@ const Map<String, String> _en = {
   'ble_sync_banner_title': 'Sync from meter',
   'ble_sync_banner_supported': 'OneTouch Select Plus Flex • Tap to sync',
   'ble_sync_banner_unsupported': 'Available on Android — not on this platform',
+  // Health tips (v1.3)
+  'tips': 'Health Tips',
+  'tips_disclaimer': 'These tips are general diabetes education, not medical advice. Consult your care team before changing your treatment or diet.',
+  'tip_of_the_day': 'Tip of the Day',
+  'view_all_tips': 'All Tips',
+  'tips_count': '{count} tips',
+  // Emergency guidance (v1.3)
+  'latest_critical': 'Latest critical reading',
+  'immediate_guidance': 'Tap for immediate guidance',
+  'emergency_seek_help': 'When to seek help?',
+  'emergency_note': 'General self-care first-aid guidance, not a substitute for medical advice. When in doubt, call emergency services or your doctor.',
+  // Weight / BP / water (v1.3)
+  'health_metrics_title': 'Weight & Blood Pressure',
+  'weight_kg': 'Weight (kg)',
+  'height_cm_label': 'Height (cm)',
+  'height_hint': 'Used for BMI calculation (optional)',
+  'blood_pressure': 'Blood Pressure',
+  'systolic': 'Systolic (upper)',
+  'diastolic': 'Diastolic (lower)',
+  'add_entry': 'Add entry',
+  'latest_weight': 'Latest weight',
+  'bmi_label': 'Body Mass Index (BMI)',
+  'bmi_underweight': 'Underweight',
+  'bmi_normal': 'Normal weight',
+  'bmi_overweight': 'Overweight',
+  'bmi_obese': 'Obese',
+  'weight_trend': 'Weight Trend',
+  'no_metrics_yet': 'No weight or blood pressure entries yet',
+  'add_first_metric': 'Add your first weight or BP entry',
+  'metric_saved': 'Entry saved',
+  'metric_deleted': 'Entry deleted',
+  'error_weight': 'Enter a valid weight (20–400 kg)',
+  'error_height': 'Enter a valid height (80–250 cm)',
+  'error_bp':
+      'Enter a valid blood pressure (systolic 60–260, diastolic 30–150)',
+  'error_metric_empty': 'Enter a weight or a blood pressure',
+  'delete_metric_confirm': 'Delete this entry?',
+  'health_tracking_card': 'Weight, BP & Water Tracking',
+  'water_tracker': 'Water Tracker',
+  'water_progress': '{count} of {goal} cups',
+  'water_goal_reached': 'Great! Daily goal reached',
+  'water_last7': 'Last 7 days',
+  // Medication reminders (v1.3)
+  'reminder_kind': 'Reminder Type',
+  'kind_measurement': 'Glucose check',
+  'kind_medication': 'Medication',
+  'error_medication_name': 'Enter the medication name',
 };

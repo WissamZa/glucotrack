@@ -1,7 +1,9 @@
 // ReadingActions — popup menu for edit/delete on each reading row.
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../i18n/strings.dart';
 import '../models/reading.dart';
 import '../providers/providers.dart';
@@ -9,13 +11,21 @@ import '../providers/providers.dart';
 class ReadingActions extends StatelessWidget {
   final Reading reading;
   final bool compact;
-  const ReadingActions({super.key, required this.reading, this.compact = false});
+  const ReadingActions({
+    super.key,
+    required this.reading,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
     return PopupMenuButton<String>(
-      icon: Icon(Icons.more_vert, size: compact ? 18 : 20, color: Colors.grey.shade600),
+      icon: Icon(
+        Icons.more_vert,
+        size: compact ? 18 : 20,
+        color: Colors.grey.shade600,
+      ),
       tooltip: strings.tooltipMoreOptions,
       padding: EdgeInsets.zero,
       itemBuilder: (_) => [
@@ -23,7 +33,11 @@ class ReadingActions extends StatelessWidget {
           value: 'edit',
           child: Row(
             children: [
-              Icon(Icons.edit, size: 18, color: Theme.of(context).colorScheme.primary),
+              Icon(
+                Icons.edit,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               Text(strings.edit),
             ],
@@ -43,7 +57,9 @@ class ReadingActions extends StatelessWidget {
       onSelected: (v) async {
         if (v == 'edit') {
           await Navigator.pushNamed(context, '/add', arguments: reading);
-          if (context.mounted) unawaited(context.read<ReadingsProvider>().load());
+          if (context.mounted) {
+            unawaited(context.read<ReadingsProvider>().load());
+          }
         } else if (v == 'delete') {
           final confirmed = await _confirmDelete(context, strings);
           if (confirmed != true) return;

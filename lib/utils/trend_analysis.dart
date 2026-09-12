@@ -13,6 +13,7 @@
 // implausible for capillary glucose and almost always indicate a
 // corrupted or mismatched reading.
 import 'package:flutter/material.dart';
+
 import '../models/reading.dart';
 
 /// Glucose trend direction.
@@ -82,10 +83,7 @@ class TrendResult {
   /// switched to the CGM-standard per-minute convention.
   final double ratePerMin;
 
-  const TrendResult({
-    required this.direction,
-    required this.ratePerMin,
-  });
+  const TrendResult({required this.direction, required this.ratePerMin});
 }
 
 class TrendAnalyzer {
@@ -175,7 +173,9 @@ class TrendAnalyzer {
       case TrendDirection.risingFast:
       case TrendDirection.rising:
         if (isLow) return const Color(0xFF16A34A); // green: recovering from low
-        if (inRange) return const Color(0xFFF59E0B); // amber: rising out of range
+        if (inRange) {
+          return const Color(0xFFF59E0B); // amber: rising out of range
+        }
         if (isHigh) return const Color(0xFFDC2626); // red: rising higher
         return const Color(0xFFF59E0B);
       case TrendDirection.stable:
@@ -183,8 +183,12 @@ class TrendAnalyzer {
         return const Color(0xFFF59E0B); // amber: stable out of range
       case TrendDirection.falling:
       case TrendDirection.fallingFast:
-        if (isHigh) return const Color(0xFF16A34A); // green: dropping toward range
-        if (inRange) return const Color(0xFFF59E0B); // amber: dropping below range
+        if (isHigh) {
+          return const Color(0xFF16A34A); // green: dropping toward range
+        }
+        if (inRange) {
+          return const Color(0xFFF59E0B); // amber: dropping below range
+        }
         if (isLow) return const Color(0xFFDC2626); // red: dropping lower
         return const Color(0xFFF59E0B);
     }

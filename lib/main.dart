@@ -18,43 +18,48 @@ import 'screens/add_reading_screen.dart';
 import 'screens/ble_sync_screen.dart';
 import 'screens/chart_screen.dart';
 import 'screens/export_screen.dart';
+import 'screens/health_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/tips_screen.dart';
 import 'services/notification_service.dart';
 import 'themes/app_theme.dart';
 
 void main() {
   // Wrap the entire app in a zone that catches errors to prevent white screen
-  runZonedGuarded(() {
-    // Ensure Flutter binding is initialized before any async work
-    WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded(
+    () {
+      // Ensure Flutter binding is initialized before any async work
+      WidgetsFlutterBinding.ensureInitialized();
 
-    if (kIsWeb) {
-      databaseFactory = databaseFactoryFfiWeb;
-    } else if (defaultTargetPlatform != TargetPlatform.android &&
-               defaultTargetPlatform != TargetPlatform.iOS) {
-      // Desktop (Linux, Windows, macOS): use FFI.
-      // NOTE: desktop SQLCipher requires sqlcipher_flutter_libs; without it the
-      // `password` parameter is silently ignored and the DB is unencrypted on
-      // desktop. Tracked as a SEC-006 follow-up. Mobile (Android/iOS) uses the
-      // sqflite_sqlcipher native factory by default — no override needed.
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-    // Mobile (Android/iOS): no override — sqflite_sqlcipher's default native
-    // factory (registered on import of package:sqflite_sqlcipher/sqflite.dart in
-    // database_helper.dart) provides transparent SQLCipher encryption.
+      if (kIsWeb) {
+        databaseFactory = databaseFactoryFfiWeb;
+      } else if (defaultTargetPlatform != TargetPlatform.android &&
+          defaultTargetPlatform != TargetPlatform.iOS) {
+        // Desktop (Linux, Windows, macOS): use FFI.
+        // NOTE: desktop SQLCipher requires sqlcipher_flutter_libs; without it the
+        // `password` parameter is silently ignored and the DB is unencrypted on
+        // desktop. Tracked as a SEC-006 follow-up. Mobile (Android/iOS) uses the
+        // sqflite_sqlcipher native factory by default — no override needed.
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      }
+      // Mobile (Android/iOS): no override — sqflite_sqlcipher's default native
+      // factory (registered on import of package:sqflite_sqlcipher/sqflite.dart in
+      // database_helper.dart) provides transparent SQLCipher encryption.
 
-    runApp(const GlucoTrackApp());
-  }, (error, stack) {
-    // Log errors — in production these would go to Crashlytics/Sentry
-    debugPrint('=== UNCAUGHT ERROR ===');
-    debugPrint('$error');
-    debugPrint('$stack');
-  });
+      runApp(const GlucoTrackApp());
+    },
+    (error, stack) {
+      // Log errors — in production these would go to Crashlytics/Sentry
+      debugPrint('=== UNCAUGHT ERROR ===');
+      debugPrint('$error');
+      debugPrint('$stack');
+    },
+  );
 }
 
 class GlucoTrackApp extends StatelessWidget {
@@ -64,9 +69,18 @@ class GlucoTrackApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<SettingsProviderState>(create: (_) => SettingsProviderState()),
-        ChangeNotifierProvider<ReadingsProvider>(create: (_) => ReadingsProvider()),
-        ChangeNotifierProvider<RemindersProvider>(create: (_) => RemindersProvider()),
+        ChangeNotifierProvider<SettingsProviderState>(
+          create: (_) => SettingsProviderState(),
+        ),
+        ChangeNotifierProvider<ReadingsProvider>(
+          create: (_) => ReadingsProvider(),
+        ),
+        ChangeNotifierProvider<RemindersProvider>(
+          create: (_) => RemindersProvider(),
+        ),
+        ChangeNotifierProvider<HealthMetricsProvider>(
+          create: (_) => HealthMetricsProvider(),
+        ),
       ],
       child: Consumer<SettingsProviderState>(
         builder: (context, settingsProv, _) {
@@ -74,6 +88,7 @@ class GlucoTrackApp extends StatelessWidget {
           return MaterialApp(
             title: 'GlucoTrack',
             debugShowCheckedModeBanner: kDebugMode,
+            navigatorKey: NotificationService.navigatorKey,
             theme: AppTheme.forStyle(s.theme),
             locale: Locale(s.language == Language.ar ? 'ar' : 'en'),
             supportedLocales: const [Locale('ar'), Locale('en')],
@@ -86,7 +101,9 @@ class GlucoTrackApp extends StatelessWidget {
               return SettingsInherited(
                 data: settingsProv,
                 child: Directionality(
-                  textDirection: s.isRtl ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: s.isRtl
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   child: child!,
                 ),
               );
@@ -101,6 +118,8 @@ class GlucoTrackApp extends StatelessWidget {
               '/insights': (_) => const InsightsScreen(),
               '/export': (_) => const ExportScreen(),
               '/sync': (_) => const BleSyncScreen(),
+              '/tips': (_) => const TipsScreen(),
+              '/health': (_) => const HealthScreen(),
             },
           );
         },
@@ -145,6 +164,8 @@ class _AppBootstrapState extends State<AppBootstrap> {
       await context.read<ReadingsProvider>().load();
       if (!mounted) return;
       await context.read<RemindersProvider>().load();
+      if (!mounted) return;
+      await context.read<HealthMetricsProvider>().load();
 
       if (!mounted) return;
       await NotificationService().initialize();
@@ -290,10 +311,25 @@ class _MainShellState extends State<MainShell> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _navItem(Icons.home_outlined, Icons.home, strings.navHome, 0),
-              _navItem(Icons.bar_chart_outlined, Icons.bar_chart, strings.navChart, 1),
+              _navItem(
+                Icons.bar_chart_outlined,
+                Icons.bar_chart,
+                strings.navChart,
+                1,
+              ),
               const SizedBox(width: 56), // space for FAB
-              _navItem(Icons.notifications_outlined, Icons.notifications, strings.navReminders, 2),
-              _navItem(Icons.settings_outlined, Icons.settings, strings.navSettings, 3),
+              _navItem(
+                Icons.notifications_outlined,
+                Icons.notifications,
+                strings.navReminders,
+                2,
+              ),
+              _navItem(
+                Icons.settings_outlined,
+                Icons.settings,
+                strings.navSettings,
+                3,
+              ),
             ],
           ),
         ),
@@ -317,7 +353,11 @@ class _MainShellState extends State<MainShell> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

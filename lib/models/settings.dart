@@ -8,7 +8,9 @@ extension LanguageX on Language {
 }
 
 enum ThemeStyle { classic, modern, elder }
+
 enum DiabetesType { type1, type2, gestational }
+
 enum GlucoseUnit { mgDl, mmolL }
 
 class Settings {
@@ -20,6 +22,7 @@ class Settings {
   final GlucoseUnit unit;
   final String userName;
   final bool onboarded;
+  final double? heightCm; // optional — enables BMI calculation
 
   const Settings({
     this.language = Language.ar,
@@ -30,6 +33,7 @@ class Settings {
     this.unit = GlucoseUnit.mgDl,
     this.userName = '',
     this.onboarded = false,
+    this.heightCm,
   });
 
   bool get isRtl => language == Language.ar;
@@ -60,17 +64,18 @@ class Settings {
     GlucoseUnit? unit,
     String? userName,
     bool? onboarded,
-  }) =>
-      Settings(
-        language: language ?? this.language,
-        theme: theme ?? this.theme,
-        diabetesType: diabetesType ?? this.diabetesType,
-        targetMin: targetMin ?? this.targetMin,
-        targetMax: targetMax ?? this.targetMax,
-        unit: unit ?? this.unit,
-        userName: userName ?? this.userName,
-        onboarded: onboarded ?? this.onboarded,
-      );
+    double? heightCm,
+  }) => Settings(
+    language: language ?? this.language,
+    theme: theme ?? this.theme,
+    diabetesType: diabetesType ?? this.diabetesType,
+    targetMin: targetMin ?? this.targetMin,
+    targetMax: targetMax ?? this.targetMax,
+    unit: unit ?? this.unit,
+    userName: userName ?? this.userName,
+    onboarded: onboarded ?? this.onboarded,
+    heightCm: heightCm ?? this.heightCm,
+  );
 }
 
 enum SortOrder { newest, oldest, highest, lowest }

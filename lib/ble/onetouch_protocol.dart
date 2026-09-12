@@ -20,20 +20,16 @@ class OneTouchUuids {
   OneTouchUuids._();
 
   /// Vendor service — advertised by the meter.
-  static const String service =
-      'af9df7a1-e595-11e3-96b4-0002a5d5c51b';
+  static const String service = 'af9df7a1-e595-11e3-96b4-0002a5d5c51b';
 
   /// Command channel — client writes framed commands here.
-  static const String write =
-      'af9df7a2-e595-11e3-96b4-0002a5d5c51b';
+  static const String write = 'af9df7a2-e595-11e3-96b4-0002a5d5c51b';
 
   /// Response channel — meter pushes notifications here.
-  static const String notify =
-      'af9df7a3-e595-11e3-96b4-0002a5d5c51b';
+  static const String notify = 'af9df7a3-e595-11e3-96b4-0002a5d5c51b';
 
   /// Standard CCCD descriptor UUID used to enable notifications.
-  static const String cccd =
-      '00002902-0000-1000-8000-00805f9b34fb';
+  static const String cccd = '00002902-0000-1000-8000-00805f9b34fb';
 }
 
 /// Opcodes used in the LifeScan Verio command set.
@@ -150,7 +146,8 @@ class OneTouchFraming {
     if (packet[length - 3] != etx) return null;
     final crcBytes = packet.sublist(0, length - 2);
     final expected = crc16ccitt(crcBytes);
-    final actual = (packet[length - 2] & 0xFF) | ((packet[length - 1] & 0xFF) << 8);
+    final actual =
+        (packet[length - 2] & 0xFF) | ((packet[length - 1] & 0xFF) << 8);
     if (expected != actual) return null;
     return packet.sublist(4, length - 3);
   }
@@ -274,23 +271,31 @@ class OneTouchProtocol {
   static List<int> buildReadRtc() => [OneTouchOpcode.readRtc, 0x02];
 
   /// Build the READ COUNTER command: {0x0A, 0x02, selector}.
-  static List<int> buildReadCounter(int selector) =>
-      [OneTouchOpcode.readCounter, 0x02, selector];
+  static List<int> buildReadCounter(int selector) => [
+    OneTouchOpcode.readCounter,
+    0x02,
+    selector,
+  ];
 
   /// Build the READ PARAMETER command: {0x09, 0x02, selector}.
-  static List<int> buildReadParameter(int selector) =>
-      [OneTouchOpcode.readParameter, 0x02, selector];
+  static List<int> buildReadParameter(int selector) => [
+    OneTouchOpcode.readParameter,
+    0x02,
+    selector,
+  ];
 
   /// Build the READ RECORD COUNT command: {0x27, 0x00}.
-  static List<int> buildReadRecordCount() =>
-      [OneTouchOpcode.readRecordCount, 0x00];
+  static List<int> buildReadRecordCount() => [
+    OneTouchOpcode.readRecordCount,
+    0x00,
+  ];
 
   /// Build the READ RECORD command: {0xB3, lo, hi}.
   static List<int> buildReadRecord(int sequenceNumber) => [
-        OneTouchOpcode.readRecord,
-        sequenceNumber & 0xFF,
-        (sequenceNumber >> 8) & 0xFF,
-      ];
+    OneTouchOpcode.readRecord,
+    sequenceNumber & 0xFF,
+    (sequenceNumber >> 8) & 0xFF,
+  ];
 
   /// Parse a READ RTC response into a DateTime.
   ///
@@ -312,7 +317,8 @@ class OneTouchProtocol {
   static int parseCounter(List<int> message) {
     if (message.length < 5) {
       throw FormatException(
-          'Counter response too short: ${message.length} bytes',);
+        'Counter response too short: ${message.length} bytes',
+      );
     }
     final bd = ByteData.sublistView(Uint8List.fromList(message.sublist(1, 5)));
     return bd.getUint32(0, Endian.little);

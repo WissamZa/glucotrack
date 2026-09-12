@@ -25,11 +25,7 @@ class HbA1cResult {
   String get eagFormatted => '${estimatedAverageGlucose.round()} mg/dL';
 }
 
-enum HbA1cCategory {
-  normal,
-  prediabetes,
-  diabetes,
-}
+enum HbA1cCategory { normal, prediabetes, diabetes }
 
 extension HbA1cCategoryX on HbA1cCategory {
   String get label {

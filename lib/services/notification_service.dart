@@ -2,6 +2,7 @@
 //
 // Wraps flutter_local_notifications to schedule daily recurring reminders
 // at user-specified times. Notifications survive device reboots.
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -10,6 +11,10 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
+
+  /// Root navigator key so notification taps can deep-link into the app
+  /// (e.g. open the add-reading screen).
+  static final navigatorKey = GlobalKey<NavigatorState>();
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
@@ -54,10 +59,21 @@ class NotificationService {
   String? _findLocalTimezone(Duration offset) {
     // Common timezones — expand as needed
     final common = [
-      'UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
-      'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Europe/Berlin',
-      'Asia/Riyadh', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Tokyo', 'Asia/Shanghai',
-      'Australia/Sydney', 'Pacific/Auckland',
+      'UTC',
+      'America/New_York',
+      'America/Chicago',
+      'America/Denver',
+      'America/Los_Angeles',
+      'Europe/London',
+      'Europe/Paris',
+      'Europe/Berlin',
+      'Asia/Riyadh',
+      'Asia/Dubai',
+      'Asia/Kolkata',
+      'Asia/Tokyo',
+      'Asia/Shanghai',
+      'Australia/Sydney',
+      'Pacific/Auckland',
     ];
     for (final name in common) {
       try {
@@ -73,37 +89,61 @@ class NotificationService {
   Future<void> requestPermissions() async {
     await _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.requestNotificationsPermission();
   }
 
   /// Schedule a daily reminder at the given [hour]:[minute].
   /// [id] should be a stable hash of the reminder ID.
+  /// [medication] selects the dedicated medication channel (distinct icon
+  /// description and category) so users can configure it separately.
   Future<void> scheduleDailyReminder({
     required int id,
     required int hour,
     required int minute,
     required String title,
     required String body,
+    bool medication = false,
   }) async {
     await initialize();
     final now = tz.TZDateTime.now(tz.local);
-    var scheduled =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
     if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
 
-    const androidDetails = AndroidNotificationDetails(
-      'glucotrack_reminders',
-      'GlucoTrack Reminders',
-      channelDescription: 'Notifications for blood glucose measurement reminders',
-      importance: Importance.high,
-      priority: Priority.high,
-      category: AndroidNotificationCategory.reminder,
-    );
+    final androidDetails = medication
+        ? const AndroidNotificationDetails(
+            'glucotrack_medication',
+            'GlucoTrack Medication',
+            channelDescription:
+                'Notifications for medication and insulin reminders',
+            importance: Importance.high,
+            priority: Priority.high,
+            category: AndroidNotificationCategory.reminder,
+          )
+        : const AndroidNotificationDetails(
+            'glucotrack_reminders',
+            'GlucoTrack Reminders',
+            channelDescription:
+                'Notifications for blood glucose measurement reminders',
+            importance: Importance.high,
+            priority: Priority.high,
+            category: AndroidNotificationCategory.reminder,
+          );
     const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
 
     await _plugin.zonedSchedule(
       id: id,
@@ -129,6 +169,11 @@ class NotificationService {
   }
 
   void _onNotificationTap(NotificationResponse resp) {
-    // Future: deep-link to the add-reading screen
+    // Deep-link to the add-reading screen. Uses the root navigator key so it
+    // works regardless of which screen is on top when the tap happens.
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      Navigator.of(context).pushNamed('/add');
+    }
   }
 }

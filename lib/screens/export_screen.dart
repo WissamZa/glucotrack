@@ -1,7 +1,9 @@
 import 'dart:convert';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../i18n/strings.dart';
 import '../providers/providers.dart';
 import '../utils/export_import.dart';
@@ -96,14 +98,22 @@ class ExportScreen extends StatelessWidget {
       final sProv = context.read<SettingsProviderState>();
 
       final readings = rProv.rawReadings.where((r) {
-        return r.timestamp.isAfter(range.start.subtract(const Duration(seconds: 1))) &&
-               r.timestamp.isBefore(range.end.add(const Duration(days: 1)));
+        return r.timestamp.isAfter(
+              range.start.subtract(const Duration(seconds: 1)),
+            ) &&
+            r.timestamp.isBefore(range.end.add(const Duration(days: 1)));
       }).toList();
 
       if (readings.isEmpty) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(strings.isRtl ? 'لا توجد بيانات لهذه الفترة' : 'No data for this period')),
+            SnackBar(
+              content: Text(
+                strings.isRtl
+                    ? 'لا توجد بيانات لهذه الفترة'
+                    : 'No data for this period',
+              ),
+            ),
           );
         }
         return;
@@ -117,9 +127,8 @@ class ExportScreen extends StatelessWidget {
       );
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(strings.exportSuccess)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(strings.exportSuccess)));
       }
     } on Exception catch (_) {
       if (context.mounted) {
@@ -131,19 +140,21 @@ class ExportScreen extends StatelessWidget {
   Future<void> _exportJson(BuildContext context) async {
     final rProv = context.read<ReadingsProvider>();
     final remProv = context.read<RemindersProvider>();
+    final healthProv = context.read<HealthMetricsProvider>();
     final strings = AppStrings.of(context);
 
     final data = ExportData(
       readings: rProv.rawReadings,
       reminders: remProv.reminders.toList(),
+      healthMetrics: healthProv.metrics,
+      waterLog: healthProv.waterLog,
       exportedAt: DateTime.now(),
     );
 
     await DataExporter.shareJson(data);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.exportSuccess)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.exportSuccess)));
     }
   }
 
@@ -153,9 +164,8 @@ class ExportScreen extends StatelessWidget {
 
     await DataExporter.shareCsv(rProv.rawReadings);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.exportSuccess)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.exportSuccess)));
     }
   }
 
@@ -168,8 +178,8 @@ class ExportScreen extends StatelessWidget {
         allowedExtensions: ['json'],
       );
 
-      if (result == null || result.files.isEmpty) return;
-      final file = result.files.first;
+      if (result.isEmpty) return;
+      final file = result.first;
       final fileBytes = await file.readAsBytes();
 
       final jsonStr = utf8.decode(fileBytes, allowMalformed: true);
@@ -186,6 +196,7 @@ class ExportScreen extends StatelessWidget {
       if (!context.mounted) return;
       final rProv = context.read<ReadingsProvider>();
       final remProv = context.read<RemindersProvider>();
+      final healthProv = context.read<HealthMetricsProvider>();
 
       // Merge imported readings (skip duplicates by ID)
       final existingIds = rProv.rawReadings.map((r) => r.id).toSet();
@@ -197,9 +208,28 @@ class ExportScreen extends StatelessWidget {
         }
       }
 
-      // Merge imported reminders
+      // Merge imported reminders (skip duplicates by ID — re-importing the
+      // same backup twice must not double the reminders or notifications).
+      final existingReminderIds = remProv.reminders.map((r) => r.id).toSet();
       for (final reminder in imported.reminders) {
-        await remProv.add(reminder);
+        if (!existingReminderIds.contains(reminder.id)) {
+          await remProv.add(reminder);
+        }
+      }
+
+      // Merge weight/BP entries (v1.3+ backups; older ones have none)
+      final existingMetricIds = healthProv.metrics.map((m) => m.id).toSet();
+      for (final metric in imported.healthMetrics) {
+        if (!existingMetricIds.contains(metric.id)) {
+          await healthProv.addMetric(metric);
+        }
+      }
+
+      // Merge water log — keep the higher cup count per day.
+      for (final water in imported.waterLog) {
+        if (water.cups > healthProv.cupsForDate(water.date)) {
+          await healthProv.setWater(water.date, water.cups);
+        }
       }
 
       if (context.mounted) {
@@ -225,7 +255,11 @@ class _SectionIcon extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  const _SectionIcon({required this.icon, required this.title, required this.subtitle});
+  const _SectionIcon({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -245,8 +279,17 @@ class _SectionIcon extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
             ],
           ),
         ),
@@ -299,11 +342,21 @@ class _ExportCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle,
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                   ],
                 ),
               ),

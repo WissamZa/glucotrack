@@ -33,7 +33,9 @@ class AppTheme {
               secondary: emerald,
               surface: Colors.white,
             ),
-      scaffoldBackgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      scaffoldBackgroundColor: isDark
+          ? const Color(0xFF0F172A)
+          : const Color(0xFFF8FAFC),
       cardColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       appBarTheme: AppBarTheme(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -66,7 +68,9 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: teal,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
         ),
       ),
@@ -138,14 +142,28 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: fuchsia,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
         ),
       ),
       textTheme: base.textTheme.copyWith(
-        headlineLarge: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-        headlineMedium: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-        titleLarge: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+        headlineLarge: const TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        headlineMedium: const TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        titleLarge: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
         bodyLarge: const TextStyle(fontSize: 16, color: Colors.white),
         bodyMedium: const TextStyle(fontSize: 14, color: Colors.white70),
       ),
@@ -198,7 +216,9 @@ class AppTheme {
           backgroundColor: slate,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(56),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         ),
       ),

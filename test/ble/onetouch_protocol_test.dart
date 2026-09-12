@@ -16,7 +16,11 @@ void main() {
       const input = '123456789';
       final bytes = input.codeUnits;
       final crc = crc16ccitt(bytes);
-      expect(crc, 0x29B1, reason: 'CRC-16/CCITT-FALSE of "123456789" must be 0x29B1');
+      expect(
+        crc,
+        0x29B1,
+        reason: 'CRC-16/CCITT-FALSE of "123456789" must be 0x29B1',
+      );
     });
 
     test('empty input -> 0xFFFF (init value)', () {
@@ -54,7 +58,20 @@ void main() {
     });
 
     test('unframe rejects wrong STX', () {
-      expect(OneTouchFraming.unframe([0xFF, 0x09, 0x00, 0x03, 0x20, 0x02, 0x03, 0xFF, 0xFF]), isNull);
+      expect(
+        OneTouchFraming.unframe([
+          0xFF,
+          0x09,
+          0x00,
+          0x03,
+          0x20,
+          0x02,
+          0x03,
+          0xFF,
+          0xFF,
+        ]),
+        isNull,
+      );
     });
 
     test('unframe rejects corrupted CRC', () {
@@ -73,7 +90,13 @@ void main() {
     });
 
     test('parseRx inverts buildTx (single-packet round-trip)', () {
-      final message = <int>[0x06, 0x00, 0x00, 0x00, 0x00]; // status=OK + 4-byte payload
+      final message = <int>[
+        0x06,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+      ]; // status=OK + 4-byte payload
       final tx = OneTouchTransport.buildTx(message);
       final parsed = OneTouchTransport.parseRx(tx);
       expect(parsed, isNotNull);
@@ -215,10 +238,7 @@ void main() {
 
     test('rejects out-of-range glucose values', () {
       // 5 mg/dL — below the 20..600 sanity range
-      expect(
-        parseRecordBytes(seq: 1, secondsSince2000: 0, glucose: 5),
-        isNull,
-      );
+      expect(parseRecordBytes(seq: 1, secondsSince2000: 0, glucose: 5), isNull);
       // 700 mg/dL — above the range
       expect(
         parseRecordBytes(seq: 1, secondsSince2000: 0, glucose: 700),

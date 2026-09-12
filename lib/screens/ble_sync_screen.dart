@@ -34,7 +34,6 @@ import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../utils/unit_converter.dart';
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 class BleSyncScreen extends StatefulWidget {
@@ -76,9 +75,10 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     ); // started/stopped on demand by _startScan / scan completion (FIX-041 / PERF-006)
-    _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 0.85,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
     if (isBleSupported) {
       _service = OneTouchBleService();
@@ -250,8 +250,7 @@ class _BleSyncScreenState extends State<BleSyncScreen>
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -270,7 +269,8 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       _selectionInitialized = true;
       _selectedSeqs.clear();
       for (final rec in records) {
-        final id = 'onetouch_${_sanitize(_lastMeterRemoteId)}_${rec.sequenceNumber}';
+        final id =
+            'onetouch_${_sanitize(_lastMeterRemoteId)}_${rec.sequenceNumber}';
         final alreadySaved = rProv.findById(id) != null;
         if (!alreadySaved) {
           _selectedSeqs.add(rec.sequenceNumber);
@@ -291,9 +291,11 @@ class _BleSyncScreenState extends State<BleSyncScreen>
       ),
       body: !isBleSupported
           ? _buildUnsupportedView(primary)
-          : (_syncing || _state.phase == SyncPhase.done || _state.phase == SyncPhase.error)
-              ? _buildSyncView()
-              : _buildScanView(primary),
+          : (_syncing ||
+                _state.phase == SyncPhase.done ||
+                _state.phase == SyncPhase.error)
+          ? _buildSyncView()
+          : _buildScanView(primary),
     );
   }
 
@@ -319,18 +321,14 @@ class _BleSyncScreenState extends State<BleSyncScreen>
             const SizedBox(height: 24),
             Text(
               strings.bleUnavailableTitle,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
+              style: Theme.of(context).textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               bleUnsupportedReason ?? strings.bleUnavailableDesc,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
+              style: Theme.of(context).textTheme.bodyMedium
                   ?.copyWith(color: Colors.grey.shade600, height: 1.5),
               textAlign: TextAlign.center,
             ),
@@ -341,7 +339,9 @@ class _BleSyncScreenState extends State<BleSyncScreen>
               onPressed: null, // disabled — informational
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14,),
+                  horizontal: 24,
+                  vertical: 14,
+                ),
               ),
             ),
           ],
@@ -372,7 +372,8 @@ class _BleSyncScreenState extends State<BleSyncScreen>
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
             ),
           ),
-          for (final m in _scannedMeters) _MeterCard(meter: m, onTap: () => _syncWith(m)),
+          for (final m in _scannedMeters)
+            _MeterCard(meter: m, onTap: () => _syncWith(m)),
           const SizedBox(height: 8),
         ],
         const _PairingHint(),
@@ -393,12 +394,22 @@ class _BleSyncScreenState extends State<BleSyncScreen>
 
     // Count how many are unsaved
     final unsavedRecords = records.where((rec) {
-      final id = 'onetouch_${_sanitize(_lastMeterRemoteId)}_${rec.sequenceNumber}';
+      final id =
+          'onetouch_${_sanitize(_lastMeterRemoteId)}_${rec.sequenceNumber}';
       return rProv.findById(id) == null;
     }).toList();
 
-    final allSelected = unsavedRecords.isNotEmpty && unsavedRecords.every((rec) => _selectedSeqs.contains(rec.sequenceNumber));
-    final someSelected = unsavedRecords.isNotEmpty && unsavedRecords.any((rec) => _selectedSeqs.contains(rec.sequenceNumber)) && !allSelected;
+    final allSelected =
+        unsavedRecords.isNotEmpty &&
+        unsavedRecords.every(
+          (rec) => _selectedSeqs.contains(rec.sequenceNumber),
+        );
+    final someSelected =
+        unsavedRecords.isNotEmpty &&
+        unsavedRecords.any(
+          (rec) => _selectedSeqs.contains(rec.sequenceNumber),
+        ) &&
+        !allSelected;
 
     // FIX-041 / PERF-005: _logs is a Queue — snapshot it to a List for indexed
     // access in the debug-log ListView below.
@@ -419,7 +430,9 @@ class _BleSyncScreenState extends State<BleSyncScreen>
               Text(
                 strings.bleSyncedRecords(records.length),
                 style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 15,),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
               ),
               if (!_saved && isDone)
                 FilledButton.icon(
@@ -457,7 +470,10 @@ class _BleSyncScreenState extends State<BleSyncScreen>
                     allSelected
                         ? strings.bleDeselectAllNew
                         : strings.bleSelectAllNew,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
@@ -467,7 +483,8 @@ class _BleSyncScreenState extends State<BleSyncScreen>
 
           for (final r in records) ...[
             (() {
-              final id = 'onetouch_${_sanitize(_lastMeterRemoteId)}_${r.sequenceNumber}';
+              final id =
+                  'onetouch_${_sanitize(_lastMeterRemoteId)}_${r.sequenceNumber}';
               final alreadySaved = rProv.findById(id) != null;
               final isSelected = _selectedSeqs.contains(r.sequenceNumber);
               return _RecordTile(
@@ -505,8 +522,10 @@ class _BleSyncScreenState extends State<BleSyncScreen>
         // (see top of _buildSyncView).
         ExpansionTile(
           leading: const Icon(Icons.terminal, size: 18),
-          title: Text(strings.bleDebugLog(logList.length),
-              style: const TextStyle(fontSize: 13),),
+          title: Text(
+            strings.bleDebugLog(logList.length),
+            style: const TextStyle(fontSize: 13),
+          ),
           children: [
             Container(
               height: 200,
@@ -568,8 +587,13 @@ class _BleSyncScreenState extends State<BleSyncScreen>
               const SizedBox(height: 12),
               const Divider(),
               const SizedBox(height: 8),
-              Text(strings.bleTips,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),),
+              Text(
+                strings.bleTips,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(
                 strings.bleTipsText,
@@ -613,10 +637,8 @@ class _HeroCard extends StatelessWidget {
           children: [
             AnimatedBuilder(
               animation: pulseAnim,
-              builder: (_, child) => Transform.scale(
-                scale: pulseAnim.value,
-                child: child,
-              ),
+              builder: (_, child) =>
+                  Transform.scale(scale: pulseAnim.value, child: child),
               child: Container(
                 width: 56,
                 height: 56,
@@ -624,7 +646,11 @@ class _HeroCard extends StatelessWidget {
                   color: primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.bluetooth_connected, color: primary, size: 28),
+                child: Icon(
+                  Icons.bluetooth_connected,
+                  color: primary,
+                  size: 28,
+                ),
               ),
             ),
             const SizedBox(width: 16),
@@ -634,17 +660,13 @@ class _HeroCard extends StatelessWidget {
                 children: [
                   Text(
                     strings.bleHeroDevice,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
+                    style: Theme.of(context).textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     strings.bleHeroDesc,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
+                    style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: Colors.grey.shade600, height: 1.4),
                   ),
                 ],
@@ -671,8 +693,7 @@ class _ScanButton extends StatelessWidget {
       onPressed: onPressed,
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
-        textStyle:
-            const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
@@ -692,24 +713,25 @@ class _ScanningCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-        child: Column(children: [
-          SizedBox(
-            width: 36,
-            height: 36,
-            child: CircularProgressIndicator(
-                strokeWidth: 3, color: primary,),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            strings.bleScanning,
-            style: TextStyle(fontWeight: FontWeight.w600, color: primary),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            strings.bleScanningHint,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-        ],),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(strokeWidth: 3, color: primary),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              strings.bleScanning,
+              style: TextStyle(fontWeight: FontWeight.w600, color: primary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              strings.bleScanningHint,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -728,8 +750,7 @@ class _MeterCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(
           width: 44,
           height: 44,
@@ -737,11 +758,12 @@ class _MeterCard extends StatelessWidget {
             color: Colors.red.shade50,
             shape: BoxShape.circle,
           ),
-          child:
-              const Icon(Icons.bloodtype, color: Colors.red, size: 22),
+          child: const Icon(Icons.bloodtype, color: Colors.red, size: 22),
         ),
-        title: Text(meter.name,
-            style: const TextStyle(fontWeight: FontWeight.w600),),
+        title: Text(
+          meter.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Text(
           meter.remoteId,
           style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
@@ -752,11 +774,14 @@ class _MeterCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Text(strings.bleConnect,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,),),
+          child: Text(
+            strings.bleConnect,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
         ),
         onTap: onTap,
       ),
@@ -783,8 +808,8 @@ class _ProgressCard extends StatelessWidget {
           color: isError
               ? Colors.red.shade200
               : isDone
-                  ? Colors.green.shade200
-                  : primary.withValues(alpha: 0.2),
+              ? Colors.green.shade200
+              : primary.withValues(alpha: 0.2),
         ),
       ),
       child: Padding(
@@ -792,19 +817,23 @@ class _ProgressCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              _phaseIcon(isDone, isError, primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  state.message.isEmpty
-                      ? _phaseLabel(state.phase, strings)
-                      : state.message,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14,),
+            Row(
+              children: [
+                _phaseIcon(isDone, isError, primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    state.message.isEmpty
+                        ? _phaseLabel(state.phase, strings)
+                        : state.message,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-              ),
-            ],),
+              ],
+            ),
             const SizedBox(height: 14),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -813,7 +842,12 @@ class _ProgressCard extends StatelessWidget {
                 minHeight: 6,
                 backgroundColor: Colors.grey.shade200,
                 valueColor: AlwaysStoppedAnimation(
-                    isError ? Colors.red : isDone ? Colors.green : primary,),
+                  isError
+                      ? Colors.red
+                      : isDone
+                      ? Colors.green
+                      : primary,
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -831,8 +865,11 @@ class _ProgressCard extends StatelessWidget {
 
   Widget _phaseIcon(bool isDone, bool isError, Color primary) {
     if (isDone) {
-      return const Icon(Icons.check_circle_rounded,
-          color: Colors.green, size: 22,);
+      return const Icon(
+        Icons.check_circle_rounded,
+        color: Colors.green,
+        size: 22,
+      );
     }
     if (isError) {
       return const Icon(Icons.error_rounded, color: Colors.red, size: 22);
@@ -846,15 +883,24 @@ class _ProgressCard extends StatelessWidget {
 
   String _phaseLabel(SyncPhase p, AppStrings strings) {
     switch (p) {
-      case SyncPhase.idle:           return strings.blePhaseIdle;
-      case SyncPhase.scanning:       return strings.blePhaseScanning;
-      case SyncPhase.connecting:     return strings.blePhaseConnecting;
-      case SyncPhase.discovering:    return strings.blePhaseDiscovering;
-      case SyncPhase.subscribing:    return strings.blePhaseSubscribing;
-      case SyncPhase.readingMetadata:return strings.blePhaseReadingMetadata;
-      case SyncPhase.readingRecords: return strings.blePhaseReadingRecords;
-      case SyncPhase.done:           return strings.blePhaseDone;
-      case SyncPhase.error:          return strings.blePhaseError;
+      case SyncPhase.idle:
+        return strings.blePhaseIdle;
+      case SyncPhase.scanning:
+        return strings.blePhaseScanning;
+      case SyncPhase.connecting:
+        return strings.blePhaseConnecting;
+      case SyncPhase.discovering:
+        return strings.blePhaseDiscovering;
+      case SyncPhase.subscribing:
+        return strings.blePhaseSubscribing;
+      case SyncPhase.readingMetadata:
+        return strings.blePhaseReadingMetadata;
+      case SyncPhase.readingRecords:
+        return strings.blePhaseReadingRecords;
+      case SyncPhase.done:
+        return strings.blePhaseDone;
+      case SyncPhase.error:
+        return strings.blePhaseError;
     }
   }
 }
@@ -888,19 +934,18 @@ class _RecordTile extends StatelessWidget {
     final color = _glucoseColor(record.glucoseMgDl, settings);
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         leading: CircleAvatar(
           backgroundColor: color.withValues(alpha: 0.15),
           child: Text(
             UnitConverter.format(record.glucoseMgDl, settings.unit),
             style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,),
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
           ),
         ),
         title: Text(
@@ -929,19 +974,19 @@ class _RecordTile extends StatelessWidget {
                   ),
                 ),
               )
-            : Checkbox(
-                value: selected,
-                onChanged: onChanged,
-              ),
+            : Checkbox(value: selected, onChanged: onChanged),
       ),
     );
   }
 
   String _mealLabel(int flag, AppStrings strings) {
     switch (flag) {
-      case 1:  return strings.bleBeforeMealShort;
-      case 2:  return strings.bleAfterMealShort;
-      default: return '';
+      case 1:
+        return strings.bleBeforeMealShort;
+      case 2:
+        return strings.bleAfterMealShort;
+      default:
+        return '';
     }
   }
 }
@@ -970,15 +1015,18 @@ class _PairingHint extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(strings.blePairingTitle,
-                      style: const TextStyle(fontWeight: FontWeight.bold),),
+                  Text(
+                    strings.blePairingTitle,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     strings.blePairingDesc,
                     style: TextStyle(
-                        fontSize: 12.5,
-                        color: Colors.brown.shade700,
-                        height: 1.4,),
+                      fontSize: 12.5,
+                      color: Colors.brown.shade700,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),
@@ -1005,11 +1053,14 @@ class _HelpStep extends StatelessWidget {
           CircleAvatar(
             radius: 10,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            child: Text(n,
-                style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,),),
+            child: Text(
+              n,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),

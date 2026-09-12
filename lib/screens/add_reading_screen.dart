@@ -6,14 +6,20 @@
 //
 // The mode is determined by whether a Reading was passed via the route
 // argument (see Navigator.pushNamed('/add', arguments: reading)).
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+
 import '../i18n/strings.dart';
 import '../models/reading.dart';
 import '../providers/providers.dart';
+import '../services/notification_service.dart';
 import '../themes/app_theme.dart';
+import '../utils/emergency_guidance.dart';
 import '../utils/unit_converter.dart';
+import '../widgets/emergency_guidance_dialog.dart';
 
 class AddReadingScreen extends StatefulWidget {
   const AddReadingScreen({super.key});
@@ -109,37 +115,58 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
     if (_editingId != null) {
       final existing = rProv.findById(_editingId!);
       if (existing != null) {
-        await rProv.update(existing.copyWith(
+        await rProv.update(
+          existing.copyWith(
+            value: v,
+            type: _type,
+            timestamp: _timestamp,
+            notes: notes.isEmpty ? null : notes,
+            carbs: carbs,
+            insulin: insulin,
+          ),
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(strings.editedSuccess)));
+        Navigator.pop(context);
+      }
+    } else {
+      final id = const Uuid().v4();
+      await rProv.add(
+        Reading(
+          id: id,
           value: v,
           type: _type,
           timestamp: _timestamp,
           notes: notes.isEmpty ? null : notes,
           carbs: carbs,
           insulin: insulin,
-        ),);
-      }
+        ),
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(strings.editedSuccess)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(strings.savedSuccess)));
         Navigator.pop(context);
-      }
-    } else {
-      final id = const Uuid().v4();
-      await rProv.add(Reading(
-        id: id,
-        value: v,
-        type: _type,
-        timestamp: _timestamp,
-        notes: notes.isEmpty ? null : notes,
-        carbs: carbs,
-        insulin: insulin,
-      ),);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(strings.savedSuccess)),
-        );
-        Navigator.pop(context);
+
+        // Critical reading (severe hypo/hyper) → offer first-aid guidance
+        // over the previous screen once the pop transition settles.
+        final guidance = EmergencyGuide.forValue(v);
+        if (guidance != null) {
+          final rootCtx = NotificationService.navigatorKey.currentContext;
+          if (rootCtx != null) {
+            await Future.delayed(const Duration(milliseconds: 450));
+            if (rootCtx.mounted) {
+              unawaited(
+                showEmergencyGuidance(
+                  rootCtx,
+                  AppStrings.of(rootCtx),
+                  guidance,
+                ),
+              );
+            }
+          }
+        }
       }
     }
   }
@@ -185,8 +212,10 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  Text('${strings.glucoseValue} (${UnitConverter.unitLabel(s.unit)})',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),),
+                  Text(
+                    '${strings.glucoseValue} (${UnitConverter.unitLabel(s.unit)})',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -208,8 +237,8 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
                             fontWeight: FontWeight.bold,
                             color: status != null
                                 ? (status == ReadingStatus.inRange
-                                    ? const Color(0xFF10B981)
-                                    : const Color(0xFFF59E0B))
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFF59E0B))
                                 : null,
                           ),
                           decoration: const InputDecoration(
@@ -259,8 +288,10 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
           const SizedBox(height: 16),
 
           // Measurement type
-          Text(strings.measurementType,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
+          Text(
+            strings.measurementType,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -277,8 +308,10 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
           const SizedBox(height: 16),
 
           // Timestamp
-          Text(strings.time,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
+          Text(
+            strings.time,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
           const SizedBox(height: 8),
           InkWell(
             onTap: () async {
@@ -340,8 +373,10 @@ class _AddReadingScreenState extends State<AddReadingScreen> {
           const SizedBox(height: 16),
 
           // Notes
-          Text(strings.notes,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
+          Text(
+            strings.notes,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _notesCtrl,
@@ -388,8 +423,10 @@ class _NumberField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: controller,

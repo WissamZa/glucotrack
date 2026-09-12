@@ -4,14 +4,18 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../ble/ble_platform.dart';
+import '../data/health_tips.dart';
 import '../i18n/strings.dart';
+import '../models/health_metric.dart';
 import '../models/reading.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
 import '../themes/app_theme.dart';
+import '../utils/emergency_guidance.dart';
 import '../utils/hba1c_calculator.dart';
 import '../utils/trend_analysis.dart';
 import '../utils/unit_converter.dart';
+import '../widgets/emergency_guidance_dialog.dart';
 import '../widgets/reading_actions.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -32,13 +36,14 @@ class _HomeScreenState extends State<HomeScreen> {
         _lastReadingsCache!.length != readings.length ||
         (readings.isNotEmpty &&
             _lastReadingsCache!.isNotEmpty &&
-            _lastReadingsCache!.first.timestamp !=
-                readings.first.timestamp)) {
+            _lastReadingsCache!.first.timestamp != readings.first.timestamp)) {
       _lastReadingsCache = readings;
-      _cachedTrend =
-          readings.isEmpty ? null : TrendAnalyzer.fromReadings(readings);
-      _cachedHba1c =
-          readings.isEmpty ? null : HbA1cCalculator.calculate(readings);
+      _cachedTrend = readings.isEmpty
+          ? null
+          : TrendAnalyzer.fromReadings(readings);
+      _cachedHba1c = readings.isEmpty
+          ? null
+          : HbA1cCalculator.calculate(readings);
     }
     return _cachedTrend;
   }
@@ -58,16 +63,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
-    final today = rProv.rawReadings.where((r) => r.timestamp.isAfter(todayStart)).toList();
+    final today = rProv.rawReadings
+        .where((r) => r.timestamp.isAfter(todayStart))
+        .toList();
 
     final latest = rProv.rawReadings.isEmpty ? null : rProv.rawReadings.first;
     final avg = today.isEmpty
         ? 0
         : (today.fold<int>(0, (s, r) => s + r.value) / today.length).round();
     final inRange = today
-        .where((r) => r.status(s.targetMin, s.targetMax) == ReadingStatus.inRange)
+        .where(
+          (r) => r.status(s.targetMin, s.targetMax) == ReadingStatus.inRange,
+        )
         .length;
-    final inRangePct = today.isEmpty ? 0 : ((inRange / today.length) * 100).round();
+    final inRangePct = today.isEmpty
+        ? 0
+        : ((inRange / today.length) * 100).round();
 
     // Calculate trend (memoized)
     final trend = _getTrend(rProv.rawReadings);
@@ -82,8 +93,14 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(greeting, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400)),
-            Text(s.userName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              greeting,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
+            ),
+            Text(
+              s.userName,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         actions: [
@@ -110,11 +127,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.red,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
                     child: Text(
                       '${remProv.activeCount}',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -125,7 +149,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (latest != null) _ReadingHero(latest: latest, trend: trend, unit: s.unit),
+          if (latest != null)
+            _ReadingHero(latest: latest, trend: trend, unit: s.unit),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -150,7 +175,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: today.isNotEmpty ? '$inRangePct%' : '—',
                 unit: '',
                 label: strings.inRangePct,
-                color: inRangePct >= 70 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                color: inRangePct >= 70
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFF59E0B),
               ),
             ],
           ),
@@ -171,9 +198,20 @@ class _HomeScreenState extends State<HomeScreen> {
               isArabic: s.language == Language.ar,
             ),
           ],
+          // Emergency guidance when the latest reading is critical
+          if (latest != null) ...[
+            const SizedBox(height: 12),
+            _EmergencyBanner(latest: latest, strings: strings),
+          ],
           // Quick actions row
           const SizedBox(height: 16),
           _QuickActionsRow(strings: strings),
+          // ── Water tracker card ────────────────────────────────────────
+          const SizedBox(height: 12),
+          const _WaterCard(),
+          // ── Tip of the day ────────────────────────────────────────────
+          const SizedBox(height: 12),
+          const _TipOfTheDayCard(),
           // ── Sync from meter banner ───────────────────────────────────
           const SizedBox(height: 12),
           const _SyncMeterBanner(),
@@ -181,15 +219,20 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(strings.recentReadings,
-                  style: Theme.of(context).textTheme.titleLarge,),
+              Text(
+                strings.recentReadings,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, '/chart'),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(strings.viewAll),
-                    Icon(s.isRtl ? Icons.chevron_left : Icons.chevron_right, size: 18),
+                    Icon(
+                      s.isRtl ? Icons.chevron_left : Icons.chevron_right,
+                      size: 18,
+                    ),
                   ],
                 ),
               ),
@@ -202,14 +245,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    Icon(Icons.water_drop_outlined,
-                        size: 48, color: Colors.grey.shade400,),
+                    Icon(
+                      Icons.water_drop_outlined,
+                      size: 48,
+                      color: Colors.grey.shade400,
+                    ),
                     const SizedBox(height: 8),
-                    Text(strings.noReadingsYet,
-                        style: TextStyle(color: Colors.grey.shade600),),
+                    Text(
+                      strings.noReadingsYet,
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
                     const SizedBox(height: 4),
-                    Text(strings.addFirstReading,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),),
+                    Text(
+                      strings.addFirstReading,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                   ],
                 ),
               ),
@@ -240,7 +290,10 @@ class _ReadingHero extends StatelessWidget {
     final s = context.watch<SettingsProviderState>().settings;
     final strings = AppStrings.of(context);
     final status = latest.status(s.targetMin, s.targetMax);
-    final timeStr = DateFormat('HH:mm', s.language.code).format(latest.timestamp);
+    final timeStr = DateFormat(
+      'HH:mm',
+      s.language.code,
+    ).format(latest.timestamp);
     final valueDisplay = UnitConverter.format(latest.value, unit);
     final unitLabel = UnitConverter.unitLabel(unit);
 
@@ -255,14 +308,19 @@ class _ReadingHero extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(strings.latestReading,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),),
+                Text(
+                  strings.latestReading,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
                 Row(
                   children: [
                     // Trend badge on hero
                     if (trend != null) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         margin: const EdgeInsetsDirectional.only(end: 6),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
@@ -271,12 +329,18 @@ class _ReadingHero extends StatelessWidget {
                         child: Text(
                           trend!.direction.arrow,
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold,),
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -284,7 +348,10 @@ class _ReadingHero extends StatelessWidget {
                       child: Text(
                         strings.statusLabel(status),
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold,),
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -295,17 +362,22 @@ class _ReadingHero extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(valueDisplay,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        height: 1,),),
+                Text(
+                  valueDisplay,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    height: 1,
+                  ),
+                ),
                 const SizedBox(width: 4),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(unitLabel,
-                      style: const TextStyle(color: Colors.white70, fontSize: 16),),
+                  child: Text(
+                    unitLabel,
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
                 ),
               ],
             ),
@@ -316,19 +388,30 @@ class _ReadingHero extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         strings.readingType(latest.type),
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(timeStr,
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),),
+                    Text(
+                      timeStr,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
                 FloatingActionButton.small(
@@ -428,9 +511,7 @@ class _TrendChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -455,10 +536,7 @@ class _TrendChip extends StatelessWidget {
           ),
           Text(
             '${trend.ratePerMin >= 0 ? "+" : ""}${trend.ratePerMin.toStringAsFixed(1)} mg/dL/min',
-            style: TextStyle(
-              fontSize: 12,
-              color: color,
-            ),
+            style: TextStyle(fontSize: 12, color: color),
           ),
         ],
       ),
@@ -493,6 +571,13 @@ class _QuickActionsRow extends StatelessWidget {
           label: strings.navReminders,
           color: const Color(0xFFF59E0B),
           onTap: () => Navigator.pushNamed(context, '/reminders'),
+        ),
+        const SizedBox(width: 8),
+        _QuickActionBtn(
+          icon: Icons.tips_and_updates_outlined,
+          label: strings.tips,
+          color: const Color(0xFF8B5CF6),
+          onTap: () => Navigator.pushNamed(context, '/tips'),
         ),
       ],
     );
@@ -568,16 +653,29 @@ class _StatCard extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 18),
               const SizedBox(height: 4),
-              Text(value,
-                  style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold, color: color,),),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
               if (unit.isNotEmpty)
-                Text(unit,
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),),
+                Text(
+                  unit,
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
               const SizedBox(height: 2),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, height: 1.2),),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                  height: 1.2,
+                ),
+              ),
             ],
           ),
         ),
@@ -607,7 +705,10 @@ class _ReadingRow extends StatelessWidget {
     } else {
       dayLabel = DateFormat('d MMM', s.language.code).format(reading.timestamp);
     }
-    final timeStr = DateFormat('HH:mm', s.language.code).format(reading.timestamp);
+    final timeStr = DateFormat(
+      'HH:mm',
+      s.language.code,
+    ).format(reading.timestamp);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -631,19 +732,30 @@ class _ReadingRow extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(UnitConverter.format(reading.value, s.unit),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16,),),
+                        Text(
+                          UnitConverter.format(reading.value, s.unit),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(width: 4),
-                        Text(UnitConverter.unitLabel(s.unit),
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600,),),
+                        Text(
+                          UnitConverter.unitLabel(s.unit),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
                       ],
                     ),
                     Text(
                       '${strings.readingType(reading.type)} · $dayLabel $timeStr'
                       '${reading.notes != null && reading.notes!.isNotEmpty ? ' · ${reading.notes}' : ''}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -662,6 +774,314 @@ class _ReadingRow extends StatelessWidget {
       a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
+// ─── Emergency guidance banner (latest reading critical) ─────────────────────
+
+class _EmergencyBanner extends StatelessWidget {
+  final Reading latest;
+  final AppStrings strings;
+  const _EmergencyBanner({required this.latest, required this.strings});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<SettingsProviderState>().settings;
+    final guidance = EmergencyGuide.forStatus(
+      latest.status(s.targetMin, s.targetMax),
+      latest.value,
+    );
+    if (guidance == null) return const SizedBox.shrink();
+
+    final color = switch (guidance.level) {
+      EmergencyLevel.low => const Color(0xFFEF4444),
+      EmergencyLevel.warningLow => const Color(0xFFF59E0B),
+      EmergencyLevel.high => const Color(0xFFF97316),
+    };
+
+    return GestureDetector(
+      onTap: () => showEmergencyGuidance(context, strings, guidance),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.45), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.emergency, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    strings.latestCritical,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    strings.immediateGuidance,
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              s.isRtl ? Icons.chevron_left : Icons.chevron_right,
+              color: color,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Water tracker card ───────────────────────────────────────────────────────
+
+class _WaterCard extends StatelessWidget {
+  const _WaterCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final waterProv = context.watch<HealthMetricsProvider>();
+    final cups = waterProv.cupsToday;
+    final goal = WaterEntry.dailyGoal;
+    final done = cups >= goal;
+    final color = const Color(0xFF3B82F6);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.water_drop, color: color, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  strings.waterTracker,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.5,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  done
+                      ? strings.waterGoalReached
+                      : strings.waterProgress(cups, goal),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: done ? const Color(0xFF10B981) : color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _cupIcon(cups, goal, color),
+                const Spacer(),
+                _roundBtn(
+                  context,
+                  icon: Icons.remove,
+                  tooltip: '-',
+                  onTap: cups > 0 ? waterProv.removeCup : null,
+                ),
+                const SizedBox(width: 10),
+                _roundBtn(
+                  context,
+                  icon: Icons.add,
+                  tooltip: '+',
+                  onTap: waterProv.addCup,
+                  filled: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 34,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final entry in waterProv.last7Days)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${entry.cups}',
+                              style: TextStyle(
+                                fontSize: 8.5,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Container(
+                              height: (entry.cups / goal * 16).clamp(2.0, 16.0),
+                              decoration: BoxDecoration(
+                                color: entry.cups >= goal
+                                    ? const Color(0xFF10B981)
+                                    : color.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Text(
+              strings.waterLast7,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cupIcon(int cups, int goal, Color color) {
+    // Compact 8-cup progress indicator.
+    return Expanded(
+      child: Row(
+        children: [
+          for (var i = 0; i < goal; i++)
+            Icon(
+              Icons.water_drop,
+              size: 16,
+              color: i < cups ? color : Colors.grey.shade300,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _roundBtn(
+    BuildContext context, {
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onTap,
+    bool filled = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: filled
+              ? Theme.of(context).colorScheme.primary
+              : Colors.grey.shade100,
+          border: filled ? null : Border.all(color: Colors.grey.shade300),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: filled
+              ? Colors.white
+              : (onTap == null ? Colors.grey.shade400 : Colors.grey.shade700),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Tip of the day ───────────────────────────────────────────────────────────
+
+class _TipOfTheDayCard extends StatelessWidget {
+  const _TipOfTheDayCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProviderState>().settings;
+    final strings = AppStrings.of(context);
+    final tip = tipOfTheDay(DateTime.now());
+    final category = kTipCategories.firstWhere((c) => c.id == tip.category);
+    final color = const Color(0xFF8B5CF6);
+
+    return InkWell(
+      onTap: () => Navigator.pushNamed(context, '/tips'),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(category.icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    strings.tipOfTheDay,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    tip.title(settings.language),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              settings.isRtl ? Icons.chevron_left : Icons.chevron_right,
+              color: color,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Sync from meter banner ───────────────────────────────────────────────────
 
 class _SyncMeterBanner extends StatelessWidget {
@@ -677,10 +1097,7 @@ class _SyncMeterBanner extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              primary,
-              primary.withValues(alpha: 0.72),
-            ],
+            colors: [primary, primary.withValues(alpha: 0.72)],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
@@ -703,8 +1120,11 @@ class _SyncMeterBanner extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.bluetooth_connected,
-                  color: Colors.white, size: 22,),
+              child: const Icon(
+                Icons.bluetooth_connected,
+                color: Colors.white,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -714,17 +1134,19 @@ class _SyncMeterBanner extends StatelessWidget {
                   Text(
                     strings.bleSyncBannerTitle,
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                   Text(
                     isBleSupported
                         ? strings.bleSyncBannerSupported
                         : strings.bleSyncBannerUnsupported,
                     style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.82),
-                        fontSize: 12,),
+                      color: Colors.white.withValues(alpha: 0.82),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),

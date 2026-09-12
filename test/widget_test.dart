@@ -77,7 +77,9 @@ void main() {
 
   // ── Minimal widget test ───────────────────────────────────────────────────
   group('Widget smoke tests', () {
-    testWidgets('SettingsProviderState works inside widget tree', (tester) async {
+    testWidgets('SettingsProviderState works inside widget tree', (
+      tester,
+    ) async {
       final prov = SettingsProviderState();
       await tester.pumpWidget(
         ChangeNotifierProvider<SettingsProviderState>.value(

@@ -2,6 +2,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glucotrack/models/health_metric.dart';
 import 'package:glucotrack/models/reading.dart';
 import 'package:glucotrack/models/reminder.dart';
 import 'package:glucotrack/utils/export_import.dart';
@@ -11,22 +12,30 @@ void main() {
     test('escapes formula injection attempts (=, +, -, @)', () {
       final readings = [
         Reading(
-          id: 'r1', value: 120, type: ReadingType.fasting,
+          id: 'r1',
+          value: 120,
+          type: ReadingType.fasting,
           timestamp: DateTime(2024, 1, 1),
           notes: '=CMD("calc.exe")',
         ),
         Reading(
-          id: 'r2', value: 130, type: ReadingType.beforeMeal,
+          id: 'r2',
+          value: 130,
+          type: ReadingType.beforeMeal,
           timestamp: DateTime(2024, 1, 2),
           notes: '+hidden_formula',
         ),
         Reading(
-          id: 'r3', value: 140, type: ReadingType.afterMeal,
+          id: 'r3',
+          value: 140,
+          type: ReadingType.afterMeal,
           timestamp: DateTime(2024, 1, 3),
           notes: '-another_injection',
         ),
         Reading(
-          id: 'r4', value: 150, type: ReadingType.other,
+          id: 'r4',
+          value: 150,
+          type: ReadingType.other,
           timestamp: DateTime(2024, 1, 4),
           notes: '@injection',
         ),
@@ -43,7 +52,9 @@ void main() {
     test('doubles embedded double quotes per RFC 4180', () {
       final readings = [
         Reading(
-          id: 'r1', value: 120, type: ReadingType.fasting,
+          id: 'r1',
+          value: 120,
+          type: ReadingType.fasting,
           timestamp: DateTime(2024, 1, 1),
           notes: 'He said "hi"',
         ),
@@ -55,7 +66,9 @@ void main() {
     test('handles empty notes', () {
       final readings = [
         Reading(
-          id: 'r1', value: 120, type: ReadingType.fasting,
+          id: 'r1',
+          value: 120,
+          type: ReadingType.fasting,
           timestamp: DateTime(2024, 1, 1),
           notes: null,
         ),
@@ -79,10 +92,14 @@ void main() {
         'exportedAt': '2024-01-01T00:00:00.000',
         'readings': [
           {
-            'id': 'r1', 'value': 120, 'type': 'fasting',
+            'id': 'r1',
+            'value': 120,
+            'type': 'fasting',
             'timestamp': 1704067200000,
-            'notes': 'test', 'carbs': null, 'insulin': null,
-          }
+            'notes': 'test',
+            'carbs': null,
+            'insulin': null,
+          },
         ],
         'reminders': [],
       });
@@ -181,13 +198,17 @@ void main() {
         exportedAt: DateTime(2024, 6, 15),
       );
 
-      final jsonStr = const JsonEncoder.withIndent('  ').convert(original.toJson());
+      final jsonStr = const JsonEncoder.withIndent('  ')
+          .convert(original.toJson());
       final result = DataExporter.importFromJson(jsonStr);
 
       expect(result.success, isTrue);
       expect(result.data!.readings.length, 1);
-      expect(result.data!.readings[0].notes, 'مرتفع بعد الغداء',
-          reason: 'Arabic text must survive round-trip',);
+      expect(
+        result.data!.readings[0].notes,
+        'مرتفع بعد الغداء',
+        reason: 'Arabic text must survive round-trip',
+      );
       expect(result.data!.readings[0].carbs, 60);
       expect(result.data!.readings[0].insulin, 10);
       expect(result.data!.reminders.length, 1);
@@ -198,17 +219,23 @@ void main() {
       final original = ExportData(
         readings: [
           Reading(
-            id: 'r1', value: 100, type: ReadingType.fasting,
+            id: 'r1',
+            value: 100,
+            type: ReadingType.fasting,
             timestamp: DateTime(2024, 1, 1, 8, 0),
             notes: 'Fasting morning',
           ),
           Reading(
-            id: 'r2', value: 180, type: ReadingType.afterMeal,
+            id: 'r2',
+            value: 180,
+            type: ReadingType.afterMeal,
             timestamp: DateTime(2024, 1, 1, 13, 0),
             notes: 'بعد الغداء',
           ),
           Reading(
-            id: 'r3', value: 140, type: ReadingType.beforeSleep,
+            id: 'r3',
+            value: 140,
+            type: ReadingType.beforeSleep,
             timestamp: DateTime(2024, 1, 1, 22, 0),
             notes: null,
           ),
@@ -217,7 +244,8 @@ void main() {
         exportedAt: DateTime(2024, 1, 1),
       );
 
-      final jsonStr = const JsonEncoder.withIndent('  ').convert(original.toJson());
+      final jsonStr = const JsonEncoder.withIndent('  ')
+          .convert(original.toJson());
       final result = DataExporter.importFromJson(jsonStr);
 
       expect(result.success, isTrue);
@@ -225,6 +253,96 @@ void main() {
       expect(result.data!.readings[0].notes, 'Fasting morning');
       expect(result.data!.readings[1].notes, 'بعد الغداء');
       expect(result.data!.readings[2].notes, isNull);
+    });
+  });
+
+  group('v1.3 export schema (health metrics + water)', () {
+    test('old (pre-1.3) backups import fine — new fields default to empty', () {
+      // A real v1.2.x backup: no healthMetrics / waterLog keys at all.
+      final json = jsonEncode({
+        'version': '1.2.0',
+        'exportedAt': '2024-01-01T00:00:00.000',
+        'readings': [],
+        'reminders': [],
+      });
+      final result = DataExporter.importFromJson(json);
+      expect(result.success, isTrue);
+      expect(result.data!.healthMetrics, isEmpty);
+      expect(result.data!.waterLog, isEmpty);
+    });
+
+    test('old reminders without kind import as measurement reminders', () {
+      final json = jsonEncode({
+        'version': '1.2.0',
+        'exportedAt': '2024-01-01T00:00:00.000',
+        'readings': [],
+        'reminders': [
+          {
+            'id': 'rem1',
+            'time': '08:00',
+            'label': 'قياس',
+            'type': 'fasting',
+            'enabled': 1,
+          },
+        ],
+      });
+      final result = DataExporter.importFromJson(json);
+      expect(result.success, isTrue);
+      expect(result.data!.reminders.first.kind, ReminderKind.measurement);
+    });
+
+    test('new round-trip carries health metrics and water log', () {
+      final original = ExportData(
+        readings: [],
+        reminders: [],
+        healthMetrics: [
+          HealthMetric(
+            id: 'hm1',
+            weightKg: 84.2,
+            systolic: 122,
+            diastolic: 79,
+            timestamp: DateTime(2026, 9, 1),
+          ),
+        ],
+        waterLog: const [WaterEntry(date: '2026-09-11', cups: 7)],
+        exportedAt: DateTime(2026, 9, 12),
+      );
+
+      final jsonStr = const JsonEncoder.withIndent('  ')
+          .convert(original.toJson());
+      final result = DataExporter.importFromJson(jsonStr);
+
+      expect(result.success, isTrue);
+      expect(result.data!.healthMetrics.length, 1);
+      expect(result.data!.healthMetrics.first.weightKg, 84.2);
+      expect(result.data!.healthMetrics.first.systolic, 122);
+      expect(result.data!.waterLog.length, 1);
+      expect(result.data!.waterLog.first.cups, 7);
+    });
+
+    test('v1.3 round-trip keeps medication reminder kind', () {
+      final original = ExportData(
+        readings: [],
+        reminders: const [
+          Reminder(
+            id: 'rem2',
+            time: '09:00',
+            label: 'ميتفورمين · 500 ملغ',
+            type: ReadingType.other,
+            enabled: true,
+            kind: ReminderKind.medication,
+          ),
+        ],
+        exportedAt: DateTime(2026, 9, 12),
+      );
+
+      final jsonStr = const JsonEncoder.withIndent('  ')
+          .convert(original.toJson());
+      final result = DataExporter.importFromJson(jsonStr);
+
+      expect(result.success, isTrue);
+      expect(result.data!.reminders.first.kind, ReminderKind.medication);
+      expect(result.data!.reminders.first.label, 'ميتفورمين · 500 ملغ');
     });
   });
 }

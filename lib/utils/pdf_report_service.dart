@@ -1,6 +1,7 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
 import '../models/reading.dart';
 import '../models/settings.dart';
 import 'unit_converter.dart';
@@ -52,7 +53,14 @@ class PdfReportService {
           ),
         ),
         build: (ctx) => [
-          _buildSummarySection(readings, settings, font, fontBold, unitLabel, isArabic),
+          _buildSummarySection(
+            readings,
+            settings,
+            font,
+            fontBold,
+            unitLabel,
+            isArabic,
+          ),
           pw.SizedBox(height: 16),
           pw.Text(
             isArabic ? 'القراءات التفصيلية' : 'Detailed Readings',
@@ -70,12 +78,18 @@ class PdfReportService {
   }
 
   static pw.Widget _buildSummarySection(
-    List<Reading> readings, Settings settings,
-    pw.Font font, pw.Font fontBold, String unitLabel, bool isArabic,
+    List<Reading> readings,
+    Settings settings,
+    pw.Font font,
+    pw.Font fontBold,
+    String unitLabel,
+    bool isArabic,
   ) {
     if (readings.isEmpty) {
       return pw.Text(
-        isArabic ? 'لا توجد بيانات للفترة المحددة.' : 'No data available for the selected period.',
+        isArabic
+            ? 'لا توجد بيانات للفترة المحددة.'
+            : 'No data available for the selected period.',
         style: pw.TextStyle(font: font),
       );
     }
@@ -98,26 +112,56 @@ class PdfReportService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          _summaryItem(isArabic ? 'المتوسط' : 'Average', '$avg $unitLabel', font, fontBold),
-          _summaryItem(isArabic ? 'الأدنى' : 'Minimum', '$min $unitLabel', font, fontBold),
-          _summaryItem(isArabic ? 'الأعلى' : 'Maximum', '$max $unitLabel', font, fontBold),
+          _summaryItem(
+            isArabic ? 'المتوسط' : 'Average',
+            '$avg $unitLabel',
+            font,
+            fontBold,
+          ),
+          _summaryItem(
+            isArabic ? 'الأدنى' : 'Minimum',
+            '$min $unitLabel',
+            font,
+            fontBold,
+          ),
+          _summaryItem(
+            isArabic ? 'الأعلى' : 'Maximum',
+            '$max $unitLabel',
+            font,
+            fontBold,
+          ),
         ],
       ),
     );
   }
 
-  static pw.Widget _summaryItem(String label, String value, pw.Font font, pw.Font fontBold) {
+  static pw.Widget _summaryItem(
+    String label,
+    String value,
+    pw.Font font,
+    pw.Font fontBold,
+  ) {
     return pw.Column(
       children: [
-        pw.Text(label, style: pw.TextStyle(font: font, fontSize: 12, color: PdfColors.grey700)),
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 12,
+            color: PdfColors.grey700,
+          ),
+        ),
         pw.Text(value, style: pw.TextStyle(font: fontBold, fontSize: 16)),
       ],
     );
   }
 
   static pw.Widget _buildReadingsTable(
-    List<Reading> readings, Settings settings,
-    pw.Font font, pw.Font fontBold, String unitLabel,
+    List<Reading> readings,
+    Settings settings,
+    pw.Font font,
+    pw.Font fontBold,
+    String unitLabel,
   ) {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300),
@@ -130,28 +174,52 @@ class PdfReportService {
       children: [
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-          children: ['Date & Time', 'Type', 'Value', 'Notes'].map((h) =>
-            pw.Padding(
-              padding: const pw.EdgeInsets.all(6),
-              child: pw.Text(h, style: pw.TextStyle(font: fontBold, fontSize: 9)),
-            ),).toList(),
+          children: ['Date & Time', 'Type', 'Value', 'Notes']
+              .map(
+                (h) => pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(
+                    h,
+                    style: pw.TextStyle(font: fontBold, fontSize: 9),
+                  ),
+                ),
+              )
+              .toList(),
         ),
-        ...readings.map((r) => pw.TableRow(
-          children: [
-            pw.Padding(padding: const pw.EdgeInsets.all(6),
-              child: pw.Text(_formatDateTime(r.timestamp),
-                style: pw.TextStyle(font: font, fontSize: 9),),),
-            pw.Padding(padding: const pw.EdgeInsets.all(6),
-              child: pw.Text(r.type.name,
-                style: pw.TextStyle(font: font, fontSize: 9),),),
-            pw.Padding(padding: const pw.EdgeInsets.all(6),
-              child: pw.Text('${r.value} $unitLabel',
-                style: pw.TextStyle(font: fontBold, fontSize: 9),),),
-            pw.Padding(padding: const pw.EdgeInsets.all(6),
-              child: pw.Text(r.notes ?? '',
-                style: pw.TextStyle(font: font, fontSize: 9),),),
-          ],
-        ),),
+        ...readings.map(
+          (r) => pw.TableRow(
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text(
+                  _formatDateTime(r.timestamp),
+                  style: pw.TextStyle(font: font, fontSize: 9),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text(
+                  r.type.name,
+                  style: pw.TextStyle(font: font, fontSize: 9),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text(
+                  '${r.value} $unitLabel',
+                  style: pw.TextStyle(font: fontBold, fontSize: 9),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Text(
+                  r.notes ?? '',
+                  style: pw.TextStyle(font: font, fontSize: 9),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

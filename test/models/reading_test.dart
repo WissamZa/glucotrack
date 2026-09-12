@@ -15,55 +15,71 @@ void main() {
     group('status()', () {
       test('returns criticalLow when value < 54', () {
         final r = Reading(
-            id: 'x', value: 50, type: ReadingType.fasting, timestamp: _epoch,);
+          id: 'x',
+          value: 50,
+          type: ReadingType.fasting,
+          timestamp: _epoch,
+        );
         expect(r.status(80, 180), ReadingStatus.criticalLow);
       });
 
       test('returns low when value is between 54 and targetMin', () {
         final r = Reading(
-            id: 'x', value: 70, type: ReadingType.fasting, timestamp: _epoch,);
+          id: 'x',
+          value: 70,
+          type: ReadingType.fasting,
+          timestamp: _epoch,
+        );
         expect(r.status(80, 180), ReadingStatus.low);
       });
 
       test('returns inRange when value is within target range', () {
         final r = Reading(
-            id: 'x',
-            value: 120,
-            type: ReadingType.afterMeal,
-            timestamp: _epoch,);
+          id: 'x',
+          value: 120,
+          type: ReadingType.afterMeal,
+          timestamp: _epoch,
+        );
         expect(r.status(80, 180), ReadingStatus.inRange);
       });
 
       test('returns inRange at exact targetMin', () {
         final r = Reading(
-            id: 'x', value: 80, type: ReadingType.fasting, timestamp: _epoch,);
+          id: 'x',
+          value: 80,
+          type: ReadingType.fasting,
+          timestamp: _epoch,
+        );
         expect(r.status(80, 180), ReadingStatus.inRange);
       });
 
       test('returns inRange at exact targetMax', () {
         final r = Reading(
-            id: 'x',
-            value: 180,
-            type: ReadingType.afterMeal,
-            timestamp: _epoch,);
+          id: 'x',
+          value: 180,
+          type: ReadingType.afterMeal,
+          timestamp: _epoch,
+        );
         expect(r.status(80, 180), ReadingStatus.inRange);
       });
 
       test('returns high when value > targetMax and <= 250', () {
         final r = Reading(
-            id: 'x',
-            value: 220,
-            type: ReadingType.afterMeal,
-            timestamp: _epoch,);
+          id: 'x',
+          value: 220,
+          type: ReadingType.afterMeal,
+          timestamp: _epoch,
+        );
         expect(r.status(80, 180), ReadingStatus.high);
       });
 
       test('returns criticalHigh when value > 250', () {
         final r = Reading(
-            id: 'x',
-            value: 300,
-            type: ReadingType.afterMeal,
-            timestamp: _epoch,);
+          id: 'x',
+          value: 300,
+          type: ReadingType.afterMeal,
+          timestamp: _epoch,
+        );
         expect(r.status(80, 180), ReadingStatus.criticalHigh);
       });
     });
@@ -79,8 +95,10 @@ void main() {
       });
 
       test('overrides individual fields', () {
-        final copy =
-            sampleReading.copyWith(value: 200, type: ReadingType.afterMeal);
+        final copy = sampleReading.copyWith(
+          value: 200,
+          type: ReadingType.afterMeal,
+        );
         expect(copy.id, sampleReading.id);
         expect(copy.value, 200);
         expect(copy.type, ReadingType.afterMeal);
@@ -94,8 +112,11 @@ void main() {
       });
 
       test('sets optional fields correctly', () {
-        final copy =
-            sampleReading.copyWith(notes: 'Test note', carbs: 30, insulin: 4);
+        final copy = sampleReading.copyWith(
+          notes: 'Test note',
+          carbs: 30,
+          insulin: 4,
+        );
         expect(copy.notes, 'Test note');
         expect(copy.carbs, 30);
         expect(copy.insulin, 4);
@@ -118,8 +139,10 @@ void main() {
         expect(restored.id, sampleReading.id);
         expect(restored.value, sampleReading.value);
         expect(restored.type, sampleReading.type);
-        expect(restored.timestamp.millisecondsSinceEpoch,
-            sampleReading.timestamp.millisecondsSinceEpoch,);
+        expect(
+          restored.timestamp.millisecondsSinceEpoch,
+          sampleReading.timestamp.millisecondsSinceEpoch,
+        );
       });
 
       test('round-trip preserves optional fields', () {
@@ -156,7 +179,9 @@ void main() {
         expect(ReadingTypeX.fromDb('after_meal'), ReadingType.afterMeal);
         expect(ReadingTypeX.fromDb('before_sleep'), ReadingType.beforeSleep);
         expect(
-            ReadingTypeX.fromDb('after_exercise'), ReadingType.afterExercise,);
+          ReadingTypeX.fromDb('after_exercise'),
+          ReadingType.afterExercise,
+        );
         expect(ReadingTypeX.fromDb('other'), ReadingType.other);
       });
 
@@ -191,9 +216,13 @@ void main() {
 
     test('copyWith retains fields when not provided', () {
       final original = Reading(
-        id: 'r1', value: 120, type: ReadingType.fasting,
+        id: 'r1',
+        value: 120,
+        type: ReadingType.fasting,
         timestamp: DateTime(2024, 1, 1),
-        notes: 'original', carbs: 30, insulin: 5,
+        notes: 'original',
+        carbs: 30,
+        insulin: 5,
       );
       final updated = original.copyWith(value: 130);
       expect(updated.value, 130);

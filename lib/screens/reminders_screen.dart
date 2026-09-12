@@ -49,8 +49,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.notifications_off_outlined,
-                      size: 64, color: Colors.grey.shade400,),
+                  Icon(
+                    Icons.notifications_off_outlined,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     strings.noReminders,
@@ -62,7 +65,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: prov.reminders.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (_, i) {
                 final r = prov.reminders[i];
                 return Card(
@@ -75,12 +78,15 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           height: 48,
                           decoration: BoxDecoration(
                             color: r.enabled
-                                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
+                                ? Theme.of(context).colorScheme.primary
+                                      .withValues(alpha: 0.1)
                                 : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
-                            Icons.access_time,
+                            r.kind == ReminderKind.medication
+                                ? Icons.medication_outlined
+                                : Icons.access_time,
                             color: r.enabled
                                 ? Theme.of(context).colorScheme.primary
                                 : Colors.grey.shade400,
@@ -105,6 +111,18 @@ class _RemindersScreenState extends State<RemindersScreen> {
                                   fontSize: 13,
                                 ),
                               ),
+                              Text(
+                                r.kind == ReminderKind.medication
+                                    ? strings.kindMedication
+                                    : strings.kindMeasurement,
+                                style: TextStyle(
+                                  color: r.kind == ReminderKind.medication
+                                      ? const Color(0xFF8B5CF6)
+                                      : Colors.grey.shade500,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -113,10 +131,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           onChanged: (_) => prov.toggle(r.id),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              color: Colors.red, size: 20,),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                            size: 20,
+                          ),
                           tooltip: strings.tooltipDelete,
-                          onPressed: () => _deleteReminder(context, prov, r.id, strings),
+                          onPressed: () =>
+                              _deleteReminder(context, prov, r.id, strings),
                         ),
                       ],
                     ),
@@ -135,15 +157,17 @@ class _RemindersScreenState extends State<RemindersScreen> {
   ) async {
     await prov.remove(id);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(strings.reminderDeleted)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(strings.reminderDeleted)));
   }
 
   void _showAddDialog(BuildContext context, AppStrings strings) {
     String time = '08:00';
     ReadingType type = ReadingType.fasting;
+    ReminderKind kind = ReminderKind.measurement;
     final labelCtrl = TextEditingController();
+    final medNameCtrl = TextEditingController();
+    final doseCtrl = TextEditingController();
 
     showDialog<void>(
       context: context,
@@ -156,8 +180,46 @@ class _RemindersScreenState extends State<RemindersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
+                  strings.reminderKind,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ChoiceChip(
+                      avatar: const Icon(Icons.water_drop, size: 15),
+                      label: Text(
+                        strings.kindMeasurement,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      selected: kind == ReminderKind.measurement,
+                      onSelected: (_) =>
+                          setStx(() => kind = ReminderKind.measurement),
+                    ),
+                    ChoiceChip(
+                      avatar: const Icon(Icons.medication_outlined, size: 15),
+                      label: Text(
+                        strings.kindMedication,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      selected: kind == ReminderKind.medication,
+                      onSelected: (_) =>
+                          setStx(() => kind = ReminderKind.medication),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
                   strings.reminderTime,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 InkWell(
@@ -167,8 +229,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       initialTime: const TimeOfDay(hour: 8, minute: 0),
                     );
                     if (t != null) {
-                      setStx(() => time =
-                          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',);
+                      setStx(
+                        () => time =
+                            '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+                      );
                     }
                   },
                   child: Container(
@@ -187,36 +251,80 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  strings.measurementType,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: ReadingType.values.map((t) {
-                    final selected = type == t;
-                    return ChoiceChip(
-                      label: Text(
-                        strings.readingType(t),
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      selected: selected,
-                      onSelected: (_) => setStx(() => type = t),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
+                if (kind == ReminderKind.measurement) ...[
+                  Text(
+                    strings.measurementType,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: ReadingType.values.map((t) {
+                      final selected = type == t;
+                      return ChoiceChip(
+                        label: Text(
+                          strings.readingType(t),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        selected: selected,
+                        onSelected: (_) => setStx(() => type = t),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                ] else ...[
+                  Text(
+                    strings.medicationName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: medNameCtrl,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: strings.addMedication,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    strings.medicationDose,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: doseCtrl,
+                    decoration: InputDecoration(
+                      hintText: '500 mg · 2 ${strings.insulinUnitsShort}',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Text(
                   strings.reminderLabel,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: labelCtrl,
                   decoration: InputDecoration(
-                    hintText: strings.readingType(type),
+                    hintText: kind == ReminderKind.measurement
+                        ? strings.readingType(type)
+                        : null,
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -233,7 +341,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 dialogCtx,
                 time,
                 type,
+                kind,
                 labelCtrl.text,
+                medNameCtrl.text,
+                doseCtrl.text,
                 strings,
               ),
               child: Text(strings.save),
@@ -248,21 +359,45 @@ class _RemindersScreenState extends State<RemindersScreen> {
     BuildContext dialogCtx,
     String time,
     ReadingType type,
+    ReminderKind kind,
     String labelText,
+    String medName,
+    String dose,
     AppStrings strings,
   ) async {
-    final prov = context.read<RemindersProvider>();
-    await prov.add(Reminder(
-      id: const Uuid().v4(),
-      time: time,
-      label: labelText.trim().isEmpty ? strings.readingType(type) : labelText.trim(),
-      type: type,
-      enabled: true,
-    ),);
+    final messenger = ScaffoldMessenger.of(dialogCtx);
+    final prov = dialogCtx.read<RemindersProvider>();
+
+    String label;
+    if (labelText.trim().isNotEmpty) {
+      label = labelText.trim();
+    } else if (kind == ReminderKind.medication) {
+      final name = medName.trim();
+      final doseText = dose.trim();
+      if (name.isEmpty) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(strings.errorMedicationName)),
+        );
+        return;
+      }
+      label = doseText.isEmpty ? name : '$name · $doseText';
+    } else {
+      label = strings.readingType(type);
+    }
+
+    await prov.add(
+      Reminder(
+        id: const Uuid().v4(),
+        time: time,
+        label: label,
+        type: type,
+        enabled: true,
+        kind: kind,
+      ),
+    );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.reminderAdded)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.reminderAdded)));
     }
     if (dialogCtx.mounted) Navigator.pop(dialogCtx);
   }

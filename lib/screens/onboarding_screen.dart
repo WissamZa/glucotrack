@@ -4,6 +4,7 @@
 // 3. Enter name + diabetes type
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../i18n/strings.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
@@ -33,15 +34,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _finish() async {
     final prov = context.read<SettingsProviderState>();
-    await prov.persist(Settings(
-      language: _lang,
-      theme: _style,
-      diabetesType: _dtype,
-      userName: _nameCtrl.text.trim().isEmpty
-          ? (_lang == Language.ar ? 'صديقي' : 'Friend')
-          : _nameCtrl.text.trim(),
-      onboarded: true,
-    ),);
+    await prov.persist(
+      Settings(
+        language: _lang,
+        theme: _style,
+        diabetesType: _dtype,
+        userName: _nameCtrl.text.trim().isEmpty
+            ? (_lang == Language.ar ? 'صديقي' : 'Friend')
+            : _nameCtrl.text.trim(),
+        onboarded: true,
+      ),
+    );
   }
 
   @override
@@ -75,14 +78,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: _step == 0
                       ? _step0(strings)
                       : _step == 1
-                          ? _step1(strings)
-                          : _step2(strings, s),
+                      ? _step1(strings)
+                      : _step2(strings, s),
                 ),
               ),
             ),
@@ -92,10 +98,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 children: [
                   if (_step > 0)
-                    TextButton(
-                      onPressed: _prev,
-                      child: Text(strings.back),
-                    ),
+                    TextButton(onPressed: _prev, child: Text(strings.back)),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _step == 2 ? _finish : _next,
@@ -103,8 +106,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         _step == 2
                             ? strings.getStarted
                             : (_step == 0
-                                ? (_lang == Language.ar ? 'التالي' : 'Next')
-                                : (_lang == Language.ar ? 'التالي' : 'Next')),
+                                  ? (_lang == Language.ar ? 'التالي' : 'Next')
+                                  : (_lang == Language.ar ? 'التالي' : 'Next')),
                       ),
                     ),
                   ),
@@ -136,14 +139,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: const Icon(Icons.favorite, color: Colors.white, size: 56),
           ),
           const SizedBox(height: 24),
-          Text(strings.appName,
-              style: Theme.of(context).textTheme.headlineLarge,),
+          Text(
+            strings.appName,
+            style: Theme.of(context).textTheme.headlineLarge,
+          ),
           const SizedBox(height: 8),
-          Text(strings.appTagline,
-              style: TextStyle(color: Colors.grey.shade600),),
+          Text(
+            strings.appTagline,
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
           const SizedBox(height: 40),
-          Text(strings.chooseLanguage,
-              style: Theme.of(context).textTheme.titleLarge,),
+          Text(
+            strings.chooseLanguage,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -165,7 +174,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           border: Border.all(
-            color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade300,
             width: 2,
           ),
           borderRadius: BorderRadius.circular(16),
@@ -177,8 +188,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           children: [
             Text(flag, style: const TextStyle(fontSize: 32)),
             const SizedBox(height: 4),
-            Text(label,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
+            Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ],
         ),
       ),
@@ -193,9 +206,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 16),
-          Text(strings.chooseStyle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium,),
+          Text(
+            strings.chooseStyle,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 8),
           Text(
             _lang == Language.ar
@@ -247,7 +262,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             border: Border.all(
-              color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey.shade300,
               width: 2,
             ),
             borderRadius: BorderRadius.circular(16),
@@ -271,17 +288,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16,),),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(desc, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    Text(
+                      desc,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ),
               if (selected)
-                Icon(Icons.check_circle,
-                    color: Theme.of(context).colorScheme.primary,),
+                Icon(
+                  Icons.check_circle,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
             ],
           ),
         ),
@@ -302,18 +331,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             height: 64,
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.monitor_heart,
-                color: Theme.of(context).colorScheme.primary, size: 32,),
+            child: Icon(
+              Icons.monitor_heart,
+              color: Theme.of(context).colorScheme.primary,
+              size: 32,
+            ),
           ),
-          Text(strings.welcome,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium,),
+          Text(
+            strings.welcome,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 24),
-          Text(strings.yourName,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
+          Text(
+            strings.yourName,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _nameCtrl,
@@ -322,16 +359,33 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          Text(strings.yourDiabetesType,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),),
+          Text(
+            strings.yourDiabetesType,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _dtypeBtn(DiabetesType.type1, strings.get('diabetes_type1'))),
+              Expanded(
+                child: _dtypeBtn(
+                  DiabetesType.type1,
+                  strings.get('diabetes_type1'),
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: _dtypeBtn(DiabetesType.type2, strings.get('diabetes_type2'))),
+              Expanded(
+                child: _dtypeBtn(
+                  DiabetesType.type2,
+                  strings.get('diabetes_type2'),
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: _dtypeBtn(DiabetesType.gestational, strings.get('diabetes_gestational'))),
+              Expanded(
+                child: _dtypeBtn(
+                  DiabetesType.gestational,
+                  strings.get('diabetes_gestational'),
+                ),
+              ),
             ],
           ),
         ],
@@ -347,7 +401,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           border: Border.all(
-            color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade300,
             width: 2,
           ),
           borderRadius: BorderRadius.circular(12),

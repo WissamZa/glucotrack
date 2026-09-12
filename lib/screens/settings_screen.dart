@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../ble/ble_platform.dart';
@@ -6,6 +7,7 @@ import '../database/database_helper.dart';
 import '../i18n/strings.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
+import '../utils/unit_converter.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,12 +18,20 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameCtrl;
+  String _version = '';
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(
-        text: context.read<SettingsProviderState>().settings.userName,);
+      text: context.read<SettingsProviderState>().settings.userName,
+    );
+    // Real app version from the platform (pubspec version/name).
+    PackageInfo.fromPlatform()
+        .then((info) {
+          if (mounted) setState(() => _version = info.version);
+        })
+        .catchError((_) {});
   }
 
   @override
@@ -46,11 +56,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Icon(Icons.language, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(strings.language, style: const TextStyle(fontWeight: FontWeight.w600)),
-                ],),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.language,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      strings.language,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -78,15 +96,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Icon(Icons.palette, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(strings.displayStyle, style: const TextStyle(fontWeight: FontWeight.w600)),
-                ],),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.palette,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      strings.displayStyle,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
-                _styleRow(prov, s, ThemeStyle.classic, strings.styleClassic, Icons.medical_services),
-                _styleRow(prov, s, ThemeStyle.modern, strings.styleModern, Icons.nightlight),
-                _styleRow(prov, s, ThemeStyle.elder, strings.styleElder, Icons.wb_sunny),
+                _styleRow(
+                  prov,
+                  s,
+                  ThemeStyle.classic,
+                  strings.styleClassic,
+                  Icons.medical_services,
+                ),
+                _styleRow(
+                  prov,
+                  s,
+                  ThemeStyle.modern,
+                  strings.styleModern,
+                  Icons.nightlight,
+                ),
+                _styleRow(
+                  prov,
+                  s,
+                  ThemeStyle.elder,
+                  strings.styleElder,
+                  Icons.wb_sunny,
+                ),
+              ],
+            ),
+          ),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.straighten,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      strings.glucoseUnit,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _choiceBtn(
+                        s.unit == GlucoseUnit.mgDl,
+                        strings.unitMg,
+                        () => _update(prov, unit: GlucoseUnit.mgDl),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _choiceBtn(
+                        s.unit == GlucoseUnit.mmolL,
+                        strings.unitMmol,
+                        () => _update(prov, unit: GlucoseUnit.mmolL),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -96,11 +180,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Icon(Icons.monitor_heart, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(strings.diabetesType, style: const TextStyle(fontWeight: FontWeight.w600)),
-                ],),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.monitor_heart,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      strings.diabetesType,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -124,7 +216,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: _choiceBtn(
                         s.diabetesType == DiabetesType.gestational,
                         strings.get('diabetes_gestational'),
-                        () => _update(prov, diabetesType: DiabetesType.gestational),
+                        () => _update(
+                          prov,
+                          diabetesType: DiabetesType.gestational,
+                        ),
                       ),
                     ),
                   ],
@@ -136,14 +231,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Icon(Icons.gps_fixed, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${strings.glucoseTargets} (mg/dL)',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.gps_fixed,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${strings.glucoseTargets} (${UnitConverter.unitLabel(s.unit)})',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -153,16 +253,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           Text(
                             strings.targetMin,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           TextFormField(
-                            initialValue: '${s.targetMin}',
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(border: OutlineInputBorder()),
+                            // Re-keyed per unit so the initial value rebuilds
+                            // when the user switches mg/dL ↔ mmol/L.
+                            key: ValueKey('target_min_${s.unit}'),
+                            initialValue: s.unit == GlucoseUnit.mgDl
+                                ? '${s.targetMin}'
+                                : UnitConverter.mgToMmol(s.targetMin)
+                                      .toStringAsFixed(1),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                            ),
                             onChanged: (v) {
-                              final n = int.tryParse(v);
-                              if (n != null) _update(prov, targetMin: n.clamp(40, 150));
+                              final mgDl = _parseGlucose(v, s.unit);
+                              if (mgDl != null) {
+                                _update(prov, targetMin: mgDl.clamp(40, 150));
+                              }
                             },
                           ),
                         ],
@@ -175,16 +290,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           Text(
                             strings.targetMax,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           TextFormField(
-                            initialValue: '${s.targetMax}',
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(border: OutlineInputBorder()),
+                            key: ValueKey('target_max_${s.unit}'),
+                            initialValue: s.unit == GlucoseUnit.mgDl
+                                ? '${s.targetMax}'
+                                : UnitConverter.mgToMmol(s.targetMax)
+                                      .toStringAsFixed(1),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                            ),
                             onChanged: (v) {
-                              final n = int.tryParse(v);
-                              if (n != null) _update(prov, targetMax: n.clamp(120, 300));
+                              final mgDl = _parseGlucose(v, s.unit);
+                              if (mgDl != null) {
+                                _update(prov, targetMax: mgDl.clamp(120, 300));
+                              }
                             },
                           ),
                         ],
@@ -195,24 +323,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.height,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      strings.heightCmLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.heightHint,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  key: ValueKey('height_${s.heightCm}'),
+                  initialValue: s.heightCm != null
+                      ? s.heightCm!.toStringAsFixed(0)
+                      : '',
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) {
+                    final n = double.tryParse(v.trim());
+                    if (n != null) {
+                      _update(prov, heightCm: n.clamp(80.0, 250.0));
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
 
           _SectionTitle(strings.profile),
           _Card(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(strings.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                ],),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      strings.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _nameCtrl,
-                        decoration: const InputDecoration(border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -249,7 +429,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.upload_file, color: Colors.white),
+                        child: const Icon(
+                          Icons.upload_file,
+                          color: Colors.white,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -258,11 +441,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           children: [
                             Text(
                               strings.exportData,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             Text(
                               strings.importData,
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
@@ -280,50 +468,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF3B82F6), Color(0xFF22C55E)],
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF22C55E)],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      borderRadius: BorderRadius.circular(10),
+                      child: const Icon(Icons.cloud, color: Colors.white),
                     ),
-                    child: const Icon(Icons.cloud, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Google Drive',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          strings.comingSoon,
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      strings.comingSoon,
-                      style: const TextStyle(
-                        color: Color(0xFFF59E0B),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Google Drive',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            strings.comingSoon,
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        strings.comingSoon,
+                        style: const TextStyle(
+                          color: Color(0xFFF59E0B),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -344,66 +540,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: () => Navigator.of(context).pushNamed('/sync'),
-              child: Row(children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary,
+                          Theme.of(context).colorScheme.primary
+                              .withValues(alpha: 0.6),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.bluetooth_connected,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          strings.deviceIntegration,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'OneTouch Select Plus Flex',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.bluetooth_connected,
-                      color: Colors.white, size: 22,),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        strings.deviceIntegration,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'OneTouch Select Plus Flex',
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 12,),
-                      ),
-                    ],
-                  ),
-                ),
-                // Platform badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isBleSupported
-                        ? Colors.green.withValues(alpha: 0.12)
-                        : Colors.grey.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    isBleSupported ? 'Available' : 'Android only',
-                    style: TextStyle(
+                  // Platform badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
                       color: isBleSupported
-                          ? Colors.green.shade700
-                          : Colors.grey.shade600,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                          ? Colors.green.withValues(alpha: 0.12)
+                          : Colors.grey.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      isBleSupported ? 'Available' : 'Android only',
+                      style: TextStyle(
+                        color: isBleSupported
+                            ? Colors.green.shade700
+                            : Colors.grey.shade600,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right, color: Colors.grey),
-              ],),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right, color: Colors.grey),
+                ],
+              ),
             ),
           ),
 
@@ -414,7 +620,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 Text(strings.version),
                 Text(
-                  '1.1.0 (Flutter + SQLite)',
+                  _version.isNotEmpty
+                      ? '$_version (Flutter + SQLite)'
+                      : strings.loading,
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ],
@@ -476,9 +684,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await readingsProv.load();
     await remindersProv.load();
     if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(strings.resetDone)),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(strings.resetDone)));
+  }
+
+  /// Parses a glucose input in the display unit and converts it back to
+  /// mg/dL (the storage unit). Returns `null` for empty/invalid input.
+  int? _parseGlucose(String raw, GlucoseUnit unit) {
+    final cleaned = raw.trim().replaceAll(',', '.');
+    if (cleaned.isEmpty) return null;
+    final n = double.tryParse(cleaned);
+    if (n == null) return null;
+    return unit == GlucoseUnit.mgDl ? n.round() : UnitConverter.mmolToMg(n);
   }
 
   Future<void> _update(
@@ -491,6 +707,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     GlucoseUnit? unit,
     String? userName,
     bool? onboarded,
+    double? heightCm,
   }) async {
     final next = prov.settings.copyWith(
       language: language,
@@ -501,6 +718,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       unit: unit,
       userName: userName,
       onboarded: onboarded,
+      heightCm: heightCm,
     );
 
     // FIX-029 / BUG-005: validate before persisting so invalid ranges
@@ -508,10 +726,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final validationError = next.validate();
     if (validationError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(validationError),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(validationError), backgroundColor: Colors.red),
       );
       return;
     }
@@ -526,7 +741,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           border: Border.all(
-            color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade300,
             width: 2,
           ),
           borderRadius: BorderRadius.circular(12),
@@ -565,7 +782,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             border: Border.all(
-              color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey.shade300,
               width: 2,
             ),
             borderRadius: BorderRadius.circular(12),
@@ -635,10 +854,7 @@ class _Card extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: child,
-        ),
+        child: Padding(padding: const EdgeInsets.all(16), child: child),
       ),
     );
   }

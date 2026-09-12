@@ -27,15 +27,18 @@ void main() {
       ];
 
       for (final tc in testCases) {
-        test('value ${tc.$1} with target ${tc.$2}-${tc.$3} → ${tc.$4.name}', () {
-          final r = Reading(
-            id: 'x',
-            value: tc.$1,
-            type: ReadingType.fasting,
-            timestamp: DateTime.now(),
-          );
-          expect(r.status(tc.$2, tc.$3), tc.$4);
-        });
+        test(
+          'value ${tc.$1} with target ${tc.$2}-${tc.$3} → ${tc.$4.name}',
+          () {
+            final r = Reading(
+              id: 'x',
+              value: tc.$1,
+              type: ReadingType.fasting,
+              timestamp: DateTime.now(),
+            );
+            expect(r.status(tc.$2, tc.$3), tc.$4);
+          },
+        );
       }
     });
 
@@ -43,9 +46,24 @@ void main() {
     group('sorting', () {
       final base = DateTime(2024, 1, 1);
       final readings = [
-        Reading(id: 'a', value: 100, type: ReadingType.fasting, timestamp: base),
-        Reading(id: 'b', value: 200, type: ReadingType.afterMeal, timestamp: base.add(const Duration(hours: 1))),
-        Reading(id: 'c', value: 150, type: ReadingType.beforeMeal, timestamp: base.add(const Duration(hours: 2))),
+        Reading(
+          id: 'a',
+          value: 100,
+          type: ReadingType.fasting,
+          timestamp: base,
+        ),
+        Reading(
+          id: 'b',
+          value: 200,
+          type: ReadingType.afterMeal,
+          timestamp: base.add(const Duration(hours: 1)),
+        ),
+        Reading(
+          id: 'c',
+          value: 150,
+          type: ReadingType.beforeMeal,
+          timestamp: base.add(const Duration(hours: 2)),
+        ),
       ];
 
       List<Reading> sortBy(SortOrder order) {
@@ -93,11 +111,11 @@ void main() {
       final base = DateTime(2024, 1, 1);
 
       Reading r(String id, int value) => Reading(
-            id: id,
-            value: value,
-            type: ReadingType.fasting,
-            timestamp: base,
-          );
+        id: id,
+        value: value,
+        type: ReadingType.fasting,
+        timestamp: base,
+      );
 
       int calcInRangePct(List<Reading> list, int min, int max) {
         if (list.isEmpty) return 0;
@@ -132,16 +150,17 @@ void main() {
       final base = DateTime(2024, 1, 1);
 
       Reading r(String id, int value) => Reading(
-            id: id,
-            value: value,
-            type: ReadingType.fasting,
-            timestamp: base,
-          );
+        id: id,
+        value: value,
+        type: ReadingType.fasting,
+        timestamp: base,
+      );
 
       test('average is computed correctly', () {
         final list = [r('a', 100), r('b', 200), r('c', 150)];
         final values = list.map((r) => r.value).toList();
-        final avg = (values.fold<int>(0, (s, v) => s + v) / values.length).round();
+        final avg = (values.fold<int>(0, (s, v) => s + v) / values.length)
+            .round();
         expect(avg, 150);
       });
 
@@ -172,8 +191,10 @@ void main() {
       expect(restored.id, original.id);
       expect(restored.value, original.value);
       expect(restored.type, original.type);
-      expect(restored.timestamp.millisecondsSinceEpoch,
-          original.timestamp.millisecondsSinceEpoch,);
+      expect(
+        restored.timestamp.millisecondsSinceEpoch,
+        original.timestamp.millisecondsSinceEpoch,
+      );
       expect(restored.notes, original.notes);
       expect(restored.carbs, original.carbs);
       expect(restored.insulin, original.insulin);

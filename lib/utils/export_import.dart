@@ -1,41 +1,58 @@
 // Data Export/Import utility — JSON and CSV backup/restore
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../models/health_metric.dart';
 import '../models/reading.dart';
 import '../models/reminder.dart';
 
 class ExportData {
   final List<Reading> readings;
   final List<Reminder> reminders;
+  final List<HealthMetric> healthMetrics;
+  final List<WaterEntry> waterLog;
   final DateTime exportedAt;
   final String version;
 
   ExportData({
     required this.readings,
     required this.reminders,
+    this.healthMetrics = const [],
+    this.waterLog = const [],
     required this.exportedAt,
-    this.version = '1.1.0',
+    this.version = '1.3.0',
   });
 
   Map<String, dynamic> toJson() => {
-        'version': version,
-        'exportedAt': exportedAt.toIso8601String(),
-        'readings': readings.map((r) => r.toDb()).toList(),
-        'reminders': reminders.map((r) => r.toDb()).toList(),
-      };
+    'version': version,
+    'exportedAt': exportedAt.toIso8601String(),
+    'readings': readings.map((r) => r.toDb()).toList(),
+    'reminders': reminders.map((r) => r.toDb()).toList(),
+    'healthMetrics': healthMetrics.map((m) => m.toDb()).toList(),
+    'waterLog': waterLog.map((w) => w.toDb()).toList(),
+  };
 
+  /// Backward compatible: backups made before v1.3.0 have no
+  /// [healthMetrics]/[waterLog] keys — they import as empty lists.
   factory ExportData.fromJson(Map<String, dynamic> json) => ExportData(
-        version: json['version'] as String? ?? '1.0.0',
-        exportedAt: DateTime.parse(json['exportedAt'] as String),
-        readings: (json['readings'] as List)
-            .map((r) => Reading.fromDb(r as Map<String, dynamic>))
-            .toList(),
-        reminders: (json['reminders'] as List)
-            .map((r) => Reminder.fromDb(r as Map<String, dynamic>))
-            .toList(),
-      );
+    version: json['version'] as String? ?? '1.0.0',
+    exportedAt: DateTime.parse(json['exportedAt'] as String),
+    readings: (json['readings'] as List)
+        .map((r) => Reading.fromDb(r as Map<String, dynamic>))
+        .toList(),
+    reminders: (json['reminders'] as List)
+        .map((r) => Reminder.fromDb(r as Map<String, dynamic>))
+        .toList(),
+    healthMetrics: (json['healthMetrics'] as List? ?? const [])
+        .map((m) => HealthMetric.fromDb(m as Map<String, dynamic>))
+        .toList(),
+    waterLog: (json['waterLog'] as List? ?? const [])
+        .map((w) => WaterEntry.fromDb(w as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 /// Result of an import operation — either success with data, or failure with error.
@@ -46,9 +63,12 @@ class ImportResult {
   final String? errorDetail;
 
   ImportResult.success(this.data)
-      : success = true, error = null, errorDetail = null;
+    : success = true,
+      error = null,
+      errorDetail = null;
   ImportResult.failure(this.error, {this.errorDetail})
-      : success = false, data = null;
+    : success = false,
+      data = null;
 }
 
 class DataExporter {
@@ -63,19 +83,22 @@ class DataExporter {
     final buffer = StringBuffer();
     // Header - quote fields per RFC 4180
     buffer.writeln(
-        '"ID","Value (mg/dL)","Type","DateTime","Notes","Carbs (g)","Insulin (units)"',);
+      '"ID","Value (mg/dL)","Type","DateTime","Notes","Carbs (g)","Insulin (units)"',
+    );
     // Rows
     for (final r in readings) {
       final dt = r.timestamp.toIso8601String();
-      buffer.writeln([
-        _csvEscape(r.id),
-        r.value.toString(),
-        _csvEscape(r.type.dbValue),
-        _csvEscape(dt),
-        _csvEscape(r.notes),
-        _csvEscape(r.carbs?.toString()),
-        _csvEscape(r.insulin?.toString()),
-      ].join(','),);
+      buffer.writeln(
+        [
+          _csvEscape(r.id),
+          r.value.toString(),
+          _csvEscape(r.type.dbValue),
+          _csvEscape(dt),
+          _csvEscape(r.notes),
+          _csvEscape(r.carbs?.toString()),
+          _csvEscape(r.insulin?.toString()),
+        ].join(','),
+      );
     }
     return buffer.toString();
   }
@@ -99,13 +122,11 @@ class DataExporter {
     final jsonStr = await exportToJson(data);
     final tempDir = await getTemporaryDirectory();
     final file = File(
-        '${tempDir.path}/glucotrack_backup_${_fileTimestamp()}.json',);
+      '${tempDir.path}/glucotrack_backup_${_fileTimestamp()}.json',
+    );
     await file.writeAsString(jsonStr);
     await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        subject: 'GlucoTrack Backup',
-      ),
+      ShareParams(files: [XFile(file.path)], subject: 'GlucoTrack Backup'),
     );
   }
 
@@ -114,13 +135,11 @@ class DataExporter {
     final csvStr = exportReadingsToCsv(readings);
     final tempDir = await getTemporaryDirectory();
     final file = File(
-        '${tempDir.path}/glucotrack_readings_${_fileTimestamp()}.csv',);
+      '${tempDir.path}/glucotrack_readings_${_fileTimestamp()}.csv',
+    );
     await file.writeAsString(csvStr);
     await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        subject: 'GlucoTrack Readings',
-      ),
+      ShareParams(files: [XFile(file.path)], subject: 'GlucoTrack Readings'),
     );
   }
 

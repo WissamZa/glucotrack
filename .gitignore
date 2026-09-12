@@ -48,3 +48,6 @@ scripts/upload_secrets.py
 
 # Nested/untracked build projects
 apk/
+# Local tooling / build caches
+.kotlin/
+.zcode/
