@@ -46,7 +46,7 @@
 - 🚨 **Emergency guidance** — actionable first-aid steps when a reading is critical (< 54, 54–69, or > 250 mg/dL), on Home and right after saving a critical reading
 - ⚖️ **Weight & blood-pressure tracking** — entries with weight trend chart and BMI (WHO bands) from an optional height setting
 - 💧 **Water tracker** — daily 8-cup goal with ± buttons and a last-7-days mini chart
-- 💊 **Medication reminders** — days-of-week selector, doses auto-divided across 24 hours from the first dose time, structured dose (tablet / ml / drops… + amount), a "taken" log with history, and drug-name autocomplete + details via the free RxNorm API (cached offline)
+- 💊 **Medication reminders** — days-of-week selector, doses auto-divided across 24 hours from the first dose time, structured dose (tablet / ml / drops… + amount), a "taken" log with history, and drug-name autocomplete + details — default source: a bundled Saudi-market library with offline Arabic search, switchable to RxNorm (international) or openFDA (US), all cached offline
 - ☁️ **WebDAV backup** (optional) — connect your own server (Nextcloud, Koofr, Synology…), no developer registration, backup **encrypted on-device** (AES-256-GCM + PBKDF2 passphrase) before upload ([guide](docs/WEBDAV_SYNC.md))
 
 ### Accessibility & Localization
@@ -299,7 +299,7 @@ MIT © [WissamZa](https://github.com/WissamZa)
 - 🚨 **إرشادات الطوارئ** — خطوات إسعاف ذاتي عند القراءات الحرجة (أقل من 54، بين 54-69، أو أعلى من 250 ملغ/ديسيلتر) في الرئيسية وفور حفظ قراءة حرجة
 - ⚖️ **متابعة الوزن والضغط** — قياسات مع رسم بياني لتطور الوزن ومؤشر كتلة الجسم BMI (بتصنيف WHO) من طول اختياري
 - 💧 **عدّاد الماء** — هدف يومي 8 أكواب مع أزرار ± ورسوم مصغرة لآخر 7 أيام
-- 💊 **تذكيرات الدواء** — محدد أيام الأسبوع، توزيع الجرعات تلقائياً على 24 ساعة من وقت الجرعة الأولى، جرعة منظمة (حبة/مل/قطرة… + الكمية)، سجل تناول بالتاريخ، وإكمال تلقائي لاسم الدواء مع صفحة تفاصيل عبر واجهة RxNorm المجانية (مع كاش محلي)
+- 💊 **تذكيرات الدواء** — محدد أيام الأسبوع، توزيع الجرعات تلقائياً على 24 ساعة من وقت الجرعة الأولى، جرعة منظمة (حبة/مل/قطرة… + الكمية)، سجل تناول بالتاريخ، وإكمال تلقائي لاسم الدواء بالعربية والإنجليزية مع صفحة تفاصيل — المصدر الافتراضي قاعدة سعودية مدمجة تعمل بلا إنترنت، وقابل للتبديل إلى RxNorm أو openFDA، وكلها مع كاش محلي
 - ☁️ **نسخ احتياطي عبر WebDAV** (اختياري) — اربط خادمك الخاص (Nextcloud، Koofr، Synology…) بلا تسجيل مطوّر، والنسخة **مشفرة على الجهاز** قبل الرفع (AES-256-GCM + كلمة مرور) ([الدليل](docs/WEBDAV_SYNC.md))
 
 ### إمكانية الوصول والتخصيص

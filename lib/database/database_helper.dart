@@ -57,6 +57,7 @@ class DatabaseHelper {
       await migrateToV3(db);
       await migrateToV4(db);
       await migrateToV5(db);
+      await migrateToV6(db);
     }
 
     Future<void> onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -79,13 +80,18 @@ class DatabaseHelper {
       if (oldVersion < 5) {
         await migrateToV5(db);
       }
+      // v6 — the medication cache becomes multi-source (saudi/rxnorm/
+      // openfda). Pure cache: dropping and recreating loses nothing.
+      if (oldVersion < 6) {
+        await migrateToV6(db);
+      }
     }
 
     if (isMobile) {
       return sqlcipher.openDatabase(
         path,
         password: key,
-        version: 5,
+        version: 6,
         onConfigure: onConfigure,
         onCreate: onCreate,
         onUpgrade: onUpgrade,
@@ -94,7 +100,7 @@ class DatabaseHelper {
       return databaseFactory.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 5,
+          version: 6,
           onConfigure: onConfigure,
           onCreate: onCreate,
           onUpgrade: onUpgrade,
@@ -191,6 +197,14 @@ class DatabaseHelper {
   /// v4 → v5 migration — additive only: structured dose fields on reminders
   /// (form + amount + optional RxNorm id) and the offline medication cache.
   @visibleForTesting
+  /// v5 → v6 — the medication cache gains a source column (composite PK).
+  /// The table holds disposable lookup data only, so it is recreated.
+  @visibleForTesting
+  static Future<void> migrateToV6(Database db) async {
+    await db.execute('DROP TABLE IF EXISTS medication_cache');
+    await _createMedicationCache(db);
+  }
+
   static Future<void> migrateToV5(Database db) async {
     await db.execute('ALTER TABLE reminders ADD COLUMN dose_form TEXT');
     await db.execute('ALTER TABLE reminders ADD COLUMN dose_amount REAL');
@@ -216,13 +230,15 @@ class DatabaseHelper {
   static Future<void> _createMedicationCache(Database db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS medication_cache (
-        rxcui TEXT PRIMARY KEY,
+        source TEXT NOT NULL DEFAULT 'rxnorm',
+        rxcui TEXT NOT NULL,
         name TEXT NOT NULL,
         synonym TEXT,
         dose_form TEXT,
         strength TEXT,
         tty TEXT,
-        fetched_at INTEGER NOT NULL
+        fetched_at INTEGER NOT NULL,
+        PRIMARY KEY (source, rxcui)
       )
     ''');
   }
@@ -337,27 +353,45 @@ class DatabaseHelper {
     );
   }
 
-  // ===== Medication cache (RxNorm offline data) =====
-  Future<MedicationInfo?> getMedicationFromCache(String rxcui) async {
+  // ===== Medication cache (multi-source offline data) =====
+  Future<MedicationInfo?> getMedicationFromCache(
+    String source,
+    String rxcui,
+  ) async {
     final db = await this.db;
     final rows = await db.query(
       'medication_cache',
-      where: 'rxcui = ?',
-      whereArgs: [rxcui],
+      where: 'source = ? AND rxcui = ?',
+      whereArgs: [source, rxcui],
       limit: 1,
     );
     return rows.isEmpty ? null : MedicationInfo.fromDb(rows.first);
   }
 
-  Future<List<MedicationInfo>> searchMedicationCache(String query) async {
+  Future<List<MedicationInfo>> searchMedicationCache(
+    String source,
+    String query,
+  ) async {
     final db = await this.db;
     final q = '%${query.trim()}%';
     final rows = await db.query(
       'medication_cache',
-      where: 'name LIKE ? OR synonym LIKE ?',
-      whereArgs: [q, q],
+      where: 'source = ? AND (name LIKE ? OR synonym LIKE ?)',
+      whereArgs: [source, q, q],
       orderBy: 'name ASC',
       limit: 10,
+    );
+    return rows.map(MedicationInfo.fromDb).toList();
+  }
+
+  /// All cached entries regardless of source (used by the Medications tab
+  /// browse view).
+  Future<List<MedicationInfo>> allCachedMedications({int limit = 20}) async {
+    final db = await this.db;
+    final rows = await db.query(
+      'medication_cache',
+      orderBy: 'fetched_at DESC',
+      limit: limit,
     );
     return rows.map(MedicationInfo.fromDb).toList();
   }

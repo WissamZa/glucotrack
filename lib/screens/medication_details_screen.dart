@@ -101,11 +101,25 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                           children: [
                             _typeChip(strings, _info?.tty),
                             const SizedBox(width: 8),
-                            Text(
-                              'RxNorm ID: $_rxcui',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: Colors.grey.shade600,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                strings.sourceLabel(
+                                  MedicationInfo.sourceOf(_rxcui),
+                                ),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                               ),
                             ),
                           ],

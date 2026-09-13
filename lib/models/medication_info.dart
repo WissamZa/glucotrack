@@ -2,7 +2,10 @@
 // of Medicine, public domain, no API key) cached offline in the
 // `medication_cache` table (DB v5) so lookups work without re-requesting.
 class MedicationInfo {
-  final String rxcui; // RxNorm concept id
+  /// Source registry id ('saudi' | 'rxnorm' | 'openfda') or an id embedded in
+  /// [rxcui] via the 'source:id' prefix convention (see DrugSources).
+  final String source;
+  final String rxcui; // RxNorm concept id, or 'source:id' for other sources
   final String name;
   final String? synonym;
   final String? doseForm; // e.g. "Tablet", "Oral Solution"
@@ -11,6 +14,7 @@ class MedicationInfo {
   final int fetchedAt; // epoch ms — cache freshness
 
   const MedicationInfo({
+    this.source = 'rxnorm',
     required this.rxcui,
     required this.name,
     this.synonym,
@@ -27,7 +31,23 @@ class MedicationInfo {
       DateTime.now().millisecondsSinceEpoch - fetchedAt <
       cacheTtlDays * 24 * 60 * 60 * 1000;
 
+  /// Resolves which source registry an id belongs to (prefix convention:
+  /// 'saudi:xxx', 'openfda:xxx', or a bare RxNorm id).
+  static String sourceOf(String rxcui) {
+    for (final src in const ['saudi', 'openfda', 'rxnorm']) {
+      if (rxcui.startsWith('$src:')) return src;
+    }
+    return 'rxnorm';
+  }
+
+  /// Strips the 'source:' prefix, returning the registry-native id.
+  static String nativeIdOf(String rxcui) {
+    final i = rxcui.indexOf(':');
+    return i > 0 ? rxcui.substring(i + 1) : rxcui;
+  }
+
   Map<String, dynamic> toDb() => {
+    'source': source,
     'rxcui': rxcui,
     'name': name,
     'synonym': synonym,
@@ -38,6 +58,7 @@ class MedicationInfo {
   };
 
   factory MedicationInfo.fromDb(Map<String, dynamic> m) => MedicationInfo(
+    source: (m['source'] as String?) ?? 'rxnorm',
     rxcui: m['rxcui'] as String,
     name: m['name'] as String,
     synonym: m['synonym'] as String?,
@@ -99,6 +120,45 @@ class MedicationInfo {
         ),
       );
       if (out.length >= 8) break;
+    }
+    return out;
+  }
+
+  /// Parse the RxNorm `drugs.json` response (rich search results).
+  static List<MedicationInfo> parseDrugsJson(
+    Map<String, dynamic> json, {
+    required int fetchedAt,
+  }) {
+    final group = json['drugGroup'];
+    final groups = group is Map
+        ? (group['conceptGroup'] as List? ?? const [])
+        : const [];
+    final out = <MedicationInfo>[];
+    final seen = <String>{};
+    for (final g in groups) {
+      final props = g is Map
+          ? (g['conceptProperties'] as List? ?? const [])
+          : const [];
+      for (final raw in props) {
+        final c = raw as Map<String, dynamic>;
+        final rxcui = c['rxcui'] as String?;
+        final name = (c['name'] as String?)?.trim();
+        if (rxcui == null || rxcui.isEmpty || name == null || name.isEmpty) {
+          continue;
+        }
+        if (!seen.add(rxcui)) continue;
+        out.add(
+          MedicationInfo(
+            source: 'rxnorm',
+            rxcui: rxcui,
+            name: name,
+            synonym: (c['synonym'] as String?)?.trim(),
+            tty: c['tty'] as String?,
+            fetchedAt: fetchedAt,
+          ),
+        );
+        if (out.length >= 8) return out;
+      }
     }
     return out;
   }

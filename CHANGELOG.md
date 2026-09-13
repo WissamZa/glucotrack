@@ -3,6 +3,19 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.7.0+9] — 2026-09-13
+
+### Fixed — medication search
+- Root cause: the RxNorm fuzzy-search endpoint returns many candidates **without a name**, which the parser dropped — plus Arabic queries could never match an English-only registry. Search now uses the rich `drugs.json` endpoint first, resolves nameless fuzzy candidates via `allProperties`, and the default source supports Arabic natively.
+
+### Added — Medications tab & switchable drug sources
+- New **Medications tab** (5th tab in the bottom bar): search any drug (Arabic or English), browse previously-looked-up entries and the user's own medication reminders, and open the full details page.
+- **Switchable data sources** with a sensible default:
+  - 🇸🇦 **Saudi (bundled, default)** — a built-in library of ~70 of the most common Saudi-market medications with Arabic + English names, searchable offline with Arabic normalization (أ/إ/آ and ة/ه variants match). No network, no registration.
+  - 🌐 **International (RxNorm)** — the NLM registry, fixed as described above.
+  - 🇺🇸 **US (openFDA)** — drug-label data (form, route, brand/generic).
+  - The selection is persisted and applies everywhere (tab, reminder autocomplete, details page). The cache is now multi-source (DB v6: composite `(source, rxcui)` key; the old cache table holds disposable lookup data only, so it is recreated).
+
 ## [1.6.0+8] — 2026-09-13
 
 ### Fixed — medication reminder save

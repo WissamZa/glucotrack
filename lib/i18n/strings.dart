@@ -424,6 +424,16 @@ class AppStrings {
   String get medGenericTerm => get('med_generic_term');
   String get errorDoseAmount => get('error_dose_amount');
 
+  // ===== Medications tab & drug sources (v1.7) =====
+  String get medicationsTitle => get('medications_title');
+  String get medsSearchHint => get('meds_search_hint');
+  String get yourMedications => get('your_medications');
+  String get fromCache => get('from_cache');
+  String get noResultsSourceHint => get('no_results_source_hint');
+  String get drugSourceLabel => get('drug_source_label');
+  String sourceLabel(String id) => get('source_$id');
+  String sourceDesc(String id) => get('source_${id}_desc');
+
   String? doseFormLabel(String? key) {
     if (key == null) return null;
     final v = get('dose_form_$key');
@@ -837,6 +847,18 @@ const Map<String, String> _ar = {
   'med_open_details': 'عرض تفاصيل الدواء',
   'med_generic_term': 'غير محدد',
   'error_dose_amount': 'أدخل كمية صحيحة للجرعة',
+  'medications_title': 'الأدوية',
+  'meds_search_hint': 'ابحث عن دواء (عربي أو إنجليزي)…',
+  'your_medications': 'أدويتك من التذكيرات',
+  'from_cache': 'تم البحث عنها سابقاً',
+  'no_results_source_hint': 'لا نتائج — للمصادر الدولية اكتب الاسم بالإنجليزية',
+  'drug_source_label': 'مصدر بيانات الأدوية',
+  'source_saudi': 'السعودية 🇸🇦 (مدمجة)',
+  'source_saudi_desc': 'قاعدة مدمجة بأشهر أدوية السوق السعودي — تعمل بدون إنترنت وتدعم البحث بالعربية',
+  'source_rxnorm': 'دولي (RxNorm)',
+  'source_rxnorm_desc': 'قاعدة RxNorm الدولية — المكتبة الوطنية الأمريكية للطب، تغطي الأسماء العلمية والتجارية العالمية',
+  'source_openfda': 'أمريكي (openFDA)',
+  'source_openfda_desc': 'بيانات ملصقات الأدوية الأمريكية من openFDA — تفاصيل-rich عن الأشكال والاستخدامات',
   // WebDAV sync (v1.5)
   // WebDAV sync (v1.5)
   'webdav_sync': 'المزامنة عبر WebDAV',
@@ -1208,6 +1230,20 @@ const Map<String, String> _en = {
   'med_open_details': 'View medication details',
   'med_generic_term': 'Unknown',
   'error_dose_amount': 'Enter a valid dose amount',
+  'medications_title': 'Medications',
+  'meds_search_hint': 'Search a drug (Arabic or English)…',
+  'your_medications': 'Your medications',
+  'from_cache': 'Previously looked up',
+  'no_results_source_hint':
+      'No results — international sources need English names',
+  'drug_source_label': 'Drug data source',
+  'source_saudi': 'Saudi 🇸🇦 (bundled)',
+  'source_saudi_desc': 'Bundled library of the most common Saudi-market drugs — offline, supports Arabic search',
+  'source_rxnorm': 'International (RxNorm)',
+  'source_rxnorm_desc': 'The international RxNorm registry — U.S. National Library of Medicine, covers global generic and brand names',
+  'source_openfda': 'US (openFDA)',
+  'source_openfda_desc':
+      'US drug-label data from openFDA — rich form and usage details',
   // WebDAV sync (v1.5)
   'webdav_sync': 'WebDAV Sync',
   'webdav_sync_now': 'Sync now',

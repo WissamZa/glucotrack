@@ -22,6 +22,7 @@ import 'screens/health_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/medication_details_screen.dart';
+import 'screens/medications_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
@@ -280,6 +281,7 @@ class _MainShellState extends State<MainShell> {
   static final _screens = <Widget>[
     const HomeScreen(),
     const ChartScreen(),
+    const MedicationsScreen(),
     const RemindersScreen(),
     const SettingsScreen(),
   ];

@@ -82,10 +82,62 @@ void main() {
     });
   });
 
+  group('MedicationInfo.parseDrugsJson', () {
+    test('parses conceptProperties across groups with dedupe', () {
+      final json = {
+        'drugGroup': {
+          'conceptGroup': [
+            {
+              'tty': 'IN',
+              'conceptProperties': [
+                {
+                  'name': 'ibuprofen',
+                  'rxcui': '5640',
+                  'synonym': 'brufen',
+                  'tty': 'IN',
+                },
+              ],
+            },
+            {
+              'tty': 'SBD',
+              'conceptProperties': [
+                {
+                  'name': 'Brufen',
+                  'rxcui': '5640',
+                  'synonym': 'بروفين',
+                  'tty': 'SBD',
+                },
+                {'name': 'Advil', 'rxcui': '9999', 'tty': 'SBD'},
+              ],
+            },
+          ],
+        },
+      };
+      final out = MedicationInfo.parseDrugsJson(json, fetchedAt: 500);
+      expect(out.length, 2, reason: 'duplicate rxcui 5640 must be deduped');
+      expect(out.first.name, 'ibuprofen');
+      expect(out.last.name, 'Advil');
+    });
+  });
+
+  group('source id conventions', () {
+    test('sourceOf resolves by prefix, rxnorm by default', () {
+      expect(MedicationInfo.sourceOf('saudi:panadol'), 'saudi');
+      expect(MedicationInfo.sourceOf('openfda:panadol-'), 'openfda');
+      expect(MedicationInfo.sourceOf('5640'), 'rxnorm');
+    });
+
+    test('nativeIdOf strips the prefix only', () {
+      expect(MedicationInfo.nativeIdOf('saudi:panadol'), 'panadol');
+      expect(MedicationInfo.nativeIdOf('5640'), '5640');
+    });
+  });
+
   group('MedicationInfo cache', () {
     test('DB round-trip keeps every field', () {
       const original = MedicationInfo(
-        rxcui: '5640',
+        source: 'saudi',
+        rxcui: 'saudi:panadol',
         name: 'ibuprofen',
         synonym: 'Advil',
         doseForm: 'Tablet',
@@ -94,7 +146,8 @@ void main() {
         fetchedAt: 1700000000000,
       );
       final restored = MedicationInfo.fromDb(original.toDb());
-      expect(restored.rxcui, '5640');
+      expect(restored.source, 'saudi');
+      expect(restored.rxcui, 'saudi:panadol');
       expect(restored.name, 'ibuprofen');
       expect(restored.synonym, 'Advil');
       expect(restored.doseForm, 'Tablet');

@@ -9,6 +9,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glucotrack/database/database_helper.dart';
 import 'package:glucotrack/models/health_metric.dart';
+import 'package:glucotrack/models/medication_info.dart';
 import 'package:glucotrack/models/reading.dart';
 import 'package:glucotrack/models/reminder.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -177,15 +178,17 @@ void main() {
   });
 
   group('fresh install path (v2 schema + migrations)', () {
-    test('onCreate-equivalent path produces a working v4 database', () async {
+    test('onCreate-equivalent path produces a working v6 database', () async {
       final db = await databaseFactory.openDatabase(
         inMemoryDatabasePath,
         options: OpenDatabaseOptions(
-          version: 4,
+          version: 6,
           onCreate: (db, version) async {
             await DatabaseHelper.createSchemaV2(db);
             await DatabaseHelper.migrateToV3(db);
             await DatabaseHelper.migrateToV4(db);
+            await DatabaseHelper.migrateToV5(db);
+            await DatabaseHelper.migrateToV6(db);
           },
         ),
       );
@@ -238,6 +241,16 @@ void main() {
           takenAt: DateTime(2026, 9, 12, 8),
         ).toDb(),
       );
+      await db.insert('medication_cache', {
+        'source': 'saudi',
+        'rxcui': 'saudi:panadol',
+        'name': 'Panadol',
+        'synonym': 'بنادول',
+        'dose_form': 'tablet',
+        'strength': '500 mg',
+        'tty': 'saudi',
+        'fetched_at': 1700000000000,
+      });
 
       expect((await db.query('readings')).length, 1);
       final rem = Reminder.fromDb((await db.query('reminders')).first);
@@ -248,6 +261,73 @@ void main() {
       expect((await db.query('health_metrics')).length, 1);
       expect((await db.query('water_log')).length, 1);
       expect((await db.query('medication_log')).length, 1);
+      expect((await db.query('medication_cache')).length, 1);
+
+      await db.close();
+    });
+  });
+
+  group('v5 → v6 medication cache migration', () {
+    test('cache is recreated with a composite (source, rxcui) key', () async {
+      final db = await openV2Database();
+      await DatabaseHelper.migrateToV3(db);
+      await DatabaseHelper.migrateToV4(db);
+      await DatabaseHelper.migrateToV5(db);
+      // Old single-PK row (v5 shape).
+      await db.insert('medication_cache', {
+        'rxcui': '5640',
+        'name': 'ibuprofen',
+        'fetched_at': 1700000000000,
+      });
+
+      await DatabaseHelper.migrateToV6(db);
+
+      // Recreated table accepts multi-source rows keyed by (source, rxcui).
+      await db.insert('medication_cache', {
+        'source': 'rxnorm',
+        'rxcui': '5640',
+        'name': 'ibuprofen',
+        'fetched_at': 1700000000000,
+      });
+      await db.insert('medication_cache', {
+        'source': 'saudi',
+        'rxcui': '5640',
+        'name': 'same-id-different-source',
+        'fetched_at': 1700000000000,
+      });
+      final rows = await db.query('medication_cache');
+      expect(
+        rows.length,
+        2,
+        reason: 'same rxcui under different sources coexists',
+      );
+
+      final info = MedicationInfo.fromDb(rows.first);
+      expect(info.source, 'rxnorm');
+      await db.close();
+    });
+
+    test('reminder dose fields survive v5/v6 with safe defaults', () async {
+      final db = await openV2Database();
+      await DatabaseHelper.migrateToV3(db);
+      await DatabaseHelper.migrateToV4(db);
+      await db.insert('reminders', {
+        'id': 'rem1',
+        'time': '08:00',
+        'label': 'بنادول',
+        'type': 'other',
+        'enabled': 1,
+        'kind': 'medication',
+        'days_mask': 127,
+      });
+
+      await DatabaseHelper.migrateToV5(db);
+      await DatabaseHelper.migrateToV6(db);
+
+      final r = Reminder.fromDb((await db.query('reminders')).first);
+      expect(r.doseForm, isNull);
+      expect(r.doseAmount, isNull);
+      expect(r.rxcui, isNull);
 
       await db.close();
     });
