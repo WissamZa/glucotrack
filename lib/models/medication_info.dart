@@ -11,6 +11,9 @@ class MedicationInfo {
   final String? doseForm; // e.g. "Tablet", "Oral Solution"
   final String? strength; // e.g. "500 mg/1"
   final String? tty; // term type: SBD (brand) / SCDC / IN ...
+  final String? indications; // دواعي الاستخدام (openFDA / Saudi bundled)
+  final String? ingredients; // active ingredients
+  final bool? otc; // true = sold without prescription; null = unknown
   final int fetchedAt; // epoch ms — cache freshness
 
   const MedicationInfo({
@@ -21,6 +24,9 @@ class MedicationInfo {
     this.doseForm,
     this.strength,
     this.tty,
+    this.indications,
+    this.ingredients,
+    this.otc,
     required this.fetchedAt,
   });
 
@@ -54,6 +60,9 @@ class MedicationInfo {
     'dose_form': doseForm,
     'strength': strength,
     'tty': tty,
+    'indications': indications,
+    'ingredients': ingredients,
+    'otc': (otc == null) ? null : (otc! ? 1 : 0),
     'fetched_at': fetchedAt,
   };
 
@@ -65,6 +74,9 @@ class MedicationInfo {
     doseForm: m['dose_form'] as String?,
     strength: m['strength'] as String?,
     tty: m['tty'] as String?,
+    indications: m['indications'] as String?,
+    ingredients: m['ingredients'] as String?,
+    otc: m['otc'] == null ? null : (m['otc'] as int) == 1,
     fetchedAt: m['fetched_at'] as int,
   );
 

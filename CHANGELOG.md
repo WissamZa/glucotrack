@@ -3,6 +3,20 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.8.0+10] — 2026-09-13
+
+### Fixed — tab bar
+- The five-tab BottomAppBar with a notched center FAB was cramped/misaligned. The bar is now five evenly-spaced items and the add-reading FAB floats centered above it.
+
+### Added — add medication from anywhere
+- The reminder add/edit dialog is now a shared component: every drug in the Medications tab and the details page has an **"add reminder"** action that opens the dialog pre-filled with the drug's name, id and dose form.
+
+### Added — full drug details + Nahdi price
+- Details page now shows **active ingredients**, **indications (دواعي الاستخدام)** and a **prescription badge** (بوصفة / بدون وصفة):
+  - Bundled Saudi entries carry curated Arabic usage lines and OTC/Rx flags.
+  - openFDA entries pull the label's `indications_and_usage` and `active_ingredient` sections.
+- **Nahdi Pharmacy price**: the details page fetches the product's approximate price from nahdionline.com and shows it (with a disclaimer). Prices are best-effort and hidden when unavailable. Cache columns added in DB v7 (additive).
+
 ## [1.7.0+9] — 2026-09-13
 
 ### Fixed — medication search

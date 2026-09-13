@@ -205,6 +205,11 @@ class OpenFdaSource extends DrugSource {
       final route = _first(fda['route']);
       final id = 'openfda:${brand.toLowerCase()}-${generic ?? ''}';
       if (!seen.add(id)) continue;
+      // Label sections (truncated for display): usage + active ingredients.
+      final indications = _firstText(raw['indications_and_usage'], 400);
+      final ingredients = _firstText(raw['active_ingredient'], 300);
+      // openFDA OTC monograph products mark purpose/otc; prescription drugs
+      // usually carry 'RxOnly'. Heuristic: no 'otc' flag in metadata → null.
       out.add(
         MedicationInfo(
           source: DrugSources.openfda,
@@ -214,12 +219,23 @@ class OpenFdaSource extends DrugSource {
           doseForm: form,
           strength: route,
           tty: 'openfda',
+          indications: indications,
+          ingredients: ingredients,
+          otc: null,
           fetchedAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
       if (out.length >= 8) break;
     }
     return out;
+  }
+
+  static String? _firstText(dynamic value, int maxLen) {
+    if (value is! List || value.isEmpty) return null;
+    final text = value.first?.toString() ?? '';
+    if (text.trim().isEmpty) return null;
+    final clean = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    return clean.length > maxLen ? '${clean.substring(0, maxLen)}…' : clean;
   }
 
   @override

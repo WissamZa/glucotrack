@@ -58,6 +58,7 @@ class DatabaseHelper {
       await migrateToV4(db);
       await migrateToV5(db);
       await migrateToV6(db);
+      await migrateToV7(db);
     }
 
     Future<void> onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -85,13 +86,17 @@ class DatabaseHelper {
       if (oldVersion < 6) {
         await migrateToV6(db);
       }
+      // v7 — additive: indications / ingredients / otc columns on the cache.
+      if (oldVersion < 7) {
+        await migrateToV7(db);
+      }
     }
 
     if (isMobile) {
       return sqlcipher.openDatabase(
         path,
         password: key,
-        version: 6,
+        version: 7,
         onConfigure: onConfigure,
         onCreate: onCreate,
         onUpgrade: onUpgrade,
@@ -100,7 +105,7 @@ class DatabaseHelper {
       return databaseFactory.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 6,
+          version: 7,
           onConfigure: onConfigure,
           onCreate: onCreate,
           onUpgrade: onUpgrade,
@@ -205,6 +210,18 @@ class DatabaseHelper {
     await _createMedicationCache(db);
   }
 
+  /// v6 → v7 — additive columns for the enriched details page.
+  @visibleForTesting
+  static Future<void> migrateToV7(Database db) async {
+    await db.execute(
+      'ALTER TABLE medication_cache ADD COLUMN indications TEXT',
+    );
+    await db.execute(
+      'ALTER TABLE medication_cache ADD COLUMN ingredients TEXT',
+    );
+    await db.execute('ALTER TABLE medication_cache ADD COLUMN otc INTEGER');
+  }
+
   static Future<void> migrateToV5(Database db) async {
     await db.execute('ALTER TABLE reminders ADD COLUMN dose_form TEXT');
     await db.execute('ALTER TABLE reminders ADD COLUMN dose_amount REAL');
@@ -237,6 +254,9 @@ class DatabaseHelper {
         dose_form TEXT,
         strength TEXT,
         tty TEXT,
+        indications TEXT,
+        ingredients TEXT,
+        otc INTEGER,
         fetched_at INTEGER NOT NULL,
         PRIMARY KEY (source, rxcui)
       )

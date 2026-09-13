@@ -15,6 +15,8 @@ class SaudiDrug {
   final String formKey; // tablet/capsule/ml/drops/spray/cream/injection/units
   final String strength;
   final String ingredient;
+  final String usage; // دواعي الاستخدام (سطر موجز)
+  final bool otc; // يُصرف بدون وصفة طبية
 
   const SaudiDrug({
     required this.id,
@@ -23,6 +25,8 @@ class SaudiDrug {
     required this.formKey,
     required this.strength,
     required this.ingredient,
+    required this.usage,
+    required this.otc,
   });
 
   MedicationInfo toInfo() => MedicationInfo(
@@ -58,6 +62,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500 mg',
     ingredient: 'Paracetamol',
+    usage: 'مسكن للألم وخافض للحرارة (صداع، أسنان، عضلات، نزلات برد)',
+    otc: true,
   ),
   SaudiDrug(
     id: 'panadol-extra',
@@ -66,6 +72,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500/65 mg',
     ingredient: 'Paracetamol + Caffeine',
+    usage: 'مسكن قوي للألم مع كافيين (الصداع الشديد وألم الأسنان)',
+    otc: true,
   ),
   SaudiDrug(
     id: 'adol',
@@ -74,6 +82,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500 mg',
     ingredient: 'Paracetamol',
+    usage: 'مسكن للألم وخافض للحرارة للكبار',
+    otc: true,
   ),
   SaudiDrug(
     id: 'adol-drops',
@@ -82,6 +92,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'drops',
     strength: '100 mg/ml',
     ingredient: 'Paracetamol',
+    usage: 'خافض حرارة ومسكن للرضع والأطفال',
+    otc: true,
   ),
   SaudiDrug(
     id: 'brufen',
@@ -90,6 +102,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '400 mg',
     ingredient: 'Ibuprofen',
+    usage: 'مسكن مضاد للالتهاب (آلام المفاصل والعضلات والصداع النصفي)',
+    otc: true,
   ),
   SaudiDrug(
     id: 'voltaren',
@@ -98,6 +112,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '50 mg',
     ingredient: 'Diclofenac',
+    usage: 'مضاد التهاب غير ستيرويدي لآلام المفاصل والعضلات',
+    otc: false,
   ),
   SaudiDrug(
     id: 'cataflam',
@@ -106,6 +122,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '50 mg',
     ingredient: 'Diclofenac Potassium',
+    usage: 'مسكن سريع الامتصاص لتقلصات الدورة والشد العضلي',
+    otc: false,
   ),
   SaudiDrug(
     id: 'profinal',
@@ -114,6 +132,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '400 mg',
     ingredient: 'Ibuprofen',
+    usage: 'مسكن مضاد للالتهاب لآلام الرأس والأسنان والمفاصل',
+    otc: true,
   ),
 
   // ── مضادات حيوية ───────────────────────────────────────────────────────
@@ -124,6 +144,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '1 g',
     ingredient: 'Amoxicillin + Clavulanic Acid',
+    usage: 'مضاد حيوي واسع المجال لالتهابات الجهاز التنفسي والأذن',
+    otc: false,
   ),
   SaudiDrug(
     id: 'amoxil',
@@ -132,6 +154,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: '500 mg',
     ingredient: 'Amoxicillin',
+    usage: 'مضاد حيوي من مجموعة البنسلين لعلاج الالتهابات البكتيرية',
+    otc: false,
   ),
   SaudiDrug(
     id: 'flagyl',
@@ -140,6 +164,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500 mg',
     ingredient: 'Metronidazole',
+    usage: 'علاج الإسهال البكتيري والأميبات وجرثومة المعدة',
+    otc: false,
   ),
   SaudiDrug(
     id: 'zithromax',
@@ -148,6 +174,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500 mg',
     ingredient: 'Azithromycin',
+    usage: 'مضاد حيوي ماكروليد لالتهابات الصدر والحنجرة',
+    otc: false,
   ),
   SaudiDrug(
     id: 'klacid',
@@ -156,6 +184,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500 mg',
     ingredient: 'Clarithromycin',
+    usage: 'مضاد حيوي لالتهابات الجهاز التنفسي وجرثومة المعدة',
+    otc: false,
   ),
   SaudiDrug(
     id: 'ciproxin',
@@ -164,6 +194,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500 mg',
     ingredient: 'Ciprofloxacin',
+    usage: 'مضاد حيوي واسع المجال لالتهابات المسالك البولية',
+    otc: false,
   ),
   SaudiDrug(
     id: 'velosef',
@@ -172,6 +204,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: '500 mg',
     ingredient: 'Cephradine',
+    usage: 'مضاد حيوي سيفالوسبورين للالتهابات البكتيرية',
+    otc: false,
   ),
   SaudiDrug(
     id: 'zinnat',
@@ -180,6 +214,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500 mg',
     ingredient: 'Cefuroxime',
+    usage: 'مضاد حيوي سيفالوسبورين من الجيل الثاني',
+    otc: false,
   ),
 
   // ── السكري ─────────────────────────────────────────────────────────────
@@ -190,6 +226,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '500 mg',
     ingredient: 'Metformin',
+    usage: 'خافض سكر لمرضى النوع الثاني (يحسن حساسية الأنسولين)',
+    otc: false,
   ),
   SaudiDrug(
     id: 'amaryl',
@@ -198,6 +236,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '2 mg',
     ingredient: 'Glimepiride',
+    usage: 'محفز لإفراز الأنسولين لضبط سكر النوع الثاني',
+    otc: false,
   ),
   SaudiDrug(
     id: 'januvia',
@@ -206,6 +246,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '100 mg',
     ingredient: 'Sitagliptin',
+    usage: 'خافض سكر فموي لعلاج داء السكري من النوع الثاني',
+    otc: false,
   ),
   SaudiDrug(
     id: 'lantus',
@@ -214,6 +256,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'injection',
     strength: '100 IU/ml',
     ingredient: 'Insulin Glargine',
+    usage: 'أنسولين طويل المفعول يعطى مرة يومياً كقاعدة ثابتة',
+    otc: false,
   ),
   SaudiDrug(
     id: 'mixtard',
@@ -222,6 +266,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'injection',
     strength: '100 IU/ml',
     ingredient: 'Human Insulin',
+    usage: 'أنسولين مختلط متوسط وسريع المفعول',
+    otc: false,
   ),
   SaudiDrug(
     id: 'novorapid',
@@ -230,6 +276,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'injection',
     strength: '100 IU/ml',
     ingredient: 'Insulin Aspart',
+    usage: 'أنسولين سريع المفعول يؤخذ مع الوجبات',
+    otc: false,
   ),
   SaudiDrug(
     id: 'actrapid',
@@ -238,6 +286,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'injection',
     strength: '100 IU/ml',
     ingredient: 'Human Insulin',
+    usage: 'أنسولين قصير المفعول',
+    otc: false,
   ),
 
   // ── الضغط والقلب ───────────────────────────────────────────────────────
@@ -248,6 +298,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '5 mg',
     ingredient: 'Bisoprolol',
+    usage: 'خافض لضغط الدم ومنظم لضربات القلب',
+    otc: false,
   ),
   SaudiDrug(
     id: 'amlor',
@@ -256,6 +308,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: '5 mg',
     ingredient: 'Amlodipine',
+    usage: 'موسع أوعية لخفض ضغط الدم',
+    otc: false,
   ),
   SaudiDrug(
     id: 'norvasc',
@@ -264,6 +318,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '5 mg',
     ingredient: 'Amlodipine',
+    usage: 'خافض ضغط لعلاج ارتفاع الدم والذبحة',
+    otc: false,
   ),
   SaudiDrug(
     id: 'cozaar',
@@ -272,6 +328,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '50 mg',
     ingredient: 'Losartan',
+    usage: 'خافض ضغط من مجموعة السارتانات يحمي الكلى',
+    otc: false,
   ),
   SaudiDrug(
     id: 'diovan',
@@ -280,6 +338,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '160 mg',
     ingredient: 'Valsartan',
+    usage: 'خافض ضغط من مجموعة السارتانات',
+    otc: false,
   ),
   SaudiDrug(
     id: 'aspirin-protect',
@@ -288,6 +348,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '81 mg',
     ingredient: 'Acetylsalicylic Acid',
+    usage: 'مضاد تجلط بجرعة منخفضة للوقاية القلبية',
+    otc: true,
   ),
   SaudiDrug(
     id: 'plavix',
@@ -296,6 +358,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '75 mg',
     ingredient: 'Clopidogrel',
+    usage: 'مضاد تجلط لمنع الجلطات القلبية والدماغية',
+    otc: false,
   ),
   SaudiDrug(
     id: 'lipitor',
@@ -304,6 +368,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '20 mg',
     ingredient: 'Atorvastatin',
+    usage: 'خافض كوليسترول من مجموعة الستاتينات',
+    otc: false,
   ),
   SaudiDrug(
     id: 'crestor',
@@ -312,6 +378,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '10 mg',
     ingredient: 'Rosuvastatin',
+    usage: 'خافض كوليسترول من مجموعة الستاتينات',
+    otc: false,
   ),
   SaudiDrug(
     id: 'capoten',
@@ -320,6 +388,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '25 mg',
     ingredient: 'Captopril',
+    usage: 'خافض ضغط من مثبطات الإنزيم المحول',
+    otc: false,
   ),
 
   // ── الجهاز الهضمي ─────────────────────────────────────────────────────
@@ -330,6 +400,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '40 mg',
     ingredient: 'Esomeprazole',
+    usage: 'مثبط مضخة البروتون لحموضة وقرحة المعدة',
+    otc: false,
   ),
   SaudiDrug(
     id: 'omez',
@@ -338,6 +410,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: '20 mg',
     ingredient: 'Omeprazole',
+    usage: 'مثبط حموضة للقرحة والارتجاع المريئي',
+    otc: false,
   ),
   SaudiDrug(
     id: 'gaviscon',
@@ -346,6 +420,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'ml',
     strength: 'suspension',
     ingredient: 'Alginate + Antacids',
+    usage: 'يكون طبقة حماية من ارتجاع المريء والحرقة',
+    otc: true,
   ),
   SaudiDrug(
     id: 'motilium',
@@ -354,6 +430,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '10 mg',
     ingredient: 'Domperidone',
+    usage: 'منشط لحركة المعدة ضد الغثيان والانتفاخ',
+    otc: true,
   ),
   SaudiDrug(
     id: 'buscopan',
@@ -362,6 +440,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '10 mg',
     ingredient: 'Hyoscine Butylbromide',
+    usage: 'مضاد تقلصات للمعدة والأمعاء',
+    otc: true,
   ),
   SaudiDrug(
     id: 'dulcolax',
@@ -370,6 +450,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '5 mg',
     ingredient: 'Bisacodyl',
+    usage: 'ملين يخفف الإمساك',
+    otc: true,
   ),
   SaudiDrug(
     id: 'antinal',
@@ -378,6 +460,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: '200 mg',
     ingredient: 'Nifuroxazide',
+    usage: 'علاج الإسهال والنزلات المعوية البكتيرية',
+    otc: true,
   ),
 
   // ── الحساسية والجهاز التنفسي ───────────────────────────────────────────
@@ -388,6 +472,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '10 mg',
     ingredient: 'Loratadine',
+    usage: 'مضاد هيستامين لأعراض الحساسية والزكام',
+    otc: true,
   ),
   SaudiDrug(
     id: 'telfast',
@@ -396,6 +482,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '180 mg',
     ingredient: 'Fexofenadine',
+    usage: 'مضاد هيستامين للحساسية والرشح الأنفية',
+    otc: true,
   ),
   SaudiDrug(
     id: 'zyrtec',
@@ -404,6 +492,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '10 mg',
     ingredient: 'Cetirizine',
+    usage: 'مضاد هيستامين للحساسية الجلدية والأنفية',
+    otc: true,
   ),
   SaudiDrug(
     id: 'aerius',
@@ -412,6 +502,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '5 mg',
     ingredient: 'Desloratadine',
+    usage: 'مضاد هيستامين طويل المفعول للحساسية',
+    otc: true,
   ),
   SaudiDrug(
     id: 'ventolin',
@@ -420,6 +512,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'spray',
     strength: '100 mcg/dose',
     ingredient: 'Salbutamol',
+    usage: 'موسع شعبي سريع لنوبات ضيق التنفس',
+    otc: false,
   ),
   SaudiDrug(
     id: 'singulair',
@@ -428,6 +522,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '10 mg',
     ingredient: 'Montelukast',
+    usage: 'وقائي للربو والحساسية الأنفية',
+    otc: false,
   ),
   SaudiDrug(
     id: 'rhinathiol',
@@ -436,6 +532,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'ml',
     strength: 'syrup',
     ingredient: 'Carbocisteine',
+    usage: 'مذيب للبلغم في نزلات الصدر',
+    otc: true,
   ),
 
   // ── الغدة والهرمونات ──────────────────────────────────────────────────
@@ -446,6 +544,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '100 mcg',
     ingredient: 'Levothyroxine',
+    usage: 'بديل هرمون الغدة الدرقية لعلاج قصورها',
+    otc: false,
   ),
   SaudiDrug(
     id: 'eltroxin',
@@ -454,6 +554,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '50 mcg',
     ingredient: 'Levothyroxine',
+    usage: 'بديل هرمون الغدة الدرقية (يوثيروكسين)',
+    otc: false,
   ),
 
   // ── فيتامينات ومكملات ─────────────────────────────────────────────────
@@ -464,6 +566,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: 'multivitamin',
     ingredient: 'Multivitamins',
+    usage: 'مكمل يومي من الفيتامينات والمعادن',
+    otc: true,
   ),
   SaudiDrug(
     id: 'vitamin-d3',
@@ -472,6 +576,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: '50000 IU',
     ingredient: 'Cholecalciferol',
+    usage: 'علاج ومكمل لنقص فيتامين د',
+    otc: true,
   ),
   SaudiDrug(
     id: 'feroglobin',
@@ -480,6 +586,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: 'iron + B12',
     ingredient: 'Iron + Vitamins',
+    usage: 'حديد مع فيتامينات لعلاج فقر الدم',
+    otc: true,
   ),
   SaudiDrug(
     id: 'cal-mag',
@@ -488,6 +596,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: 'calcium + magnesium',
     ingredient: 'Calcium + Magnesium',
+    usage: 'كالسيوم ومغنيسيوم لصحة العظام',
+    otc: true,
   ),
   SaudiDrug(
     id: 'folic-acid',
@@ -496,6 +606,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '5 mg',
     ingredient: 'Folic Acid',
+    usage: 'مهم للحمل وتكوين خلايا الدم',
+    otc: true,
   ),
 
   // ── أخرى شائعة ─────────────────────────────────────────────────────────
@@ -506,6 +618,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'cream',
     strength: 'ointment',
     ingredient: 'Dexpanthenol',
+    usage: 'مرطب ووقائي للجلد الجاف والحلمات',
+    otc: true,
   ),
   SaudiDrug(
     id: 'fucidin',
@@ -514,6 +628,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'cream',
     strength: '2%',
     ingredient: 'Fusidic Acid',
+    usage: 'مرهم مضاد بكتيري للجروح والالتهابات الجلدية',
+    otc: true,
   ),
   SaudiDrug(
     id: 'betadine',
@@ -522,6 +638,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'ml',
     strength: '10%',
     ingredient: 'Povidone-Iodine',
+    usage: 'مطهر للجروح وتهيئة الجلد قبل الإجراءات',
+    otc: true,
   ),
   SaudiDrug(
     id: 'otrivin',
@@ -530,6 +648,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'spray',
     strength: '0.1%',
     ingredient: 'Xylometazoline',
+    usage: 'بخاخ مزيل لاحتقان الأنف',
+    otc: true,
   ),
   SaudiDrug(
     id: 'strepsils',
@@ -538,6 +658,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: 'lozenge',
     ingredient: 'Antiseptic Lozenge',
+    usage: 'أقراص مص ملطفة لالتهاب الحلق',
+    otc: true,
   ),
   SaudiDrug(
     id: 'voltaren-emulgel',
@@ -546,6 +668,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'cream',
     strength: '1%',
     ingredient: 'Diclofenac (topical)',
+    usage: 'جل موضعي مسكن لآلام العضلات والمفاصل',
+    otc: true,
   ),
   SaudiDrug(
     id: 'serevent',
@@ -554,6 +678,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'spray',
     strength: '25 mcg/dose',
     ingredient: 'Salmeterol',
+    usage: 'موسع شعبي وقائي طويل المفعول',
+    otc: false,
   ),
   SaudiDrug(
     id: 'pantoloc',
@@ -562,6 +688,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '40 mg',
     ingredient: 'Pantoprazole',
+    usage: 'مثبط حموضة (بانتوبرازول) للقرحة والارتجاع',
+    otc: false,
   ),
   SaudiDrug(
     id: 'zantac',
@@ -570,6 +698,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '150 mg',
     ingredient: 'Ranitidine',
+    usage: 'مضاد حموضة من مجموعة حاصرات H2',
+    otc: true,
   ),
   SaudiDrug(
     id: 'valium',
@@ -578,6 +708,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '5 mg',
     ingredient: 'Diazepam',
+    usage: 'مهدئ ومضاد للتشنج — يُصرف بوصفة صارمة',
+    otc: false,
   ),
   SaudiDrug(
     id: 'xanax',
@@ -586,6 +718,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '0.5 mg',
     ingredient: 'Alprazolam',
+    usage: 'مضاد للقلق والهلع — يُصرف بوصفة صارمة',
+    otc: false,
   ),
   SaudiDrug(
     id: 'zoloft',
@@ -594,6 +728,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '50 mg',
     ingredient: 'Sertraline',
+    usage: 'مضاد اكتئاب من مجموعة SSRI',
+    otc: false,
   ),
   SaudiDrug(
     id: 'prozac',
@@ -602,6 +738,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: '20 mg',
     ingredient: 'Fluoxetine',
+    usage: 'مضاد اكتئاب من مجموعة SSRI',
+    otc: false,
   ),
   SaudiDrug(
     id: 'lyrica',
@@ -610,6 +748,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'capsule',
     strength: '75 mg',
     ingredient: 'Pregabalin',
+    usage: 'علاج آلام الأعصاب والتشنج العصبي',
+    otc: false,
   ),
   SaudiDrug(
     id: 'ursocol',
@@ -618,6 +758,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: '300 mg',
     ingredient: 'Ursodeoxycholic Acid',
+    usage: 'يذيب حصوات المرارة ويحسن الكبد الدهني',
+    otc: false,
   ),
   SaudiDrug(
     id: 'neurobion',
@@ -626,6 +768,8 @@ const List<SaudiDrug> kSaudiDrugs = [
     formKey: 'tablet',
     strength: 'B-complex',
     ingredient: 'Vitamin B Complex',
+    usage: 'مركب فيتامينات ب لدعم الأعصاب',
+    otc: true,
   ),
 ];
 

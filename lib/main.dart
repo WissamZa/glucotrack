@@ -305,12 +305,8 @@ class _MainShellState extends State<MainShell> {
         tooltip: strings.tooltipAddReading,
         child: const Icon(Icons.add, size: 28),
       ),
-      // Same as centerDocked but nudged ~10px lower, per user preference —
-      // the notch follows the FAB automatically.
-      floatingActionButtonLocation: const LowerCenterDockedFabLocation(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
         child: SizedBox(
           height: 64,
           child: Row(
@@ -323,18 +319,23 @@ class _MainShellState extends State<MainShell> {
                 strings.navChart,
                 1,
               ),
-              const SizedBox(width: 56), // space for FAB
+              _navItem(
+                Icons.medication_outlined,
+                Icons.medication,
+                strings.medicationsTitle,
+                2,
+              ),
               _navItem(
                 Icons.notifications_outlined,
                 Icons.notifications,
                 strings.navReminders,
-                2,
+                3,
               ),
               _navItem(
                 Icons.settings_outlined,
                 Icons.settings,
                 strings.navSettings,
-                3,
+                4,
               ),
             ],
           ),
@@ -369,21 +370,5 @@ class _MainShellState extends State<MainShell> {
         ),
       ),
     );
-  }
-}
-
-/// [FloatingActionButtonLocation.centerDocked] with a small downward offset
-/// so the add-reading FAB sits slightly lower in the BottomAppBar notch.
-class LowerCenterDockedFabLocation extends FloatingActionButtonLocation {
-  const LowerCenterDockedFabLocation();
-
-  static const double _lowerBy = 10;
-
-  @override
-  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
-    final base = FloatingActionButtonLocation.centerDocked.getOffset(
-      scaffoldGeometry,
-    );
-    return Offset(base.dx, base.dy + _lowerBy);
   }
 }

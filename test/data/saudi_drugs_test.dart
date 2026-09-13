@@ -52,7 +52,15 @@ void main() {
         expect(d.formKey.trim(), isNotEmpty, reason: d.id);
         expect(d.strength.trim(), isNotEmpty, reason: d.id);
         expect(d.ingredient.trim(), isNotEmpty, reason: d.id);
+        expect(d.usage.trim(), isNotEmpty, reason: d.id);
       }
+    });
+
+    test('prescription-only antibiotics are flagged otc=false', () {
+      final augmentin = kSaudiDrugs.firstWhere((d) => d.id == 'augmentin');
+      expect(augmentin.otc, isFalse);
+      final panadol = kSaudiDrugs.firstWhere((d) => d.id == 'panadol');
+      expect(panadol.otc, isTrue);
     });
   });
 

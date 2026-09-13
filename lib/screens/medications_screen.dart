@@ -12,6 +12,7 @@ import '../models/reminder.dart';
 import '../providers/providers.dart';
 import '../services/drug_source.dart';
 import '../services/medication_api_service.dart';
+import '../widgets/reminder_editor.dart';
 import '../widgets/screen_padding.dart';
 
 class MedicationsScreen extends StatefulWidget {
@@ -290,13 +291,29 @@ class _DrugTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-          trailing: Icon(
-            Icons.chevron_right,
-            size: 18,
-            color: Colors.grey.shade400,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.alarm_add, size: 20),
+                color: Theme.of(context).colorScheme.primary,
+                tooltip: strings.addReminder,
+                onPressed: () => showReminderEditor(
+                  context,
+                  prefillName: info.name,
+                  prefillRxcui: info.rxcui,
+                  prefillFormKey: _formKeyOf(info),
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade400),
+            ],
           ),
         ),
       ),
     );
   }
 }
+
+/// Bundled Saudi entries already use our stable form keys; external sources
+/// carry English form text that the editor maps to a key itself.
+String? _formKeyOf(MedicationInfo info) => info.doseForm;
