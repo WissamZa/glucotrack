@@ -8,6 +8,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart' as sqlcipher;
 
 import '../models/health_metric.dart';
+import '../models/medication_info.dart';
 import '../models/reading.dart';
 import '../models/reminder.dart';
 import '../services/keystore_service.dart';
@@ -55,6 +56,7 @@ class DatabaseHelper {
       await createSchemaV2(db);
       await migrateToV3(db);
       await migrateToV4(db);
+      await migrateToV5(db);
     }
 
     Future<void> onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -72,13 +74,18 @@ class DatabaseHelper {
       if (oldVersion < 4) {
         await migrateToV4(db);
       }
+      // v5 — additive only: structured dose (form + amount), an optional
+      // RxNorm link per reminder, and the offline medication cache.
+      if (oldVersion < 5) {
+        await migrateToV5(db);
+      }
     }
 
     if (isMobile) {
       return sqlcipher.openDatabase(
         path,
         password: key,
-        version: 4,
+        version: 5,
         onConfigure: onConfigure,
         onCreate: onCreate,
         onUpgrade: onUpgrade,
@@ -87,7 +94,7 @@ class DatabaseHelper {
       return databaseFactory.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 4,
+          version: 5,
           onConfigure: onConfigure,
           onCreate: onCreate,
           onUpgrade: onUpgrade,
@@ -181,6 +188,16 @@ class DatabaseHelper {
     );
   }
 
+  /// v4 → v5 migration — additive only: structured dose fields on reminders
+  /// (form + amount + optional RxNorm id) and the offline medication cache.
+  @visibleForTesting
+  static Future<void> migrateToV5(Database db) async {
+    await db.execute('ALTER TABLE reminders ADD COLUMN dose_form TEXT');
+    await db.execute('ALTER TABLE reminders ADD COLUMN dose_amount REAL');
+    await db.execute('ALTER TABLE reminders ADD COLUMN rxcui TEXT');
+    await _createMedicationCache(db);
+  }
+
   static Future<void> _createHealthMetrics(Database db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS health_metrics (
@@ -194,6 +211,20 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_health_metrics_timestamp ON health_metrics(timestamp)',
     );
+  }
+
+  static Future<void> _createMedicationCache(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS medication_cache (
+        rxcui TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        synonym TEXT,
+        dose_form TEXT,
+        strength TEXT,
+        tty TEXT,
+        fetched_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   static Future<void> _createWaterLog(Database db) async {
@@ -303,6 +334,40 @@ class DatabaseHelper {
       'medication_log',
       where: 'reminder_id = ?',
       whereArgs: [reminderId],
+    );
+  }
+
+  // ===== Medication cache (RxNorm offline data) =====
+  Future<MedicationInfo?> getMedicationFromCache(String rxcui) async {
+    final db = await this.db;
+    final rows = await db.query(
+      'medication_cache',
+      where: 'rxcui = ?',
+      whereArgs: [rxcui],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : MedicationInfo.fromDb(rows.first);
+  }
+
+  Future<List<MedicationInfo>> searchMedicationCache(String query) async {
+    final db = await this.db;
+    final q = '%${query.trim()}%';
+    final rows = await db.query(
+      'medication_cache',
+      where: 'name LIKE ? OR synonym LIKE ?',
+      whereArgs: [q, q],
+      orderBy: 'name ASC',
+      limit: 10,
+    );
+    return rows.map(MedicationInfo.fromDb).toList();
+  }
+
+  Future<void> upsertMedicationCache(MedicationInfo info) async {
+    final db = await this.db;
+    await db.insert(
+      'medication_cache',
+      info.toDb(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 

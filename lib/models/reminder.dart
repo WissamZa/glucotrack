@@ -40,9 +40,10 @@ class WeekdayBits {
 
 /// Auto-generates dose times for a medication schedule.
 ///
-/// The user only enters the FIRST dose time; the remaining times are spread
-/// evenly between it and 23:30 (capped at 6-hour gaps), rounded to 15
-/// minutes. Any generated time stays individually editable afterwards.
+/// The user only enters the FIRST dose time; the remaining times divide the
+/// full 24-hour day evenly (24h / dose count — "every 8 hours" for 3 doses),
+/// anchored to the first dose and wrapping past midnight when needed. Times
+/// are snapped to 15 minutes and stay individually editable.
 class MedSchedule {
   MedSchedule._();
 
@@ -61,25 +62,18 @@ class MedSchedule {
     return '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
   }
 
-  /// Returns [count] times ("HH:mm"), starting at [firstTime].
-  /// [count] is clamped to 1..6.
+  /// Returns [count] times ("HH:mm") starting at [firstTime], spacing them
+  /// evenly across 24 hours (24h / count). [count] is clamped to 1..6.
   static List<String> generateTimes(String firstTime, int count) {
     final n = count.clamp(1, 6);
     final first = _parseMinutes(firstTime);
     if (n == 1) return [_format(first)];
 
-    // Waking-day window: keep the last dose at or before 23:30.
-    const windowEnd = 23 * 60 + 30;
-    var span = windowEnd - first;
-    // Late first dose that leaves no room — single-time fallback would be
-    // surprising; instead distribute over the minimum 1-hour gaps and let
-    // the last dose(s) wrap past midnight rather than dropping doses.
-    if (span < 60 * (n - 1)) span = 60 * (n - 1);
-
-    var spacing = span ~/ (n - 1);
-    spacing = spacing.clamp(60, 6 * 60);
-    // Snap to 15-minute increments for clean defaults.
+    // 24 hours divided by dose count: 2 → every 12h, 3 → every 8h,
+    // 4 → every 6h. Snap to 15-minute increments.
+    var spacing = (24 * 60) ~/ n;
     spacing = (spacing ~/ 15) * 15;
+    spacing = spacing.clamp(60, 24 * 60);
 
     return [for (var i = 0; i < n; i++) _format(first + i * spacing)];
   }
@@ -104,6 +98,9 @@ class Reminder {
   final ReminderKind kind;
   final int daysMask; // bitmask of weekdays, 127 = every day
   final List<String> times; // "HH:mm" list (>= 1 entry)
+  final String? doseForm; // stable key: tablet/capsule/ml/… (see DoseForms)
+  final double? doseAmount; // quantity per dose (e.g. 1, 0.5, 500)
+  final String? rxcui; // RxNorm id linking to the medication details page
 
   const Reminder({
     required this.id,
@@ -114,6 +111,9 @@ class Reminder {
     this.kind = ReminderKind.measurement,
     this.daysMask = WeekdayBits.everyDay,
     this.times = const [],
+    this.doseForm,
+    this.doseAmount,
+    this.rxcui,
   }) : assert(
          daysMask >= 1 && daysMask <= WeekdayBits.everyDay,
          'daysMask must set at least one weekday bit',
@@ -170,6 +170,9 @@ class Reminder {
       kind: ReminderKindX.fromDb(m['kind'] as String?),
       daysMask: (m['days_mask'] as int?) ?? WeekdayBits.everyDay,
       times: times,
+      doseForm: m['dose_form'] as String?,
+      doseAmount: (m['dose_amount'] as num?)?.toDouble(),
+      rxcui: m['rxcui'] as String?,
     );
   }
 
@@ -182,6 +185,9 @@ class Reminder {
     Object? kind = _unsetReminder,
     Object? daysMask = _unsetReminder,
     Object? times = _unsetReminder,
+    Object? doseForm = _unsetReminder,
+    Object? doseAmount = _unsetReminder,
+    Object? rxcui = _unsetReminder,
   }) => Reminder(
     id: identical(id, _unsetReminder) ? this.id : id as String,
     time: identical(time, _unsetReminder) ? this.time : time as String,

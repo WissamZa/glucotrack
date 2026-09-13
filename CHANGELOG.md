@@ -3,6 +3,16 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.6.0+8] — 2026-09-13
+
+### Fixed — medication reminder save
+- Saving a reminder could silently fail when the notification scheduler threw (e.g. exact-alarm permission on Android 12+). Saving to the database now **always** succeeds; scheduling is best-effort with an automatic exact→inexact fallback, the exact-alarm permission is declared, and scheduling failures are logged instead of blocking the save.
+
+### Added — smarter medication reminders
+- Dose times are now divided across the **full 24 hours** (24h ÷ dose count: 2 → every 12h, 3 → every 8h, 4 → every 6h) anchored to the first dose time, wrapping past midnight when needed.
+- **Structured dose**: a dropdown for the dose form (tablet / capsule / ml / drops / spray / cream / injection / insulin units) plus a numeric amount per dose, stored as data (DB v5, additive) instead of free text.
+- **Medication autocomplete & details** via the free RxNorm API (U.S. National Library of Medicine — public domain, **no key or developer registration**): typing the name suggests matching drugs; picking one links the reminder to the drug and a new **Medication Details** page (from the reminder card or the dialog) shows name, synonym, dose form, strength and brand/generic type. Everything is cached in a local `medication_cache` table (30-day freshness) so repeat lookups work offline without re-requesting.
+
 ## [1.5.0+7] — 2026-09-13
 
 ### Added — one-tap medication schedule

@@ -409,6 +409,27 @@ class AppStrings {
   String get firstDoseTime => get('first_dose_time');
   String get autoScheduleHint => get('auto_schedule_hint');
 
+  // ===== Medication lookup & structured dose (v1.6) =====
+  String get doseForm => get('dose_form');
+  String get doseAmount => get('dose_amount');
+  String get searchMedication => get('search_medication');
+  String get noSuggestions => get('no_suggestions');
+  String get medicationDetails => get('medication_details');
+  String get medSynonym => get('med_synonym');
+  String get medStrength => get('med_strength');
+  String get medTypeBrand => get('med_type_brand');
+  String get medTypeGeneric => get('med_type_generic');
+  String get medSourceRxNorm => get('med_source_rxnorm');
+  String get medOpenDetails => get('med_open_details');
+  String get medGenericTerm => get('med_generic_term');
+  String get errorDoseAmount => get('error_dose_amount');
+
+  String? doseFormLabel(String? key) {
+    if (key == null) return null;
+    final v = get('dose_form_$key');
+    return v == 'dose_form_$key' ? key : v;
+  }
+
   // ===== WebDAV sync (v1.5) =====
   String get webdavSync => get('webdav_sync');
   String get webdavSyncNow => get('webdav_sync_now');
@@ -794,6 +815,29 @@ const Map<String, String> _ar = {
   'first_dose_time': 'وقت الجرعة الأولى',
   'auto_schedule_hint':
       'تُولّد بقية الأوقات تلقائياً — انقر على أي وقت لتعديله',
+  'dose_form': 'شكل الجرعة',
+  'dose_amount': 'الكمية لكل جرعة',
+  'dose_form_tablet': 'حبة',
+  'dose_form_capsule': 'كبسولة',
+  'dose_form_ml': 'مل',
+  'dose_form_drops': 'قطرة',
+  'dose_form_spray': 'بخاخ',
+  'dose_form_cream': 'كريم',
+  'dose_form_injection': 'حقنة',
+  'dose_form_units': 'وحدة أنسولين',
+  'search_medication': 'ابحث عن اسم الدواء…',
+  'no_suggestions': 'لا توجد اقتراحات — أكمل الاسم يدوياً',
+  'medication_details': 'تفاصيل الدواء',
+  'med_synonym': 'الاسم البديل',
+  'med_strength': 'التركيز',
+  'med_type_brand': 'اسم تجاري',
+  'med_type_generic': 'اسم علمي',
+  'med_source_rxnorm':
+      'المصدر: RxNorm — المكتبة الوطنية الأمريكية للطب (ملكية عامة)',
+  'med_open_details': 'عرض تفاصيل الدواء',
+  'med_generic_term': 'غير محدد',
+  'error_dose_amount': 'أدخل كمية صحيحة للجرعة',
+  // WebDAV sync (v1.5)
   // WebDAV sync (v1.5)
   'webdav_sync': 'المزامنة عبر WebDAV',
   'webdav_sync_now': 'مزامنة الآن',
@@ -1142,6 +1186,28 @@ const Map<String, String> _en = {
   'dose_count': 'Doses per day',
   'first_dose_time': 'First dose time',
   'auto_schedule_hint': 'The remaining times are generated automatically — tap any time to edit it',
+  'dose_form': 'Dose form',
+  'dose_amount': 'Amount per dose',
+  'dose_form_tablet': 'Tablet',
+  'dose_form_capsule': 'Capsule',
+  'dose_form_ml': 'ml',
+  'dose_form_drops': 'Drops',
+  'dose_form_spray': 'Spray',
+  'dose_form_cream': 'Cream',
+  'dose_form_injection': 'Injection',
+  'dose_form_units': 'Insulin units',
+  'search_medication': 'Search medication name…',
+  'no_suggestions': 'No suggestions — finish typing manually',
+  'medication_details': 'Medication Details',
+  'med_synonym': 'Synonym',
+  'med_strength': 'Strength',
+  'med_type_brand': 'Brand name',
+  'med_type_generic': 'Generic name',
+  'med_source_rxnorm':
+      'Source: RxNorm — U.S. National Library of Medicine (public domain)',
+  'med_open_details': 'View medication details',
+  'med_generic_term': 'Unknown',
+  'error_dose_amount': 'Enter a valid dose amount',
   // WebDAV sync (v1.5)
   'webdav_sync': 'WebDAV Sync',
   'webdav_sync_now': 'Sync now',

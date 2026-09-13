@@ -1,15 +1,20 @@
 // Reminders screen — list, add/edit, toggle, delete + medication schedule
-// (days × times) and a medication-taken log.
+// (days × times), a medication-taken log, structured doses and RxNorm
+// autocomplete.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../i18n/strings.dart';
+import '../models/medication_info.dart';
 import '../models/reading.dart';
 import '../models/reminder.dart';
 import '../models/settings.dart';
 import '../providers/providers.dart';
+import '../services/medication_api_service.dart';
 import '../widgets/screen_padding.dart';
 
 class RemindersScreen extends StatefulWidget {
@@ -161,21 +166,25 @@ class _RemindersScreenState extends State<RemindersScreen> {
     var type = existing?.type ?? ReadingType.fasting;
     final labelCtrl = TextEditingController(text: existing?.label ?? '');
     final medNameCtrl = TextEditingController(
-      text:
-          (existing?.kind == ReminderKind.medication &&
-              existing != null &&
-              existing.label.contains('·'))
-          ? existing.label.split('·').first.trim()
+      text: existing != null && existing.kind == ReminderKind.medication
+          ? (existing.doseForm != null || existing.doseAmount != null
+                ? existing
+                      .label // structured dose: label holds the name
+                : existing.label.contains('·')
+                ? existing.label.split('·').first.trim()
+                : existing.label)
           : '',
     );
-    final doseCtrl = TextEditingController(
-      text:
-          (existing?.kind == ReminderKind.medication &&
-              existing != null &&
-              existing.label.contains('·'))
-          ? existing.label.split('·').skip(1).join('·').trim()
+    final doseAmountCtrl = TextEditingController(
+      text: existing?.doseAmount != null
+          ? _formatAmount(existing!.doseAmount!)
           : '',
     );
+    String? doseFormKey = existing?.doseForm;
+    String? rxcui = existing?.rxcui;
+    var suggestions = const <MedicationInfo>[];
+    var searching = false;
+    Timer? debounce;
     // Times: the first dose seeds an auto-generated schedule; every time
     // stays individually editable.
     var doseCount = existing?.timesPerDay ?? 1;
@@ -263,20 +272,130 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: medNameCtrl,
+                    onChanged: (v) {
+                      debounce?.cancel();
+                      if (v.trim().length < 2) {
+                        setStx(() => suggestions = const []);
+                        return;
+                      }
+                      debounce = Timer(
+                        const Duration(milliseconds: 400),
+                        () async {
+                          setStx(() => searching = true);
+                          final results = await MedicationApiService().search(
+                            v,
+                          );
+                          if (!stx.mounted) return;
+                          setStx(() {
+                            suggestions = results;
+                            searching = false;
+                          });
+                        },
+                      );
+                    },
                     decoration: InputDecoration(
-                      hintText: strings.addMedication,
+                      hintText: strings.searchMedication,
                       border: const OutlineInputBorder(),
+                      suffixIcon: searching
+                          ? const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            )
+                          : (rxcui != null
+                                ? IconButton(
+                                    icon: const Icon(Icons.info_outline),
+                                    tooltip: strings.medicationDetails,
+                                    onPressed: () => _openMedicationDetails(
+                                      stx,
+                                      rxcui!,
+                                      medNameCtrl.text,
+                                    ),
+                                  )
+                                : null),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _sectionLabel(strings.medicationDose),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: doseCtrl,
-                    decoration: InputDecoration(
-                      hintText: '500 mg · 2 ${strings.insulinUnitsShort}',
-                      border: const OutlineInputBorder(),
+                  if (suggestions.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [
+                          for (final info in suggestions.take(5))
+                            ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.medication, size: 18),
+                              title: Text(
+                                info.name,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              subtitle:
+                                  (info.synonym != null &&
+                                      info.synonym != info.name)
+                                  ? Text(
+                                      info.synonym!,
+                                      style: const TextStyle(fontSize: 11),
+                                    )
+                                  : null,
+                              onTap: () {
+                                medNameCtrl.text = info.name;
+                                rxcui = info.rxcui;
+                                doseFormKey ??= _doseFormKeyFromRxNorm(
+                                  info.doseForm,
+                                );
+                                setStx(() => suggestions = const []);
+                              },
+                            ),
+                        ],
+                      ),
                     ),
+                  const SizedBox(height: 12),
+
+                  // Structured dose: form dropdown + amount per dose.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: doseFormKey,
+                          decoration: InputDecoration(
+                            labelText: strings.doseForm,
+                            border: const OutlineInputBorder(),
+                          ),
+                          items: [
+                            for (final key in _doseFormKeys)
+                              DropdownMenuItem(
+                                value: key,
+                                child: Text(
+                                  strings.doseFormLabel(key) ?? key,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                          ],
+                          onChanged: (v) => setStx(() => doseFormKey = v),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: doseAmountCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: strings.doseAmount,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
 
@@ -400,18 +519,23 @@ class _RemindersScreenState extends State<RemindersScreen> {
               child: Text(strings.cancel),
             ),
             ElevatedButton(
-              onPressed: () => _saveReminder(
-                dialogCtx,
-                existing,
-                times,
-                daysMask,
-                type,
-                kind,
-                labelCtrl.text,
-                medNameCtrl.text,
-                doseCtrl.text,
-                strings,
-              ),
+              onPressed: () {
+                debounce?.cancel();
+                _saveReminder(
+                  dialogCtx,
+                  existing,
+                  times,
+                  daysMask,
+                  type,
+                  kind,
+                  labelCtrl.text,
+                  medNameCtrl.text,
+                  doseFormKey,
+                  doseAmountCtrl.text,
+                  rxcui,
+                  strings,
+                );
+              },
               child: Text(strings.save),
             ),
           ],
@@ -472,7 +596,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
     ReminderKind kind,
     String labelText,
     String medName,
-    String dose,
+    String? doseFormKey,
+    String doseAmountRaw,
+    String? rxcui,
     AppStrings strings,
   ) async {
     final messenger = ScaffoldMessenger.of(dialogCtx);
@@ -480,19 +606,28 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
     final sortedTimes = List<String>.from(times)..sort();
 
+    final doseAmount = doseAmountRaw.trim().isEmpty
+        ? null
+        : double.tryParse(doseAmountRaw.trim().replaceAll(',', '.'));
+    if (kind == ReminderKind.medication &&
+        doseAmountRaw.trim().isNotEmpty &&
+        doseAmount == null) {
+      messenger.showSnackBar(SnackBar(content: Text(strings.errorDoseAmount)));
+      return;
+    }
+
     String label;
     if (labelText.trim().isNotEmpty) {
       label = labelText.trim();
     } else if (kind == ReminderKind.medication) {
       final name = medName.trim();
-      final doseText = dose.trim();
       if (name.isEmpty) {
         messenger.showSnackBar(
           SnackBar(content: Text(strings.errorMedicationName)),
         );
         return;
       }
-      label = doseText.isEmpty ? name : '$name · $doseText';
+      label = name;
     } else {
       label = strings.readingType(type);
     }
@@ -508,6 +643,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
           ? daysMask
           : WeekdayBits.everyDay,
       times: sortedTimes,
+      doseForm: kind == ReminderKind.medication ? doseFormKey : null,
+      doseAmount: kind == ReminderKind.medication ? doseAmount : null,
+      rxcui: kind == ReminderKind.medication ? rxcui : null,
     );
 
     if (existing == null) {
@@ -520,6 +658,54 @@ class _RemindersScreenState extends State<RemindersScreen> {
           .showSnackBar(SnackBar(content: Text(strings.reminderAdded)));
     }
     if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+  }
+
+  // ── Medication helpers ──────────────────────────────────────────────────
+
+  static const _doseFormKeys = [
+    'tablet',
+    'capsule',
+    'ml',
+    'drops',
+    'spray',
+    'cream',
+    'injection',
+    'units',
+  ];
+
+  static String _formatAmount(double v) =>
+      v % 1 == 0 ? v.toInt().toString() : v.toString();
+
+  /// Maps an English RxNorm dose form to the app's stable dose-form key.
+  static String? _doseFormKeyFromRxNorm(String? rxForm) {
+    if (rxForm == null) return null;
+    final f = rxForm.toLowerCase();
+    if (f.contains('tablet')) return 'tablet';
+    if (f.contains('capsule')) return 'capsule';
+    if (f.contains('drop')) return 'drops';
+    if (f.contains('aerosol') || f.contains('spray')) return 'spray';
+    if (f.contains('cream') || f.contains('ointment') || f.contains('gel')) {
+      return 'cream';
+    }
+    if (f.contains('inject')) return 'injection';
+    if (f.contains('solution') ||
+        f.contains('syrup') ||
+        f.contains('liquid') ||
+        f.contains('suspension')) {
+      return 'ml';
+    }
+    return null;
+  }
+
+  void _openMedicationDetails(
+    BuildContext context,
+    String rxcui,
+    String fallbackName,
+  ) {
+    Navigator.of(context).pushNamed(
+      '/medication-details',
+      arguments: {'rxcui': rxcui, 'name': fallbackName},
+    );
   }
 }
 
@@ -658,6 +844,23 @@ class _MedicationCard extends StatelessWidget {
     required this.onHistory,
   });
 
+  /// "1 حبة · 08:00 · 20:00 · كل الأيام" style subtitle.
+  String _subtitle(Reminder reminder, AppStrings strings) {
+    final parts = <String>[];
+    final form = strings.doseFormLabel(reminder.doseForm);
+    if (reminder.doseAmount != null) {
+      final amount = reminder.doseAmount! % 1 == 0
+          ? reminder.doseAmount!.toInt().toString()
+          : reminder.doseAmount!.toString();
+      parts.add(form != null ? '$amount $form' : amount);
+    } else if (form != null) {
+      parts.add(form);
+    }
+    parts.addAll(reminder.effectiveTimes);
+    parts.add(strings.daysPatternLabel(reminder.daysPattern));
+    return parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
@@ -673,18 +876,39 @@ class _MedicationCard extends StatelessWidget {
       iconColorOverride: purple,
       onEdit: onEdit,
       children: [
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: Text(
-            reminder.label,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                reminder.label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            if (reminder.rxcui != null)
+              InkWell(
+                onTap: () => Navigator.of(context).pushNamed(
+                  '/medication-details',
+                  arguments: {'rxcui': reminder.rxcui, 'name': reminder.label},
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.info_outline,
+                    size: 17,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 2),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: Text(
-            '${reminder.effectiveTimes.join(' · ')}  ·  ${strings.daysPatternLabel(reminder.daysPattern)}',
+            _subtitle(reminder, strings),
             style: TextStyle(color: Colors.grey.shade600, fontSize: 12.5),
           ),
         ),

@@ -157,17 +157,34 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    await _plugin.zonedSchedule(
-      id: id,
-      title: title,
-      body: body,
-      scheduledDate: scheduled,
-      notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: weekday == null
-          ? DateTimeComponents.time
-          : DateTimeComponents.dayOfWeekAndTime,
-    );
+    try {
+      await _plugin.zonedSchedule(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: scheduled,
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: weekday == null
+            ? DateTimeComponents.time
+            : DateTimeComponents.dayOfWeekAndTime,
+      );
+    } on Exception catch (e) {
+      // Exact alarms need SCHEDULE_EXACT_ALARM granted on Android 12+;
+      // a reminder that fires a minute late beats no reminder at all.
+      debugPrint('Exact scheduling failed, falling back to inexact: $e');
+      await _plugin.zonedSchedule(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: scheduled,
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: weekday == null
+            ? DateTimeComponents.time
+            : DateTimeComponents.dayOfWeekAndTime,
+      );
+    }
   }
 
   Future<void> cancelReminder(int id) async {

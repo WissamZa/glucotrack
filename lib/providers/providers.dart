@@ -201,35 +201,45 @@ class RemindersProvider extends ChangeNotifier {
     final isMedication = r.kind == ReminderKind.medication;
     final weekdays = _activeWeekdays(r);
     if (weekdays.isEmpty) return;
+    // Scheduling must never block saving: the DB write already happened by
+    // the time this runs, so any notification failure is logged only.
 
-    for (final weekday in weekdays) {
-      for (final time in r.effectiveTimes) {
-        final parts = time.split(':');
-        final hour = int.tryParse(parts[0]);
-        final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
-        if (hour == null || minute == null) continue;
-        await _notif.scheduleReminder(
-          id: _notificationId(r, weekday, time),
-          weekday: weekday,
-          hour: hour,
-          minute: minute,
-          title: 'GlucoTrack',
-          body: r.label.isEmpty
-              ? (isMedication
-                    ? 'Time to take your medication'
-                    : 'Time to measure your blood glucose')
-              : r.label,
-          medication: isMedication,
-        );
+    try {
+      for (final weekday in weekdays) {
+        for (final time in r.effectiveTimes) {
+          final parts = time.split(':');
+          final hour = int.tryParse(parts[0]);
+          final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+          if (hour == null || minute == null) continue;
+          await _notif.scheduleReminder(
+            id: _notificationId(r, weekday, time),
+            weekday: weekday,
+            hour: hour,
+            minute: minute,
+            title: 'GlucoTrack',
+            body: r.label.isEmpty
+                ? (isMedication
+                      ? 'Time to take your medication'
+                      : 'Time to measure your blood glucose')
+                : r.label,
+            medication: isMedication,
+          );
+        }
       }
+    } on Exception catch (e) {
+      debugPrint('Failed to schedule reminder ${r.id}: $e');
     }
   }
 
   Future<void> _cancelNotification(Reminder r) async {
-    for (final weekday in _activeWeekdays(r)) {
-      for (final time in r.effectiveTimes) {
-        await _notif.cancelReminder(_notificationId(r, weekday, time));
+    try {
+      for (final weekday in _activeWeekdays(r)) {
+        for (final time in r.effectiveTimes) {
+          await _notif.cancelReminder(_notificationId(r, weekday, time));
+        }
       }
+    } on Exception catch (e) {
+      debugPrint('Failed to cancel reminder notifications: $e');
     }
   }
 

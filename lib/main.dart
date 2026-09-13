@@ -21,6 +21,7 @@ import 'screens/export_screen.dart';
 import 'screens/health_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/insights_screen.dart';
+import 'screens/medication_details_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
@@ -119,6 +120,7 @@ class GlucoTrackApp extends StatelessWidget {
               '/export': (_) => const ExportScreen(),
               '/sync': (_) => const BleSyncScreen(),
               '/tips': (_) => const TipsScreen(),
+              '/medication-details': (_) => const MedicationDetailsScreen(),
               '/health': (_) => const HealthScreen(),
             },
           );
