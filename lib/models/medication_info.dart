@@ -13,6 +13,8 @@ class MedicationInfo {
   final String? tty; // term type: SBD (brand) / SCDC / IN ...
   final String? indications; // دواعي الاستخدام (openFDA / Saudi bundled)
   final String? ingredients; // active ingredients
+  final String? dosage; // الجرعة الموصى بها
+  final String? method; // طريقة الاستخدام
   final bool? otc; // true = sold without prescription; null = unknown
   final int fetchedAt; // epoch ms — cache freshness
 
@@ -26,6 +28,8 @@ class MedicationInfo {
     this.tty,
     this.indications,
     this.ingredients,
+    this.dosage,
+    this.method,
     this.otc,
     required this.fetchedAt,
   });
@@ -62,6 +66,8 @@ class MedicationInfo {
     'tty': tty,
     'indications': indications,
     'ingredients': ingredients,
+    'dosage': dosage,
+    'method': method,
     'otc': (otc == null) ? null : (otc! ? 1 : 0),
     'fetched_at': fetchedAt,
   };
@@ -76,6 +82,8 @@ class MedicationInfo {
     tty: m['tty'] as String?,
     indications: m['indications'] as String?,
     ingredients: m['ingredients'] as String?,
+    dosage: m['dosage'] as String?,
+    method: m['method'] as String?,
     otc: m['otc'] == null ? null : (m['otc'] as int) == 1,
     fetchedAt: m['fetched_at'] as int,
   );

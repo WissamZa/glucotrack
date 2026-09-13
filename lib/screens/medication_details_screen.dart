@@ -27,7 +27,7 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
   MedicationInfo? _info;
   bool _loading = true;
   bool _staleOnly = false;
-  List<NahdiPrice> _prices = const [];
+  List<NahdiProduct> _products = const [];
 
   @override
   void initState() {
@@ -50,15 +50,15 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
       // lookup failed and we fell back to cached data.
       _staleOnly = info != null && info.doseForm == null;
     });
-    unawaited(_fetchPrice());
+    unawaited(_fetchNahdi());
   }
 
-  Future<void> _fetchPrice() async {
+  Future<void> _fetchNahdi() async {
     final query = _info?.name ?? _fallbackName;
     if (query.isEmpty) return;
-    final prices = await NahdiPriceService().search(query);
+    final products = await NahdiPriceService().search(query);
     if (!mounted) return;
-    setState(() => _prices = prices);
+    setState(() => _products = products);
   }
 
   @override
@@ -94,9 +94,10 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                 _headerCard(strings),
                 const SizedBox(height: 12),
                 _detailsSection(strings),
-                if (_prices.isNotEmpty) ...[
+                if (_products.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  _nahdiPriceCard(strings),
+                  for (final product in _products.take(3))
+                    _nahdiCard(strings, product),
                 ],
                 const SizedBox(height: 16),
                 Text(
@@ -252,6 +253,8 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
         _infoRow(strings.doseForm, form),
         _infoRow(strings.medStrength, info.strength),
         _infoRow(strings.ingredientsLabel, info.ingredients),
+        _infoRow(strings.dosageLabel, info.dosage),
+        _infoRow(strings.methodLabel, info.method),
         if (info.indications != null && info.indications!.isNotEmpty)
           Card(
             child: Padding(
@@ -310,8 +313,7 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
     );
   }
 
-  Widget _nahdiPriceCard(AppStrings strings) {
-    final price = _prices.first;
+  Widget _nahdiCard(AppStrings strings, NahdiProduct product) {
     return Card(
       color: const Color(0xFF10B981).withValues(alpha: 0.07),
       child: Padding(
@@ -320,36 +322,144 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.local_pharmacy,
-                  size: 18,
-                  color: Color(0xFF10B981),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: product.imageUrl != null
+                      ? Image.network(
+                          product.imageUrl!,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            width: 56,
+                            height: 56,
+                            color: Colors.grey.shade200,
+                            child: const Icon(
+                              Icons.local_pharmacy,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 56,
+                          height: 56,
+                          color: Colors.grey.shade200,
+                          child: const Icon(
+                            Icons.local_pharmacy,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    strings.nahdiPrice,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.nameAr,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            strings.nahdiPrice,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            product.priceFormatted ??
+                                (product.priceSar != null
+                                    ? '${product.priceSar} ر.س'
+                                    : strings.priceUnavailable),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  price.formatted,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF10B981),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: product.inStock
+                        ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                        : const Color(0xFFEF4444).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    product.inStock
+                        ? strings.inStockLabel
+                        : strings.outOfStockLabel,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: product.inStock
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            if (product.usageLines.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                strings.usageLinesLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              for (final line in product.usageLines.take(3))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('•  '),
+                      Expanded(
+                        child: Text(
+                          line,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.5,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            if (product.ingredients.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  '${strings.ingredientsLabel}: ${product.ingredients.join('، ')}',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                ),
+              ),
             Text(
-              '${price.productName} · ${strings.nahdiPriceNote}',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              '${product.concentration ?? ''} ${strings.nahdiPriceNote}',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
           ],
         ),

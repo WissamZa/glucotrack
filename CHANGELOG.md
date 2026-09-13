@@ -3,6 +3,18 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.9.0+11] — 2026-09-13
+
+### Changed — add-reading FAB
+- The FAB moved to the **side position (end)** and now appears **only on the Home tab**.
+
+### Fixed & enriched — Nahdi drug data
+- The Nahdi lookup previously returned prices for only a fraction of products. It now requests the site's data-stream endpoint (`_rsc`) and parses the **full product records**: Arabic + English names, price in SAR, **stock status**, product **image**, active ingredients, concentration, and **Arabic usage lines (طريقة الاستخدام)** — tolerant to both stream shapes, verified against real captured payloads.
+- Details page: the Nahdi section now shows up to 3 product matches with image, price, in-stock badge, usage lines and ingredients.
+
+### Added — dosage & method of use
+- New fields on drug details: **الجرعة الموصى بها (dosage)** and **طريقة الاستخدام (method)**. openFDA entries populate them from the label's `dosage_and_administration` section; DB v8 (additive) caches them.
+
 ## [1.8.0+10] — 2026-09-13
 
 ### Fixed — tab bar

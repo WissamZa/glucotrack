@@ -436,6 +436,11 @@ class AppStrings {
   String get rxBadge => get('rx_badge');
   String get otcBadge => get('otc_badge');
   String get notFromSource => get('not_from_source');
+  String get dosageLabel => get('dosage_label');
+  String get methodLabel => get('method_label');
+  String get inStockLabel => get('in_stock_label');
+  String get outOfStockLabel => get('out_of_stock_label');
+  String get usageLinesLabel => get('usage_lines_label');
   String get nahdiPrice => get('nahdi_price');
   String get nahdiPriceNote => get('nahdi_price_note');
   String get priceUnavailable => get('price_unavailable');
@@ -1259,6 +1264,11 @@ const Map<String, String> _en = {
   'rx_badge': 'Prescription required',
   'otc_badge': 'No prescription needed',
   'not_from_source': 'Not available from this source — try another source in the Medications tab',
+  'dosage_label': 'Recommended dosage',
+  'method_label': 'Method of use',
+  'in_stock_label': 'In stock',
+  'out_of_stock_label': 'Out of stock',
+  'usage_lines_label': 'Usage & indications',
   'nahdi_price': 'Nahdi Pharmacy price',
   'nahdi_price_note': 'Approximate price from Nahdi online — may change',
   'price_unavailable': 'No price found for this drug',

@@ -296,16 +296,18 @@ class _MainShellState extends State<MainShell> {
     final strings = AppStrings.of(context);
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'main_shell_add_reading_fab',
-        onPressed: _openAdd,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        tooltip: strings.tooltipAddReading,
-        child: const Icon(Icons.add, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: _index == 0
+          ? FloatingActionButton(
+              heroTag: 'main_shell_add_reading_fab',
+              onPressed: _openAdd,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              tooltip: strings.tooltipAddReading,
+              child: const Icon(Icons.add, size: 28),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: BottomAppBar(
         child: SizedBox(
           height: 64,

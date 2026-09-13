@@ -208,6 +208,7 @@ class OpenFdaSource extends DrugSource {
       // Label sections (truncated for display): usage + active ingredients.
       final indications = _firstText(raw['indications_and_usage'], 400);
       final ingredients = _firstText(raw['active_ingredient'], 300);
+      final dosage = _firstText(raw['dosage_and_administration'], 500);
       // openFDA OTC monograph products mark purpose/otc; prescription drugs
       // usually carry 'RxOnly'. Heuristic: no 'otc' flag in metadata → null.
       out.add(
@@ -221,6 +222,7 @@ class OpenFdaSource extends DrugSource {
           tty: 'openfda',
           indications: indications,
           ingredients: ingredients,
+          dosage: dosage,
           otc: null,
           fetchedAt: DateTime.now().millisecondsSinceEpoch,
         ),
