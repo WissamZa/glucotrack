@@ -3,6 +3,13 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.9.1+12] — 2026-09-13
+
+### Fixed — Nahdi product data extraction
+- The v1.9.0 scanner cut records at every `"sku"` occurrence and missed most prices/usage lines (the page embeds multiple record shapes interleaved). Records are now extracted as **complete balanced-brace objects** with a string-aware scanner and decoded with a real JSON parser.
+- Both price shapes are supported (`price.SAR.default` from the stream and `price.{currency,value}` from the grid payload), the top-level Arabic name and singular `ingredient` fields are read, and Algolia highlight markers are stripped everywhere.
+- Verified against real captured payloads (both shapes) in the test suite.
+
 ## [1.9.0+11] — 2026-09-13
 
 ### Changed — add-reading FAB
