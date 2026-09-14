@@ -441,8 +441,12 @@ class AppStrings {
   String get inStockLabel => get('in_stock_label');
   String get outOfStockLabel => get('out_of_stock_label');
   String get usageLinesLabel => get('usage_lines_label');
+  String get warningsLabel => get('warnings_label');
   String get nahdiPrice => get('nahdi_price');
   String get nahdiPriceNote => get('nahdi_price_note');
+  String get nahdiSearching => get('nahdi_searching');
+  String get nahdiSectionTitle => get('nahdi_section_title');
+  String get nahdiNotFound => get('nahdi_not_found');
   String get priceUnavailable => get('price_unavailable');
   String sourceLabel(String id) => get('source_$id');
   String sourceDesc(String id) => get('source_${id}_desc');
@@ -872,8 +876,13 @@ const Map<String, String> _ar = {
   'otc_badge': 'بدون وصفة',
   'not_from_source':
       'غير متوفر من هذا المصدر — جرّب مصدراً آخر من تبويب الأدوية',
+  'usage_lines_label': 'دواعي الاستخدام',
+  'warnings_label': 'التحذيرات والاحتياطات',
   'nahdi_price': 'السعر في صيدلية النهدي',
   'nahdi_price_note': 'سعر تقريبي من موقع النهدي الإلكتروني — قابل للتغير',
+  'nahdi_searching': 'جاري جلب الأسعار والتفاصيل من صيدليات النهدي...',
+  'nahdi_section_title': 'بيانات صيدليات النهدي',
+  'nahdi_not_found': 'لم يتم العثور على هذا الدواء في صيدليات النهدي',
   'price_unavailable': 'لم يتم العثور على سعر لهذا الدواء',
   'source_saudi': 'السعودية 🇸🇦 (مدمجة)',
   'source_saudi_desc': 'قاعدة مدمجة بأشهر أدوية السوق السعودي — تعمل بدون إنترنت وتدعم البحث بالعربية',
@@ -1269,8 +1278,12 @@ const Map<String, String> _en = {
   'in_stock_label': 'In stock',
   'out_of_stock_label': 'Out of stock',
   'usage_lines_label': 'Usage & indications',
+  'warnings_label': 'Warnings & Precautions',
   'nahdi_price': 'Nahdi Pharmacy price',
   'nahdi_price_note': 'Approximate price from Nahdi online — may change',
+  'nahdi_searching': 'Fetching prices and details from Nahdi Pharmacy...',
+  'nahdi_section_title': 'Nahdi Pharmacy Data',
+  'nahdi_not_found': 'Not found in Nahdi Pharmacy',
   'price_unavailable': 'No price found for this drug',
   'source_saudi': 'Saudi 🇸🇦 (bundled)',
   'source_saudi_desc': 'Bundled library of the most common Saudi-market drugs — offline, supports Arabic search',

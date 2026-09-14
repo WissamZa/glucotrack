@@ -1,7 +1,5 @@
-// Medication details screen — drug information from the selected source
-// (bundled Saudi list / RxNorm / openFDA), served cache-first so repeat
-// lookups work offline. Shows active ingredients, indications, prescription
-// status and an approximate Nahdi Pharmacy price when available.
+// Medication details screen — shows official registry info + live Saudi
+// pharmacy pricing (Nahdi), usage, dosage, method, warnings, and ingredients.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -22,43 +20,87 @@ class MedicationDetailsScreen extends StatefulWidget {
 }
 
 class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
-  late final String _rxcui;
-  late final String _fallbackName;
-  MedicationInfo? _info;
+  String _rxcui = '';
+  String _fallbackName = '';
+  String? _fallbackSynonym;
   bool _loading = true;
+  bool _nahdiLoading = false;
   bool _staleOnly = false;
+  bool _initialized = false;
+  MedicationInfo? _info;
   List<NahdiProduct> _products = const [];
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
         const {};
     _rxcui = args['rxcui'] as String? ?? '';
     _fallbackName = args['name'] as String? ?? '';
+    _fallbackSynonym = args['synonym'] as String?;
     _load();
   }
 
   Future<void> _load() async {
-    final info = await MedicationApiService().details(_rxcui);
+    MedicationInfo? info;
+    if (_rxcui.isNotEmpty) {
+      info = await MedicationApiService().details(_rxcui);
+    }
     if (!mounted) return;
     setState(() {
       _info = info;
       _loading = false;
-      // Search-stage entries carry no dose form — usually means the network
-      // lookup failed and we fell back to cached data.
       _staleOnly = info != null && info.doseForm == null;
     });
     unawaited(_fetchNahdi());
   }
 
   Future<void> _fetchNahdi() async {
-    final query = _info?.name ?? _fallbackName;
-    if (query.isEmpty) return;
-    final products = await NahdiPriceService().search(query);
     if (!mounted) return;
-    setState(() => _products = products);
+    setState(() => _nahdiLoading = true);
+
+    // Build ordered list of search candidate queries
+    final candidates = <String>{};
+    if (_info?.synonym != null && _info!.synonym!.trim().isNotEmpty) {
+      candidates.add(_info!.synonym!.trim());
+    }
+    if (_fallbackSynonym != null && _fallbackSynonym!.trim().isNotEmpty) {
+      candidates.add(_fallbackSynonym!.trim());
+    }
+    if (_info?.name != null && _info!.name.trim().isNotEmpty) {
+      candidates.add(_info!.name.trim());
+    }
+    if (_fallbackName.trim().isNotEmpty) {
+      candidates.add(_fallbackName.trim());
+    }
+
+    List<NahdiProduct> products = const [];
+    for (final q in candidates) {
+      products = await NahdiPriceService().search(q);
+      if (products.isNotEmpty) break;
+
+      // Try simplified search (first 1-2 words) if query has multiple words
+      final words = q.split(RegExp(r'\s+'));
+      if (words.length > 1) {
+        final simplified = words.take(2).join(' ').trim();
+        products = await NahdiPriceService().search(simplified);
+        if (products.isNotEmpty) break;
+        if (words.length > 2) {
+          products = await NahdiPriceService().search(words.first);
+          if (products.isNotEmpty) break;
+        }
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _products = products;
+      _nahdiLoading = false;
+    });
   }
 
   @override
@@ -74,7 +116,7 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
             tooltip: strings.addReminder,
             onPressed: () => showReminderEditor(
               context,
-              prefillName: _info?.name ?? _fallbackName,
+              prefillName: _info?.synonym ?? _info?.name ?? _fallbackName,
               prefillRxcui: _rxcui,
               prefillFormKey: _info?.doseForm,
             ),
@@ -94,11 +136,8 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                 _headerCard(strings),
                 const SizedBox(height: 12),
                 _detailsSection(strings),
-                if (_products.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  for (final product in _products.take(3))
-                    _nahdiCard(strings, product),
-                ],
+                const SizedBox(height: 16),
+                _nahdiSection(strings),
                 const SizedBox(height: 16),
                 Text(
                   strings.medSourceRxNorm,
@@ -112,13 +151,16 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
 
   Widget _headerCard(AppStrings strings) {
     final name = _info?.name ?? _fallbackName;
+    final synonym = _info?.synonym ?? _fallbackSynonym;
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 48,
@@ -135,12 +177,31 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        synonym != null && synonym.isNotEmpty ? synonym : name,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (synonym != null &&
+                          synonym.isNotEmpty &&
+                          name.isNotEmpty &&
+                          name != synonym)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -155,25 +216,26 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                 else
                   const SizedBox.shrink(),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    strings.sourceLabel(MedicationInfo.sourceOf(_rxcui)),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                if (_rxcui.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      strings.sourceLabel(MedicationInfo.sourceOf(_rxcui)),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ],
@@ -209,7 +271,6 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
   }
 
   Widget _typeChip(AppStrings strings, String? tty) {
-    // SBD/BPCK/… = brand names; IN/SCD/… = generic (clinical) names.
     final isBrand =
         tty != null && (tty.startsWith('SB') || tty.startsWith('BP'));
     final label = isBrand ? strings.medTypeBrand : strings.medTypeGeneric;
@@ -232,30 +293,33 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
   }
 
   Widget _detailsSection(AppStrings strings) {
-    if (_info == null) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            strings.noSuggestions,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-          ),
-        ),
-      );
-    }
-    final info = _info!;
-    final form = strings.doseFormLabel(info.doseForm);
+    final topProduct = _products.firstOrNull;
+
+    // Fallbacks from Nahdi product if main registry lacked them
+    final indications =
+        _info?.indications ??
+        (topProduct != null && topProduct.usageLines.isNotEmpty
+            ? topProduct.usageLines.join('\n• ')
+            : null);
+    final ingredients =
+        _info?.ingredients ??
+        (topProduct != null && topProduct.ingredients.isNotEmpty
+            ? topProduct.ingredients.join('، ')
+            : null);
+    final dosage = _info?.dosage ?? topProduct?.dosage;
+    final method = _info?.method ?? topProduct?.method;
+    final form = strings.doseFormLabel(_info?.doseForm);
+    final strength = _info?.strength ?? topProduct?.concentration;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _infoRow(strings.medSynonym, info.synonym),
         _infoRow(strings.doseForm, form),
-        _infoRow(strings.medStrength, info.strength),
-        _infoRow(strings.ingredientsLabel, info.ingredients),
-        _infoRow(strings.dosageLabel, info.dosage),
-        _infoRow(strings.methodLabel, info.method),
-        if (info.indications != null && info.indications!.isNotEmpty)
+        _infoRow(strings.medStrength, strength),
+        _infoRow(strings.ingredientsLabel, ingredients),
+        _infoRow(strings.dosageLabel, dosage),
+        _infoRow(strings.methodLabel, method),
+        if (indications != null && indications.isNotEmpty)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -280,25 +344,19 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
-                    info.indications!,
+                    indications.startsWith('•')
+                        ? indications
+                        : '• $indications',
                     style: TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 13,
                       height: 1.6,
                       color: Colors.grey.shade800,
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        if (info.indications == null || info.ingredients == null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              strings.notFromSource,
-              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
             ),
           ),
         if (_staleOnly)
@@ -313,9 +371,92 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
     );
   }
 
+  Widget _nahdiSection(AppStrings strings) {
+    if (_nahdiLoading) {
+      return Card(
+        color: const Color(0xFF10B981).withValues(alpha: 0.05),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF10B981),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  strings.nahdiSearching,
+                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_products.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(
+                Icons.local_pharmacy_outlined,
+                size: 20,
+                color: Colors.grey.shade500,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  strings.nahdiNotFound,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8, right: 4, left: 4),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.local_pharmacy,
+                size: 16,
+                color: Color(0xFF10B981),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                strings.nahdiSectionTitle,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (final product in _products.take(3)) _nahdiCard(strings, product),
+      ],
+    );
+  }
+
   Widget _nahdiCard(AppStrings strings, NahdiProduct product) {
     return Card(
-      color: const Color(0xFF10B981).withValues(alpha: 0.07),
+      color: const Color(0xFF10B981).withValues(alpha: 0.06),
+      margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -424,11 +565,11 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
+                  color: Colors.grey.shade700,
                 ),
               ),
               const SizedBox(height: 4),
-              for (final line in product.usageLines.take(3))
+              for (final line in product.usageLines.take(4))
                 Padding(
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Row(
@@ -449,25 +590,34 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                   ),
                 ),
             ],
-            if (product.dosage != null) ...[
+            if (product.dosage != null && product.dosage!.isNotEmpty) ...[
               const SizedBox(height: 8),
               _nahdiDetailRow(strings.dosageLabel, product.dosage!),
             ],
-            if (product.method != null) ...[
+            if (product.method != null && product.method!.isNotEmpty) ...[
               const SizedBox(height: 4),
               _nahdiDetailRow(strings.methodLabel, product.method!),
+            ],
+            if (product.warnings != null && product.warnings!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _nahdiDetailRow(strings.warningsLabel, product.warnings!),
             ],
             if (product.ingredients.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   '${strings.ingredientsLabel}: ${product.ingredients.join('، ')}',
-                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
+            const SizedBox(height: 6),
             Text(
-              '${product.concentration ?? ''} ${strings.nahdiPriceNote}',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              '${product.concentration ?? ''} ${strings.nahdiPriceNote}'.trim(),
+              style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
             ),
           ],
         ),
@@ -476,14 +626,21 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
   }
 
   Widget _nahdiDetailRow(String label, String value) => Padding(
-    padding: const EdgeInsets.only(bottom: 2),
+    padding: const EdgeInsets.only(bottom: 3),
     child: RichText(
       text: TextSpan(
-        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.5,
+          color: Colors.grey.shade800,
+        ),
         children: [
           TextSpan(
             text: '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF047857),
+            ),
           ),
           TextSpan(text: value),
         ],
@@ -492,20 +649,38 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
   );
 
   Widget _infoRow(String label, String? value) {
-    if (value == null || value.isEmpty) return const SizedBox.shrink();
+    if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Card(
-        child: ListTile(
-          dense: true,
-          title: Text(
-            label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
-          trailing: Text(
-            value,
-            textAlign: TextAlign.end,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 110,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.start,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

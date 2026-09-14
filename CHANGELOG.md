@@ -3,6 +3,15 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.9.3+14] — 2026-09-14
+
+### Fixed — Medication Details Display & Live Nahdi Pharmacy Data
+- **Fixed UI crash in MedicationDetailsScreen**: Removed `ModalRoute.of(context)` from `initState()` which threw an unhandled Flutter exception upon route opening and prevented data from ever loading; route arguments are now safely extracted in `didChangeDependencies()`.
+- **Live Nahdi Online Search**: Updated `NahdiPriceService` to query `https://www.nahdionline.com/ar-sa/search?query=...` directly and parse `InstantSearchInitialResults`, which contains complete hits with product names, SKU, prices in SAR, stock status, usage lines, ingredients, images, and product URLs.
+- **Product Details & Dosage/Method Extraction**: Deep enrichment fetches individual product pages to extract **طريقة الاستخدام** (how to use), **الجرعة الموصى بها** (recommended dosage), **التحذيرات والاحتياطات** (warnings & precautions), and active ingredients.
+- **UI Enhancements**: Added Nahdi loading card, Nahdi section header, complete Nahdi card details display, and fallback to Nahdi data if the medication registry lacks dosage/method/indications.
+- **Bundled Saudi Drugs**: Authoritative bundled drug data now bypasses stale offline cache so newly mapped indications and ingredients immediately show up on the details screen.
+
 ## [1.9.2+13] — 2026-09-14
 
 ### Fixed — Nahdi product data (drug details)

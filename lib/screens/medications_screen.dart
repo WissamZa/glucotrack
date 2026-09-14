@@ -87,7 +87,11 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
   void _openDetails(MedicationInfo info) {
     Navigator.of(context).pushNamed(
       '/medication-details',
-      arguments: {'rxcui': info.rxcui, 'name': info.name},
+      arguments: {
+        'rxcui': info.rxcui,
+        'name': info.name,
+        'synonym': info.synonym,
+      },
     );
   }
 

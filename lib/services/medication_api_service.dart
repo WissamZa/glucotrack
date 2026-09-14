@@ -53,6 +53,17 @@ class MedicationApiService {
     final srcId = MedicationInfo.sourceOf(rxcui);
     final src = DrugSources.byId(srcId);
 
+    // Bundled Saudi list is local, authoritative, and always fresh.
+    if (srcId == DrugSources.saudi) {
+      final saudi = await src.details(rxcui);
+      if (saudi != null) {
+        try {
+          await _db.upsertMedicationCache(saudi);
+        } on Exception catch (_) {}
+        return saudi;
+      }
+    }
+
     final cached = await _db.getMedicationFromCache(srcId, rxcui);
     if (cached != null && cached.isFresh && cached.doseForm != null) {
       return cached;
