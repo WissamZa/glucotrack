@@ -178,13 +178,12 @@ class NahdiPriceService {
         detailFields['description'];
     if (usageRaw is String && usageRaw.trim().isNotEmpty) {
       // Split on newlines or Arabic-style list markers
-      final lines =
-          usageRaw
-              .split(RegExp(r'[\n\r•·،,]+'))
-              .map((l) => l.trim())
-              .where((l) => l.isNotEmpty)
-              .take(4)
-              .toList();
+      final lines = usageRaw
+          .split(RegExp(r'[\n\r•·،,]+'))
+          .map((l) => l.trim())
+          .where((l) => l.isNotEmpty)
+          .take(4)
+          .toList();
       usageLines.addAll(lines);
     }
 
@@ -471,8 +470,7 @@ class NahdiPriceService {
       slug: slug,
       priceSar: price,
       priceFormatted:
-          formatted ??
-          (price != null ? '${_fmtPrice(price)} ر.س' : null),
+          formatted ?? (price != null ? '${_fmtPrice(price)} ر.س' : null),
       inStock: inStock,
       imageUrl: imageUrl,
       brandAr: brand,
