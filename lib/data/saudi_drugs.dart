@@ -37,6 +37,9 @@ class SaudiDrug {
     doseForm: formKey,
     strength: strength,
     tty: 'saudi',
+    indications: usage.isNotEmpty ? usage : null,
+    ingredients: ingredient.isNotEmpty ? ingredient : null,
+    otc: otc,
     fetchedAt: DateTime.now().millisecondsSinceEpoch,
   );
 }

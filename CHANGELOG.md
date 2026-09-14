@@ -3,6 +3,13 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.9.2+13] — 2026-09-14
+
+### Fixed — Nahdi product data (drug details)
+- **Correct RSC response format**: the Nahdi search RSC stream returns simple product records (`sku`, `name`, `slug`, `price.{currency,value}`, `inStock`, `brand`, `image`, `rating`). The parser now handles this shape correctly in addition to the legacy Algolia shape, so price and in-stock status are reliably extracted.
+- **Per-product detail lookup**: after the search, the service fetches each product's detail page via its `slug` and extracts **دواعي الاستخدام** (usage/indications), **الجرعة الموصى بها** (dosage), **طريقة الاستخدام** (method of use) and **المكونات الفعالة** (active ingredients). All fields are shown in the Nahdi card on the medication details screen.
+- **Bundled Saudi drug details**: `SaudiDrug.toInfo()` now populates `indications` (from the Arabic `usage` line), `ingredients` and `otc` so the details screen correctly shows دواعي الاستخدام and OTC/Rx badge for all bundled Saudi drugs without requiring any network request.
+
 ## [1.9.1+12] — 2026-09-13
 
 ### Fixed — Nahdi product data extraction

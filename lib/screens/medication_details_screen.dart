@@ -449,6 +449,14 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
                   ),
                 ),
             ],
+            if (product.dosage != null) ...[
+              const SizedBox(height: 8),
+              _nahdiDetailRow(strings.dosageLabel, product.dosage!),
+            ],
+            if (product.method != null) ...[
+              const SizedBox(height: 4),
+              _nahdiDetailRow(strings.methodLabel, product.method!),
+            ],
             if (product.ingredients.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -466,6 +474,22 @@ class _MedicationDetailsScreenState extends State<MedicationDetailsScreen> {
       ),
     );
   }
+
+  Widget _nahdiDetailRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 2),
+    child: RichText(
+      text: TextSpan(
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+        children: [
+          TextSpan(
+            text: '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          TextSpan(text: value),
+        ],
+      ),
+    ),
+  );
 
   Widget _infoRow(String label, String? value) {
     if (value == null || value.isEmpty) return const SizedBox.shrink();
