@@ -266,11 +266,6 @@ class DatabaseHelper {
         dose_form TEXT,
         strength TEXT,
         tty TEXT,
-        indications TEXT,
-        ingredients TEXT,
-        dosage TEXT,
-        method TEXT,
-        otc INTEGER,
         fetched_at INTEGER NOT NULL,
         PRIMARY KEY (source, rxcui)
       )

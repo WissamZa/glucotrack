@@ -178,17 +178,19 @@ void main() {
   });
 
   group('fresh install path (v2 schema + migrations)', () {
-    test('onCreate-equivalent path produces a working v6 database', () async {
+    test('onCreate-equivalent path produces a working v8 database', () async {
       final db = await databaseFactory.openDatabase(
         inMemoryDatabasePath,
         options: OpenDatabaseOptions(
-          version: 6,
+          version: 8,
           onCreate: (db, version) async {
             await DatabaseHelper.createSchemaV2(db);
             await DatabaseHelper.migrateToV3(db);
             await DatabaseHelper.migrateToV4(db);
             await DatabaseHelper.migrateToV5(db);
             await DatabaseHelper.migrateToV6(db);
+            await DatabaseHelper.migrateToV7(db);
+            await DatabaseHelper.migrateToV8(db);
           },
         ),
       );
@@ -249,6 +251,11 @@ void main() {
         'dose_form': 'tablet',
         'strength': '500 mg',
         'tty': 'saudi',
+        'indications': 'pain relief',
+        'ingredients': 'paracetamol',
+        'dosage': '1 tablet',
+        'method': 'oral',
+        'otc': 1,
         'fetched_at': 1700000000000,
       });
 
@@ -261,7 +268,12 @@ void main() {
       expect((await db.query('health_metrics')).length, 1);
       expect((await db.query('water_log')).length, 1);
       expect((await db.query('medication_log')).length, 1);
-      expect((await db.query('medication_cache')).length, 1);
+      final medication = (await db.query('medication_cache')).single;
+      expect(medication['indications'], 'pain relief');
+      expect(medication['ingredients'], 'paracetamol');
+      expect(medication['dosage'], '1 tablet');
+      expect(medication['method'], 'oral');
+      expect(medication['otc'], 1);
 
       await db.close();
     });

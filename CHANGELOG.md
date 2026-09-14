@@ -3,6 +3,14 @@
 All notable changes to GlucoTrack are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/) — versions follow `MAJOR.MINOR.PATCH+build`.
 
+## [1.9.4+15] — 2026-09-14
+
+### Fixed — fresh-install database initialization
+- Fixed an initialization crash caused by `medication_cache.indications` being
+  added twice during the v8 schema creation path.
+- Kept the v5/v6 cache schema limited to its original columns so the v7/v8
+  migrations can add the enriched medication fields exactly once.
+
 ## [1.9.3+14] — 2026-09-14
 
 ### Fixed — Medication Details Display & Live Nahdi Pharmacy Data
